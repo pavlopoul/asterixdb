@@ -116,8 +116,8 @@ public class DatasetRewriter implements IFunctionToDataSourceRewriter, IResultTy
         // variable and a record field-access expression.
         IAType[] schemaTypes = dataSource.getSchemaTypes();
         ARecordType recordType =
-                (ARecordType) (hasMeta ? schemaTypes[schemaTypes.length - 2] : schemaTypes[schemaTypes.length - 1]);
-        ARecordType metaRecordType = (ARecordType) (hasMeta ? schemaTypes[schemaTypes.length - 1] : null);
+                (ARecordType) (hasMeta ? schemaTypes[schemaTypes.length - 3] : schemaTypes[schemaTypes.length - 2]);
+        ARecordType metaRecordType = (ARecordType) (hasMeta ? schemaTypes[schemaTypes.length - 2] : null);
         EquivalenceClassUtils.addEquivalenceClassesForPrimaryIndexAccess(scan, variables, recordType, metaRecordType,
                 dataset, context);
         return true;

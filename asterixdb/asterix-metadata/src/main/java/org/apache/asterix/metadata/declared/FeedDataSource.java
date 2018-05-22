@@ -22,7 +22,6 @@ import java.util.ArrayList;
 import java.util.List;
 
 import org.apache.asterix.active.EntityId;
-import org.apache.asterix.common.dataflow.ICcApplicationContext;
 import org.apache.asterix.external.feed.management.FeedConnectionId;
 import org.apache.asterix.external.operators.FeedCollectOperatorDescriptor;
 import org.apache.asterix.external.util.FeedUtils.FeedRuntimeType;
@@ -48,6 +47,7 @@ import org.apache.hyracks.api.dataflow.IOperatorDescriptor;
 import org.apache.hyracks.api.dataflow.value.ISerializerDeserializer;
 import org.apache.hyracks.api.dataflow.value.RecordDescriptor;
 import org.apache.hyracks.api.job.JobSpecification;
+import org.apache.hyracks.storage.am.common.api.ITupleFilterFactory;
 
 public class FeedDataSource extends DataSource implements IMutationDataSource {
 
@@ -158,9 +158,9 @@ public class FeedDataSource extends DataSource implements IMutationDataSource {
     public Pair<IOperatorDescriptor, AlgebricksPartitionConstraint> buildDatasourceScanRuntime(
             MetadataProvider metadataProvider, IDataSource<DataSourceId> dataSource,
             List<LogicalVariable> scanVariables, List<LogicalVariable> projectVariables, boolean projectPushed,
-            List<LogicalVariable> minFilterVars, List<LogicalVariable> maxFilterVars, IOperatorSchema opSchema,
-            IVariableTypeEnvironment typeEnv, JobGenContext context, JobSpecification jobSpec, Object implConfig)
-            throws AlgebricksException {
+            List<LogicalVariable> minFilterVars, List<LogicalVariable> maxFilterVars,
+            ITupleFilterFactory tupleFilterFactory, IOperatorSchema opSchema, IVariableTypeEnvironment typeEnv,
+            JobGenContext context, JobSpecification jobSpec, Object implConfig) throws AlgebricksException {
         try {
             ARecordType feedOutputType = (ARecordType) itemType;
             ISerializerDeserializer payloadSerde =

@@ -43,6 +43,7 @@ import org.apache.hyracks.algebricks.core.algebra.properties.PhysicalRequirement
 import org.apache.hyracks.algebricks.core.algebra.properties.StructuralPropertiesVector;
 import org.apache.hyracks.algebricks.core.jobgen.impl.JobGenContext;
 import org.apache.hyracks.api.dataflow.IOperatorDescriptor;
+import org.apache.hyracks.storage.am.common.api.ITupleFilterFactory;
 
 @SuppressWarnings("rawtypes")
 public class DataSourceScanPOperator extends AbstractScanPOperator {
@@ -108,10 +109,14 @@ public class DataSourceScanPOperator extends AbstractScanPOperator {
         IVariableTypeEnvironment typeEnv = context.getTypeEnvironment(op);
         List<LogicalVariable> vars = scan.getVariables();
         List<LogicalVariable> projectVars = scan.getProjectVariables();
-
+        ITupleFilterFactory tupleFilterFactory = null;
+        if (scan.getExtendedDataSource() != null) {
+            tupleFilterFactory = context.getMetadataProvider().createTupleFilterFactory(
+                    new IOperatorSchema[] { opSchema }, typeEnv, scan.getExtendedDataSource().getValue(), context);
+        }
         Pair<IOperatorDescriptor, AlgebricksPartitionConstraint> p =
                 mp.getScannerRuntime(dataSource, vars, projectVars, scan.isProjectPushed(), scan.getMinFilterVars(),
-                        scan.getMaxFilterVars(), opSchema, typeEnv, context, builder.getJobSpec(), implConfig);
+                        scan.getMaxFilterVars(), tupleFilterFactory, opSchema, typeEnv, context, builder.getJobSpec(), implConfig);
         builder.contributeHyracksOperator(scan, p.first);
         if (p.second != null) {
             builder.contributeAlgebricksPartitionConstraint(p.first, p.second);

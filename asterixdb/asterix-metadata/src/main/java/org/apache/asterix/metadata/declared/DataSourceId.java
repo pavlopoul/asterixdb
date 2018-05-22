@@ -23,15 +23,23 @@ public class DataSourceId {
 
     private String dataverseName;
     private String datasourceName;
+    private String fieldName;
 
     public DataSourceId(String dataverseName, String datasourceName) {
         this.dataverseName = dataverseName;
         this.datasourceName = datasourceName;
+        this.fieldName = null;
+    }
+
+    public DataSourceId(String dataverseName, String datasourceName, String fieldName) {
+        this.dataverseName = dataverseName;
+        this.datasourceName = datasourceName;
+        this.fieldName = fieldName;
     }
 
     @Override
     public String toString() {
-        return dataverseName + "." + datasourceName;
+        return dataverseName + "." + datasourceName + ", "+ fieldName;
     }
 
     public String getDataverseName() {
@@ -40,5 +48,13 @@ public class DataSourceId {
 
     public String getDatasourceName() {
         return datasourceName;
+    }
+    
+    public String getFieldName() {
+        return fieldName;
+    }
+    
+    public void addFieldName(String fieldName) {
+        this.fieldName=fieldName;
     }
 }

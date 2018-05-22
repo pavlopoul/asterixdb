@@ -42,10 +42,17 @@ public class DataSourceScanOperator extends AbstractDataSourceOperator {
     private List<Mutable<ILogicalExpression>> additionalFilteringExpressions;
     private List<LogicalVariable> minFilterVars;
     private List<LogicalVariable> maxFilterVars;
+    private Mutable<ILogicalExpression> extendedDataSource;
 
     public DataSourceScanOperator(List<LogicalVariable> variables, IDataSource<?> dataSource) {
+        this(variables, dataSource, null);
+    }
+
+    public DataSourceScanOperator(List<LogicalVariable> variables, IDataSource<?> dataSource,
+            Mutable<ILogicalExpression> extendedDataSource) {
         super(variables, dataSource);
         projectVars = new ArrayList<LogicalVariable>();
+        this.extendedDataSource = extendedDataSource;
     }
 
     @Override
@@ -103,9 +110,27 @@ public class DataSourceScanOperator extends AbstractDataSourceOperator {
         IVariableTypeEnvironment env = createPropagatingAllInputsTypeEnvironment(ctx);
         Object[] types = dataSource.getSchemaTypes();
         int i = 0;
+        //        if (extendedDataSource != null) {
+        //            for (LogicalVariable v : variables) {
+        //                if (i == 0) {
+        //                    env.setVarType(v, types[i]);
+        //                } else {
+
+        //                }
+        //                ++i;
+        //            }
+
+        //        } else {
         for (LogicalVariable v : variables) {
-            env.setVarType(v, types[i]);
+            if (i != 2) {
+                env.setVarType(v, types[i]);
+            }
             ++i;
+        }
+        //        }
+        if (extendedDataSource != null) {
+            env.setVarType(variables.get(2), ctx.getExpressionTypeComputer().getType(extendedDataSource.getValue(),
+                    ctx.getMetadataProvider(), env));
         }
         return env;
     }
@@ -132,5 +157,13 @@ public class DataSourceScanOperator extends AbstractDataSourceOperator {
 
     public List<Mutable<ILogicalExpression>> getAdditionalFilteringExpressions() {
         return additionalFilteringExpressions;
+    }
+
+    public Mutable<ILogicalExpression> getExtendedDataSource() {
+        return extendedDataSource;
+    }
+
+    public void setExtendedDataSource(Mutable<ILogicalExpression> extendedDataSource) {
+        this.extendedDataSource = extendedDataSource;
     }
 }

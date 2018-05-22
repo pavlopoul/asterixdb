@@ -115,6 +115,9 @@ public class DatasetTupleTranslator extends AbstractTupleTranslator<Dataset> {
         String datasetName =
                 ((AString) datasetRecord.getValueByPos(MetadataRecordTypes.DATASET_ARECORD_DATASETNAME_FIELD_INDEX))
                         .getStringValue();
+//        String fieldName =
+//                ((AString) datasetRecord.getValueByPos(MetadataRecordTypes.DATASET_ARECORD_DATASETNAME_FIELD_INDEX))
+//                        .getStringValue();
         String typeName =
                 ((AString) datasetRecord.getValueByPos(MetadataRecordTypes.DATASET_ARECORD_DATATYPENAME_FIELD_INDEX))
                         .getStringValue();
@@ -261,9 +264,9 @@ public class DatasetTupleTranslator extends AbstractTupleTranslator<Dataset> {
         long rebalanceCount = rebalanceCountIndex >= 0
                 ? ((AInt64) datasetRecord.getValueByPos(rebalanceCountIndex)).getLongValue() : 0;
 
-        return new Dataset(dataverseName, datasetName, typeDataverseName, typeName, metaTypeDataverseName, metaTypeName,
-                nodeGroupName, compactionPolicy, compactionPolicyProperties, datasetDetails, hints, datasetType,
-                datasetId, pendingOp, rebalanceCount);
+        return new Dataset(dataverseName, datasetName, /*fieldName,*/ typeDataverseName, typeName, metaTypeDataverseName,
+                metaTypeName, nodeGroupName, compactionPolicy, compactionPolicyProperties, datasetDetails, hints,
+                datasetType, datasetId, pendingOp, rebalanceCount);
     }
 
     @Override

@@ -61,6 +61,7 @@ import org.apache.asterix.optimizer.rules.NestGroupByRule;
 import org.apache.asterix.optimizer.rules.PushAggFuncIntoStandaloneAggregateRule;
 import org.apache.asterix.optimizer.rules.PushAggregateIntoNestedSubplanRule;
 import org.apache.asterix.optimizer.rules.PushFieldAccessRule;
+import org.apache.asterix.optimizer.rules.PushFieldNameToDataScanRule;
 import org.apache.asterix.optimizer.rules.PushGroupByThroughProduct;
 import org.apache.asterix.optimizer.rules.PushLimitIntoOrderByRule;
 import org.apache.asterix.optimizer.rules.PushProperJoinThroughProduct;
@@ -190,6 +191,8 @@ public final class RuleCollections {
         normalization.add(new ConstantFoldingRule(appCtx));
         normalization.add(new RemoveRedundantSelectRule());
         normalization.add(new UnnestToDataScanRule());
+        normalization.add(new PushFieldNameToDataScanRule());
+       // normalization.add(new RemoveUnusedAssignAndAggregateRule());
         normalization.add(new MetaFunctionToMetaVariableRule());
         normalization.add(new FuzzyEqRule());
         normalization.add(new SimilarityCheckRule());
@@ -350,6 +353,7 @@ public final class RuleCollections {
         // We are going to apply a constant folding rule again for this case.
         physicalRewritesTopLevel.add(new ConstantFoldingRule(appCtx));
         physicalRewritesTopLevel.add(new PushLimitIntoOrderByRule());
+        //physicalRewritesTopLevel.add(new PushFieldNameToDataScanRule());
         physicalRewritesTopLevel.add(new IntroduceProjectsRule());
         physicalRewritesTopLevel.add(new SetAlgebricksPhysicalOperatorsRule());
         physicalRewritesTopLevel.add(new IntroduceRapidFrameFlushProjectAssignRule());

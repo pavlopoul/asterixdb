@@ -26,7 +26,6 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 
-import org.apache.asterix.common.transactions.ITxnIdFactory;
 import org.apache.asterix.common.cluster.IClusterStateManager;
 import org.apache.asterix.common.config.DatasetConfig.DatasetType;
 import org.apache.asterix.common.config.DatasetConfig.ExternalFilePendingOp;
@@ -38,6 +37,7 @@ import org.apache.asterix.common.dataflow.ICcApplicationContext;
 import org.apache.asterix.common.dataflow.LSMTreeInsertDeleteOperatorDescriptor;
 import org.apache.asterix.common.exceptions.AsterixException;
 import org.apache.asterix.common.metadata.LockList;
+import org.apache.asterix.common.transactions.ITxnIdFactory;
 import org.apache.asterix.common.transactions.TxnId;
 import org.apache.asterix.common.utils.StoragePathUtil;
 import org.apache.asterix.dataflow.data.nontagged.MissingWriterFactory;
@@ -132,6 +132,7 @@ import org.apache.hyracks.dataflow.std.result.ResultWriterOperatorDescriptor;
 import org.apache.hyracks.storage.am.btree.dataflow.BTreeSearchOperatorDescriptor;
 import org.apache.hyracks.storage.am.common.api.IModificationOperationCallbackFactory;
 import org.apache.hyracks.storage.am.common.api.ISearchOperationCallbackFactory;
+import org.apache.hyracks.storage.am.common.api.ITupleFilterFactory;
 import org.apache.hyracks.storage.am.common.dataflow.IIndexDataflowHelperFactory;
 import org.apache.hyracks.storage.am.common.dataflow.IndexDataflowHelperFactory;
 import org.apache.hyracks.storage.am.common.ophelpers.IndexOperation;
@@ -380,10 +381,12 @@ public class MetadataProvider implements IMetadataProvider<DataSourceId, String>
     public Pair<IOperatorDescriptor, AlgebricksPartitionConstraint> getScannerRuntime(
             IDataSource<DataSourceId> dataSource, List<LogicalVariable> scanVariables,
             List<LogicalVariable> projectVariables, boolean projectPushed, List<LogicalVariable> minFilterVars,
-            List<LogicalVariable> maxFilterVars, IOperatorSchema opSchema, IVariableTypeEnvironment typeEnv,
-            JobGenContext context, JobSpecification jobSpec, Object implConfig) throws AlgebricksException {
+            List<LogicalVariable> maxFilterVars, ITupleFilterFactory tupleFilterFactory, IOperatorSchema opSchema,
+            IVariableTypeEnvironment typeEnv, JobGenContext context, JobSpecification jobSpec, Object implConfig)
+            throws AlgebricksException {
         return ((DataSource) dataSource).buildDatasourceScanRuntime(this, dataSource, scanVariables, projectVariables,
-                projectPushed, minFilterVars, maxFilterVars, opSchema, typeEnv, context, jobSpec, implConfig);
+                projectPushed, minFilterVars, maxFilterVars, tupleFilterFactory, opSchema, typeEnv, context, jobSpec,
+                implConfig);
     }
 
     protected Pair<IOperatorDescriptor, AlgebricksPartitionConstraint> buildLoadableDatasetScan(
@@ -431,9 +434,10 @@ public class MetadataProvider implements IMetadataProvider<DataSourceId, String>
 
     public Pair<IOperatorDescriptor, AlgebricksPartitionConstraint> buildBtreeRuntime(JobSpecification jobSpec,
             IOperatorSchema opSchema, IVariableTypeEnvironment typeEnv, JobGenContext context, boolean retainInput,
-            boolean retainMissing, Dataset dataset, String indexName, int[] lowKeyFields, int[] highKeyFields,
-            boolean lowKeyInclusive, boolean highKeyInclusive, boolean propagateFilter, int[] minFilterFieldIndexes,
-            int[] maxFilterFieldIndexes, boolean isIndexOnlyPlan) throws AlgebricksException {
+            boolean retainMissing, Dataset dataset, String fieldName, String indexName, int[] lowKeyFields,
+            int[] highKeyFields, boolean lowKeyInclusive, boolean highKeyInclusive, boolean propagateFilter,
+            int[] minFilterFieldIndexes, int[] maxFilterFieldIndexes, ITupleFilterFactory tupleFilterFactory,
+            boolean isIndexOnlyPlan) throws AlgebricksException {
         boolean isSecondary = true;
         Index primaryIndex = MetadataManager.INSTANCE.getIndex(mdTxnCtx, dataset.getDataverseName(),
                 dataset.getDatasetName(), dataset.getDatasetName());
@@ -443,7 +447,27 @@ public class MetadataProvider implements IMetadataProvider<DataSourceId, String>
         Index theIndex = isSecondary ? MetadataManager.INSTANCE.getIndex(mdTxnCtx, dataset.getDataverseName(),
                 dataset.getDatasetName(), indexName) : primaryIndex;
         int numPrimaryKeys = dataset.getPrimaryKeys().size();
-        RecordDescriptor outputRecDesc = JobGenHelper.mkRecordDescriptor(typeEnv, opSchema, context);
+        RecordDescriptor outputRecDesc = null;
+        //if (fieldName == null) {
+        outputRecDesc = JobGenHelper.mkRecordDescriptor(typeEnv, opSchema, context);
+        //        } else {
+        //            ISerializerDeserializerProvider isdp = context.getSerializerDeserializerProvider();
+        //            SerializerDeserializerProvider sdp = (SerializerDeserializerProvider) isdp;
+        //
+        //            ITypeTraitProvider ttp = context.getTypeTraitProvider();
+        //            ISerializerDeserializer[] fields = new ISerializerDeserializer[1];
+        //            ITypeTraits[] typeTraits = new ITypeTraits[1];
+        //            int i = 0;
+        //            for (LogicalVariable var : opSchema) {
+        //                Object t = typeEnv.getVarType(var);
+        //                if (i == 2) {
+        //                    fields[0] = sdp.getSerializerDeserializer(t);
+        //                    typeTraits[0] = ttp.getTypeTrait(t);
+        //                }
+        //                i++;
+        //            }
+        //            outputRecDesc = new RecordDescriptor(fields, typeTraits);
+        //}
         Pair<IFileSplitProvider, AlgebricksPartitionConstraint> spPc =
                 getSplitProviderAndConstraints(dataset, theIndex.getIndexName());
         int[] primaryKeyFields = new int[numPrimaryKeys];
@@ -477,8 +501,8 @@ public class MetadataProvider implements IMetadataProvider<DataSourceId, String>
             btreeSearchOp = new BTreeSearchOperatorDescriptor(jobSpec, outputRecDesc, lowKeyFields, highKeyFields,
                     lowKeyInclusive, highKeyInclusive, indexHelperFactory, retainInput, retainMissing,
                     context.getMissingWriterFactory(), searchCallbackFactory, minFilterFieldIndexes,
-                    maxFilterFieldIndexes, propagateFilter, proceedIndexOnlyPlan, failValueForIndexOnlyPlan,
-                    successValueForIndexOnlyPlan);
+                    maxFilterFieldIndexes, propagateFilter, tupleFilterFactory, proceedIndexOnlyPlan,
+                    failValueForIndexOnlyPlan, successValueForIndexOnlyPlan);
         } else {
             btreeSearchOp = new ExternalBTreeSearchOperatorDescriptor(jobSpec, outputRecDesc, lowKeyFields,
                     highKeyFields, lowKeyInclusive, highKeyInclusive, indexHelperFactory, retainInput, retainMissing,
@@ -1541,7 +1565,7 @@ public class MetadataProvider implements IMetadataProvider<DataSourceId, String>
         }
     }
 
-    private AsterixTupleFilterFactory createTupleFilterFactory(IOperatorSchema[] inputSchemas,
+    public AsterixTupleFilterFactory createTupleFilterFactory(IOperatorSchema[] inputSchemas,
             IVariableTypeEnvironment typeEnv, ILogicalExpression filterExpr, JobGenContext context)
             throws AlgebricksException {
         // No filtering condition.

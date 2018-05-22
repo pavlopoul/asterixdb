@@ -41,6 +41,7 @@ public final class MetadataRecordTypes {
     public static final String FIELD_NAME_COMPACTION_POLICY_PROPERTIES = "CompactionPolicyProperties";
     public static final String FIELD_NAME_DATASET_ID = "DatasetId";
     public static final String FIELD_NAME_DATASET_NAME = "DatasetName";
+    /*public static final String FIELD_NAME_RECORD_NAME = "FieldName";*/
     public static final String FIELD_NAME_DATASET_TYPE = "DatasetType";
     public static final String FIELD_NAME_DATASOURCE_ADAPTER = "DatasourceAdapter";
     public static final String FIELD_NAME_DATATYPE_DATAVERSE_NAME = "DatatypeDataverseName";
@@ -151,6 +152,7 @@ public final class MetadataRecordTypes {
     public static final String RECORD_NAME_DATASET = "DatasetRecordType";
     public static final int DATASET_ARECORD_DATAVERSENAME_FIELD_INDEX = 0;
     public static final int DATASET_ARECORD_DATASETNAME_FIELD_INDEX = 1;
+    /*public static final int DATASET_ARECORD_FIELDNAME_FIELD_INDEX = 2;*/
     public static final int DATASET_ARECORD_DATATYPEDATAVERSENAME_FIELD_INDEX = 2;
     public static final int DATASET_ARECORD_DATATYPENAME_FIELD_INDEX = 3;
     public static final int DATASET_ARECORD_DATASETTYPE_FIELD_INDEX = 4;
@@ -167,14 +169,14 @@ public final class MetadataRecordTypes {
             // RecordTypeName
             RECORD_NAME_DATASET,
             // FieldNames
-            new String[] { FIELD_NAME_DATAVERSE_NAME, FIELD_NAME_DATASET_NAME, FIELD_NAME_DATATYPE_DATAVERSE_NAME,
-                    FIELD_NAME_DATATYPE_NAME, FIELD_NAME_DATASET_TYPE, FIELD_NAME_GROUP_NAME,
-                    FIELD_NAME_COMPACTION_POLICY, FIELD_NAME_COMPACTION_POLICY_PROPERTIES, FIELD_NAME_INTERNAL_DETAILS,
-                    FIELD_NAME_EXTERNAL_DETAILS, FIELD_NAME_HINTS, FIELD_NAME_TIMESTAMP, FIELD_NAME_DATASET_ID,
-                    FIELD_NAME_PENDING_OP },
+            new String[] { FIELD_NAME_DATAVERSE_NAME, FIELD_NAME_DATASET_NAME, /*FIELD_NAME_RECORD_NAME,*/
+                    FIELD_NAME_DATATYPE_DATAVERSE_NAME, FIELD_NAME_DATATYPE_NAME, FIELD_NAME_DATASET_TYPE,
+                    FIELD_NAME_GROUP_NAME, FIELD_NAME_COMPACTION_POLICY, FIELD_NAME_COMPACTION_POLICY_PROPERTIES,
+                    FIELD_NAME_INTERNAL_DETAILS, FIELD_NAME_EXTERNAL_DETAILS, FIELD_NAME_HINTS, FIELD_NAME_TIMESTAMP,
+                    FIELD_NAME_DATASET_ID, FIELD_NAME_PENDING_OP },
             // FieldTypes
-            new IAType[] { BuiltinType.ASTRING, BuiltinType.ASTRING, BuiltinType.ASTRING, BuiltinType.ASTRING,
-                    BuiltinType.ASTRING, BuiltinType.ASTRING, BuiltinType.ASTRING,
+            new IAType[] { BuiltinType.ASTRING, BuiltinType.ASTRING, /*BuiltinType.ASTRING, */BuiltinType.ASTRING,
+                    BuiltinType.ASTRING, BuiltinType.ASTRING, BuiltinType.ASTRING, BuiltinType.ASTRING,
                     new AOrderedListType(COMPACTION_POLICY_PROPERTIES_RECORDTYPE, null),
                     AUnionType.createUnknownableType(INTERNAL_DETAILS_RECORDTYPE),
                     AUnionType.createUnknownableType(EXTERNAL_DETAILS_RECORDTYPE),

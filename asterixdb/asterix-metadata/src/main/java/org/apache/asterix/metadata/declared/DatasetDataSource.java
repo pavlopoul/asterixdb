@@ -42,6 +42,7 @@ import org.apache.hyracks.algebricks.core.algebra.properties.INodeDomain;
 import org.apache.hyracks.algebricks.core.jobgen.impl.JobGenContext;
 import org.apache.hyracks.api.dataflow.IOperatorDescriptor;
 import org.apache.hyracks.api.job.JobSpecification;
+import org.apache.hyracks.storage.am.common.api.ITupleFilterFactory;
 
 public class DatasetDataSource extends DataSource {
 
@@ -73,7 +74,7 @@ public class DatasetDataSource extends DataSource {
         List<IAType> partitioningKeyTypes =
                 KeyFieldTypeUtil.getPartitioningKeyTypes(internalDatasetDetails, recordType, metaRecordType);
         int n = partitioningKeyTypes.size();
-        schemaTypes = metaItemType == null ? new IAType[n + 1] : new IAType[n + 2];
+        schemaTypes = metaItemType == null ? new IAType[n + 2] : new IAType[n + 3];
         for (int keyIndex = 0; keyIndex < n; ++keyIndex) {
             schemaTypes[keyIndex] = partitioningKeyTypes.get(keyIndex);
         }
@@ -92,9 +93,9 @@ public class DatasetDataSource extends DataSource {
     public Pair<IOperatorDescriptor, AlgebricksPartitionConstraint> buildDatasourceScanRuntime(
             MetadataProvider metadataProvider, IDataSource<DataSourceId> dataSource,
             List<LogicalVariable> scanVariables, List<LogicalVariable> projectVariables, boolean projectPushed,
-            List<LogicalVariable> minFilterVars, List<LogicalVariable> maxFilterVars, IOperatorSchema opSchema,
-            IVariableTypeEnvironment typeEnv, JobGenContext context, JobSpecification jobSpec, Object implConfig)
-            throws AlgebricksException {
+            List<LogicalVariable> minFilterVars, List<LogicalVariable> maxFilterVars,
+            ITupleFilterFactory tupleFilterFactory, IOperatorSchema opSchema, IVariableTypeEnvironment typeEnv,
+            JobGenContext context, JobSpecification jobSpec, Object implConfig) throws AlgebricksException {
         switch (dataset.getDatasetType()) {
             case EXTERNAL:
                 Dataset externalDataset = ((DatasetDataSource) dataSource).getDataset();
@@ -110,14 +111,16 @@ public class DatasetDataSource extends DataSource {
                 DataSourceId id = getId();
                 String dataverseName = id.getDataverseName();
                 String datasetName = id.getDatasourceName();
+                String fieldName = id.getFieldName();
                 Index primaryIndex = MetadataManager.INSTANCE.getIndex(metadataProvider.getMetadataTxnContext(),
                         dataverseName, datasetName, datasetName);
 
                 int[] minFilterFieldIndexes = createFilterIndexes(minFilterVars, opSchema);
                 int[] maxFilterFieldIndexes = createFilterIndexes(maxFilterVars, opSchema);
                 return metadataProvider.buildBtreeRuntime(jobSpec, opSchema, typeEnv, context, true, false,
-                        ((DatasetDataSource) dataSource).getDataset(), primaryIndex.getIndexName(), null, null, true,
-                        true, false, minFilterFieldIndexes, maxFilterFieldIndexes, false);
+                        ((DatasetDataSource) dataSource).getDataset(), fieldName, primaryIndex.getIndexName(), null,
+                        null, true, true, false, minFilterFieldIndexes, maxFilterFieldIndexes, tupleFilterFactory,
+                        false);
             default:
                 throw new AlgebricksException("Unknown datasource type");
         }

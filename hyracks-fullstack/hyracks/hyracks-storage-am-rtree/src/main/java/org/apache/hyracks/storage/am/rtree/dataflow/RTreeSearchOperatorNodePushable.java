@@ -56,7 +56,7 @@ public class RTreeSearchOperatorNodePushable extends IndexSearchOperatorNodePush
             byte[] searchCallbackProceedResultFalseValue, byte[] searchCallbackProceedResultTrueValue)
             throws HyracksDataException {
         super(ctx, inputRecDesc, partition, minFilterFieldIndexes, maxFilterFieldIndexes, indexHelperFactory,
-                retainInput, retainMissing, missingWriterFactory, searchCallbackFactory, appendIndexFilter,
+                retainInput, retainMissing, missingWriterFactory, searchCallbackFactory, appendIndexFilter, null,
                 appendOpCallbackProceedResult, searchCallbackProceedResultFalseValue,
                 searchCallbackProceedResultTrueValue);
         if (keyFields != null && keyFields.length > 0) {

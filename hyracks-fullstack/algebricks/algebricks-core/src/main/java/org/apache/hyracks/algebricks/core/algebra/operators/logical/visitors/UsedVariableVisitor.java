@@ -34,11 +34,11 @@ import org.apache.hyracks.algebricks.core.algebra.operators.logical.AbstractUnne
 import org.apache.hyracks.algebricks.core.algebra.operators.logical.AggregateOperator;
 import org.apache.hyracks.algebricks.core.algebra.operators.logical.AssignOperator;
 import org.apache.hyracks.algebricks.core.algebra.operators.logical.DataSourceScanOperator;
+import org.apache.hyracks.algebricks.core.algebra.operators.logical.DelegateOperator;
 import org.apache.hyracks.algebricks.core.algebra.operators.logical.DistinctOperator;
 import org.apache.hyracks.algebricks.core.algebra.operators.logical.DistributeResultOperator;
 import org.apache.hyracks.algebricks.core.algebra.operators.logical.EmptyTupleSourceOperator;
 import org.apache.hyracks.algebricks.core.algebra.operators.logical.ExchangeOperator;
-import org.apache.hyracks.algebricks.core.algebra.operators.logical.DelegateOperator;
 import org.apache.hyracks.algebricks.core.algebra.operators.logical.GroupByOperator;
 import org.apache.hyracks.algebricks.core.algebra.operators.logical.IndexInsertDeleteUpsertOperator;
 import org.apache.hyracks.algebricks.core.algebra.operators.logical.InnerJoinOperator;
@@ -105,6 +105,12 @@ public class UsedVariableVisitor implements ILogicalOperatorVisitor<Void, Void> 
                 e.getValue().getUsedVariables(usedVariables);
             }
         }
+//        if (op.getExtendedDataSource() != null) {
+//            Set<LogicalVariable> usedVariablesByAssign = new HashSet<>();
+//            op.getExtendedDataSource().getValue().getUsedVariables(usedVariablesByAssign);
+//            usedVariablesByAssign.removeAll(op.getVariables());
+//            usedVariables.addAll(usedVariablesByAssign);
+//        }
         return null;
     }
 

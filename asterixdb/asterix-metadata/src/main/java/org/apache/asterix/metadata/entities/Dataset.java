@@ -140,6 +140,7 @@ public class Dataset implements IMetadataEntity<Dataset>, IDataset {
     private final int datasetId;
     private final String dataverseName;
     private final String datasetName;
+   // private final String fieldName;
     private final String recordTypeDataverseName;
     private final String recordTypeName;
     private final String nodeGroupName;
@@ -170,24 +171,25 @@ public class Dataset implements IMetadataEntity<Dataset>, IDataset {
             String metaItemTypeDataverseName, String metaItemTypeName, String nodeGroupName, String compactionPolicy,
             Map<String, String> compactionPolicyProperties, IDatasetDetails datasetDetails, Map<String, String> hints,
             DatasetType datasetType, int datasetId, int pendingOp) {
-        this(dataverseName, datasetName, itemTypeDataverseName, itemTypeName, metaItemTypeDataverseName,
+        this(dataverseName, datasetName, /*null,*/ itemTypeDataverseName, itemTypeName, metaItemTypeDataverseName,
                 metaItemTypeName, nodeGroupName, compactionPolicy, compactionPolicyProperties, datasetDetails, hints,
                 datasetType, datasetId, pendingOp, 0L);
     }
 
     public Dataset(Dataset dataset) {
-        this(dataset.dataverseName, dataset.datasetName, dataset.recordTypeDataverseName, dataset.recordTypeName,
-                dataset.metaTypeDataverseName, dataset.metaTypeName, dataset.nodeGroupName,
+        this(dataset.dataverseName, dataset.datasetName, /*dataset.fieldName,*/ dataset.recordTypeDataverseName,
+                dataset.recordTypeName, dataset.metaTypeDataverseName, dataset.metaTypeName, dataset.nodeGroupName,
                 dataset.compactionPolicyFactory, dataset.compactionPolicyProperties, dataset.datasetDetails,
                 dataset.hints, dataset.datasetType, dataset.datasetId, dataset.pendingOp, dataset.rebalanceCount);
     }
 
-    public Dataset(String dataverseName, String datasetName, String itemTypeDataverseName, String itemTypeName,
-            String metaItemTypeDataverseName, String metaItemTypeName, String nodeGroupName, String compactionPolicy,
-            Map<String, String> compactionPolicyProperties, IDatasetDetails datasetDetails, Map<String, String> hints,
-            DatasetType datasetType, int datasetId, int pendingOp, long rebalanceCount) {
+    public Dataset(String dataverseName, String datasetName, /*String fieldName,*/ String itemTypeDataverseName,
+            String itemTypeName, String metaItemTypeDataverseName, String metaItemTypeName, String nodeGroupName,
+            String compactionPolicy, Map<String, String> compactionPolicyProperties, IDatasetDetails datasetDetails,
+            Map<String, String> hints, DatasetType datasetType, int datasetId, int pendingOp, long rebalanceCount) {
         this.dataverseName = dataverseName;
         this.datasetName = datasetName;
+       // this.fieldName = fieldName;
         this.recordTypeName = itemTypeName;
         this.recordTypeDataverseName = itemTypeDataverseName;
         this.metaTypeDataverseName = metaItemTypeDataverseName;
@@ -212,6 +214,10 @@ public class Dataset implements IMetadataEntity<Dataset>, IDataset {
     public String getDatasetName() {
         return datasetName;
     }
+
+//    public String getFieldName() {
+//        return fieldName;
+//    }
 
     public String getItemTypeName() {
         return recordTypeName;
@@ -369,7 +375,7 @@ public class Dataset implements IMetadataEntity<Dataset>, IDataset {
             // #. mark the existing dataset as PendingDropOp
             MetadataManager.INSTANCE.dropDataset(mdTxnCtx.getValue(), dataverseName, datasetName);
             MetadataManager.INSTANCE.addDataset(mdTxnCtx.getValue(),
-                    new Dataset(dataverseName, datasetName, getItemTypeDataverseName(), getItemTypeName(),
+                    new Dataset(dataverseName, datasetName,  getItemTypeDataverseName(), getItemTypeName(),
                             getMetaItemTypeDataverseName(), getMetaItemTypeName(), getNodeGroupName(),
                             getCompactionPolicy(), getCompactionPolicyProperties(), getDatasetDetails(), getHints(),
                             getDatasetType(), getDatasetId(), MetadataUtil.PENDING_DROP_OP));
@@ -408,7 +414,7 @@ public class Dataset implements IMetadataEntity<Dataset>, IDataset {
             // #. mark the existing dataset as PendingDropOp
             MetadataManager.INSTANCE.dropDataset(mdTxnCtx.getValue(), dataverseName, datasetName);
             MetadataManager.INSTANCE.addDataset(mdTxnCtx.getValue(),
-                    new Dataset(dataverseName, datasetName, getItemTypeDataverseName(), getItemTypeName(),
+                    new Dataset(dataverseName, datasetName,  getItemTypeDataverseName(), getItemTypeName(),
                             getNodeGroupName(), getCompactionPolicy(), getCompactionPolicyProperties(),
                             getDatasetDetails(), getHints(), getDatasetType(), getDatasetId(),
                             MetadataUtil.PENDING_DROP_OP));
@@ -563,7 +569,7 @@ public class Dataset implements IMetadataEntity<Dataset>, IDataset {
             boolean proceedIndexOnlyPlan) throws AlgebricksException {
         if (index.isPrimaryIndex()) {
             /**
-            /*
+             * /*
              * Due to the read-committed isolation level,
              * we may acquire very short duration lock(i.e., instant lock) for readers.
              */
@@ -658,6 +664,7 @@ public class Dataset implements IMetadataEntity<Dataset>, IDataset {
         tree.put("datasetId", Integer.toString(datasetId));
         tree.put("dataverseName", dataverseName);
         tree.put("datasetName", datasetName);
+        //tree.put("fieldName", fieldName);
         tree.put("recordTypeDataverseName", recordTypeDataverseName);
         tree.put("recordTypeName", recordTypeName);
         tree.put("nodeGroupName", nodeGroupName);
@@ -845,10 +852,11 @@ public class Dataset implements IMetadataEntity<Dataset>, IDataset {
 
     // Gets the target dataset for the purpose of rebalance.
     public Dataset getTargetDatasetForRebalance(String targetNodeGroupName) {
-        return new Dataset(this.dataverseName, this.datasetName, this.recordTypeDataverseName, this.recordTypeName,
-                this.metaTypeDataverseName, this.metaTypeName, targetNodeGroupName, this.compactionPolicyFactory,
-                this.compactionPolicyProperties, this.datasetDetails, this.hints, this.datasetType,
-                DatasetIdFactory.generateAlternatingDatasetId(this.datasetId), this.pendingOp, this.rebalanceCount + 1);
+        return new Dataset(this.dataverseName, this.datasetName, /*this.fieldName,*/ this.recordTypeDataverseName,
+                this.recordTypeName, this.metaTypeDataverseName, this.metaTypeName, targetNodeGroupName,
+                this.compactionPolicyFactory, this.compactionPolicyProperties, this.datasetDetails, this.hints,
+                this.datasetType, DatasetIdFactory.generateAlternatingDatasetId(this.datasetId), this.pendingOp,
+                this.rebalanceCount + 1);
     }
 
     // Gets an array of partition numbers for this dataset.

@@ -197,10 +197,10 @@ public abstract class IndexSearchOperatorNodePushable extends AbstractUnaryInput
             nonFilterTupleBuild = new ArrayTupleBuilder(numIndexFilterFields);
             buildMissingTuple(numIndexFilterFields, nonFilterTupleBuild, nonMatchWriter);
         }
-        
+
         if (tupleFilterFactory != null) {
             tupleFilter = tupleFilterFactory.createTupleFilter(ctx);
-            referenceFilterTuple = new ReferenceFrameTupleReference();
+            // referenceFilterTuple = new ReferenceFrameTupleReference();
         }
 
         try {
@@ -225,13 +225,13 @@ public abstract class IndexSearchOperatorNodePushable extends AbstractUnaryInput
     protected void writeSearchResults(int tupleIndex) throws Exception {
         long matchingTupleCount = 0;
         while (cursor.hasNext()) {
-            
+
             cursor.next();
             matchingTupleCount++;
             ITupleReference tuple = cursor.getTuple();
-            if (tupleFilter != null && !tupleFilter.accept(referenceFilterTuple.reset(tuple))) {
-                continue;
-            }
+            //            if (tupleFilter != null && !tupleFilter.accept(referenceFilterTuple.reset(tuple))) {
+            //                continue;
+            //            }
             tb.reset();
             if (retainInput) {
                 frameTuple.reset(accessor, tupleIndex);
@@ -372,7 +372,7 @@ public abstract class IndexSearchOperatorNodePushable extends AbstractUnaryInput
             nullTuple.addFieldEndOffset();
         }
     }
-    
+
     private static class ReferenceFrameTupleReference implements IFrameTupleReference {
         private ITupleReference tuple;
 
@@ -413,6 +413,5 @@ public abstract class IndexSearchOperatorNodePushable extends AbstractUnaryInput
         }
 
     }
-
 
 }

@@ -43,6 +43,7 @@ public class DataSourceScanOperator extends AbstractDataSourceOperator {
     private List<LogicalVariable> minFilterVars;
     private List<LogicalVariable> maxFilterVars;
     private Mutable<ILogicalExpression> extendedDataSource;
+    private Mutable<ILogicalExpression> unnestDataSource;
 
     public DataSourceScanOperator(List<LogicalVariable> variables, IDataSource<?> dataSource) {
         this(variables, dataSource, null);
@@ -50,9 +51,15 @@ public class DataSourceScanOperator extends AbstractDataSourceOperator {
 
     public DataSourceScanOperator(List<LogicalVariable> variables, IDataSource<?> dataSource,
             Mutable<ILogicalExpression> extendedDataSource) {
+        this(variables, dataSource, extendedDataSource, null);
+    }
+
+    public DataSourceScanOperator(List<LogicalVariable> variables, IDataSource<?> dataSource,
+            Mutable<ILogicalExpression> extendedDataSource, Mutable<ILogicalExpression> unnestDataSource) {
         super(variables, dataSource);
         projectVars = new ArrayList<LogicalVariable>();
         this.extendedDataSource = extendedDataSource;
+        this.unnestDataSource = unnestDataSource;
     }
 
     @Override
@@ -110,27 +117,19 @@ public class DataSourceScanOperator extends AbstractDataSourceOperator {
         IVariableTypeEnvironment env = createPropagatingAllInputsTypeEnvironment(ctx);
         Object[] types = dataSource.getSchemaTypes();
         int i = 0;
-        //        if (extendedDataSource != null) {
-        //            for (LogicalVariable v : variables) {
-        //                if (i == 0) {
-        //                    env.setVarType(v, types[i]);
-        //                } else {
-
-        //                }
-        //                ++i;
-        //            }
-
-        //        } else {
         for (LogicalVariable v : variables) {
-            if (i != 2) {
+            if (i < 2) {
                 env.setVarType(v, types[i]);
             }
             ++i;
         }
-        //        }
         if (extendedDataSource != null) {
             env.setVarType(variables.get(2), ctx.getExpressionTypeComputer().getType(extendedDataSource.getValue(),
                     ctx.getMetadataProvider(), env));
+            if (unnestDataSource != null) {
+                Object t = env.getType(unnestDataSource.getValue());
+                env.setVarType(variables.get(3), t);
+            }
         }
         return env;
     }
@@ -165,5 +164,13 @@ public class DataSourceScanOperator extends AbstractDataSourceOperator {
 
     public void setExtendedDataSource(Mutable<ILogicalExpression> extendedDataSource) {
         this.extendedDataSource = extendedDataSource;
+    }
+
+    public Mutable<ILogicalExpression> getUnnestDataSource() {
+        return unnestDataSource;
+    }
+
+    public void setUnnestDataSource(Mutable<ILogicalExpression> unnestDataSource) {
+        this.unnestDataSource = unnestDataSource;
     }
 }

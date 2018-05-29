@@ -105,12 +105,12 @@ public class UsedVariableVisitor implements ILogicalOperatorVisitor<Void, Void> 
                 e.getValue().getUsedVariables(usedVariables);
             }
         }
-//        if (op.getExtendedDataSource() != null) {
-//            Set<LogicalVariable> usedVariablesByAssign = new HashSet<>();
-//            op.getExtendedDataSource().getValue().getUsedVariables(usedVariablesByAssign);
-//            usedVariablesByAssign.removeAll(op.getVariables());
-//            usedVariables.addAll(usedVariablesByAssign);
-//        }
+        //        if (op.getExtendedDataSource() != null) {
+        //            Set<LogicalVariable> usedVariablesByAssign = new HashSet<>();
+        //            op.getExtendedDataSource().getValue().getUsedVariables(usedVariablesByAssign);
+        //            usedVariablesByAssign.removeAll(op.getVariables());
+        //            usedVariables.addAll(usedVariablesByAssign);
+        //        }
         return null;
     }
 

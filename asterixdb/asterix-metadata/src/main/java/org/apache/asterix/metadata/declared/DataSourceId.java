@@ -39,7 +39,7 @@ public class DataSourceId {
 
     @Override
     public String toString() {
-        return dataverseName + "." + datasourceName + ", "+ fieldName;
+        return dataverseName + "." + datasourceName + ", " + fieldName;
     }
 
     public String getDataverseName() {
@@ -49,12 +49,12 @@ public class DataSourceId {
     public String getDatasourceName() {
         return datasourceName;
     }
-    
+
     public String getFieldName() {
         return fieldName;
     }
-    
+
     public void addFieldName(String fieldName) {
-        this.fieldName=fieldName;
+        this.fieldName = fieldName;
     }
 }

@@ -114,6 +114,7 @@ import org.apache.hyracks.algebricks.data.IResultSerializerFactoryProvider;
 import org.apache.hyracks.algebricks.data.ISerializerDeserializerProvider;
 import org.apache.hyracks.algebricks.runtime.base.IPushRuntimeFactory;
 import org.apache.hyracks.algebricks.runtime.base.IScalarEvaluatorFactory;
+import org.apache.hyracks.algebricks.runtime.base.IUnnestingEvaluatorFactory;
 import org.apache.hyracks.algebricks.runtime.operators.std.SinkWriterRuntimeFactory;
 import org.apache.hyracks.api.dataflow.IOperatorDescriptor;
 import org.apache.hyracks.api.dataflow.value.IBinaryComparatorFactory;
@@ -381,12 +382,12 @@ public class MetadataProvider implements IMetadataProvider<DataSourceId, String>
     public Pair<IOperatorDescriptor, AlgebricksPartitionConstraint> getScannerRuntime(
             IDataSource<DataSourceId> dataSource, List<LogicalVariable> scanVariables,
             List<LogicalVariable> projectVariables, boolean projectPushed, List<LogicalVariable> minFilterVars,
-            List<LogicalVariable> maxFilterVars, ITupleFilterFactory tupleFilterFactory, IOperatorSchema opSchema,
-            IVariableTypeEnvironment typeEnv, JobGenContext context, JobSpecification jobSpec, Object implConfig)
-            throws AlgebricksException {
+            List<LogicalVariable> maxFilterVars, ITupleFilterFactory tupleFilterFactory,
+            IUnnestingEvaluatorFactory unnestingFactory, IOperatorSchema opSchema, IVariableTypeEnvironment typeEnv,
+            JobGenContext context, JobSpecification jobSpec, Object implConfig) throws AlgebricksException {
         return ((DataSource) dataSource).buildDatasourceScanRuntime(this, dataSource, scanVariables, projectVariables,
-                projectPushed, minFilterVars, maxFilterVars, tupleFilterFactory, opSchema, typeEnv, context, jobSpec,
-                implConfig);
+                projectPushed, minFilterVars, maxFilterVars, tupleFilterFactory, unnestingFactory, opSchema, typeEnv,
+                context, jobSpec, implConfig);
     }
 
     protected Pair<IOperatorDescriptor, AlgebricksPartitionConstraint> buildLoadableDatasetScan(
@@ -437,7 +438,7 @@ public class MetadataProvider implements IMetadataProvider<DataSourceId, String>
             boolean retainMissing, Dataset dataset, String fieldName, String indexName, int[] lowKeyFields,
             int[] highKeyFields, boolean lowKeyInclusive, boolean highKeyInclusive, boolean propagateFilter,
             int[] minFilterFieldIndexes, int[] maxFilterFieldIndexes, ITupleFilterFactory tupleFilterFactory,
-            boolean isIndexOnlyPlan) throws AlgebricksException {
+            IUnnestingEvaluatorFactory unnestingFactory, boolean isIndexOnlyPlan) throws AlgebricksException {
         boolean isSecondary = true;
         Index primaryIndex = MetadataManager.INSTANCE.getIndex(mdTxnCtx, dataset.getDataverseName(),
                 dataset.getDatasetName(), dataset.getDatasetName());
@@ -448,26 +449,7 @@ public class MetadataProvider implements IMetadataProvider<DataSourceId, String>
                 dataset.getDatasetName(), indexName) : primaryIndex;
         int numPrimaryKeys = dataset.getPrimaryKeys().size();
         RecordDescriptor outputRecDesc = null;
-        //if (fieldName == null) {
         outputRecDesc = JobGenHelper.mkRecordDescriptor(typeEnv, opSchema, context);
-        //        } else {
-        //            ISerializerDeserializerProvider isdp = context.getSerializerDeserializerProvider();
-        //            SerializerDeserializerProvider sdp = (SerializerDeserializerProvider) isdp;
-        //
-        //            ITypeTraitProvider ttp = context.getTypeTraitProvider();
-        //            ISerializerDeserializer[] fields = new ISerializerDeserializer[1];
-        //            ITypeTraits[] typeTraits = new ITypeTraits[1];
-        //            int i = 0;
-        //            for (LogicalVariable var : opSchema) {
-        //                Object t = typeEnv.getVarType(var);
-        //                if (i == 2) {
-        //                    fields[0] = sdp.getSerializerDeserializer(t);
-        //                    typeTraits[0] = ttp.getTypeTrait(t);
-        //                }
-        //                i++;
-        //            }
-        //            outputRecDesc = new RecordDescriptor(fields, typeTraits);
-        //}
         Pair<IFileSplitProvider, AlgebricksPartitionConstraint> spPc =
                 getSplitProviderAndConstraints(dataset, theIndex.getIndexName());
         int[] primaryKeyFields = new int[numPrimaryKeys];

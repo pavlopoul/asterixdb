@@ -140,7 +140,7 @@ public class Dataset implements IMetadataEntity<Dataset>, IDataset {
     private final int datasetId;
     private final String dataverseName;
     private final String datasetName;
-   // private final String fieldName;
+    // private final String fieldName;
     private final String recordTypeDataverseName;
     private final String recordTypeName;
     private final String nodeGroupName;
@@ -189,7 +189,7 @@ public class Dataset implements IMetadataEntity<Dataset>, IDataset {
             Map<String, String> hints, DatasetType datasetType, int datasetId, int pendingOp, long rebalanceCount) {
         this.dataverseName = dataverseName;
         this.datasetName = datasetName;
-       // this.fieldName = fieldName;
+        // this.fieldName = fieldName;
         this.recordTypeName = itemTypeName;
         this.recordTypeDataverseName = itemTypeDataverseName;
         this.metaTypeDataverseName = metaItemTypeDataverseName;
@@ -215,9 +215,9 @@ public class Dataset implements IMetadataEntity<Dataset>, IDataset {
         return datasetName;
     }
 
-//    public String getFieldName() {
-//        return fieldName;
-//    }
+    //    public String getFieldName() {
+    //        return fieldName;
+    //    }
 
     public String getItemTypeName() {
         return recordTypeName;
@@ -375,7 +375,7 @@ public class Dataset implements IMetadataEntity<Dataset>, IDataset {
             // #. mark the existing dataset as PendingDropOp
             MetadataManager.INSTANCE.dropDataset(mdTxnCtx.getValue(), dataverseName, datasetName);
             MetadataManager.INSTANCE.addDataset(mdTxnCtx.getValue(),
-                    new Dataset(dataverseName, datasetName,  getItemTypeDataverseName(), getItemTypeName(),
+                    new Dataset(dataverseName, datasetName, getItemTypeDataverseName(), getItemTypeName(),
                             getMetaItemTypeDataverseName(), getMetaItemTypeName(), getNodeGroupName(),
                             getCompactionPolicy(), getCompactionPolicyProperties(), getDatasetDetails(), getHints(),
                             getDatasetType(), getDatasetId(), MetadataUtil.PENDING_DROP_OP));
@@ -414,7 +414,7 @@ public class Dataset implements IMetadataEntity<Dataset>, IDataset {
             // #. mark the existing dataset as PendingDropOp
             MetadataManager.INSTANCE.dropDataset(mdTxnCtx.getValue(), dataverseName, datasetName);
             MetadataManager.INSTANCE.addDataset(mdTxnCtx.getValue(),
-                    new Dataset(dataverseName, datasetName,  getItemTypeDataverseName(), getItemTypeName(),
+                    new Dataset(dataverseName, datasetName, getItemTypeDataverseName(), getItemTypeName(),
                             getNodeGroupName(), getCompactionPolicy(), getCompactionPolicyProperties(),
                             getDatasetDetails(), getHints(), getDatasetType(), getDatasetId(),
                             MetadataUtil.PENDING_DROP_OP));

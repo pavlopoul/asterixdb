@@ -40,6 +40,7 @@ import org.apache.hyracks.algebricks.core.algebra.metadata.IDataSource;
 import org.apache.hyracks.algebricks.core.algebra.operators.logical.IOperatorSchema;
 import org.apache.hyracks.algebricks.core.algebra.properties.INodeDomain;
 import org.apache.hyracks.algebricks.core.jobgen.impl.JobGenContext;
+import org.apache.hyracks.algebricks.runtime.base.IUnnestingEvaluatorFactory;
 import org.apache.hyracks.api.dataflow.IOperatorDescriptor;
 import org.apache.hyracks.api.job.JobSpecification;
 import org.apache.hyracks.storage.am.common.api.ITupleFilterFactory;
@@ -94,8 +95,9 @@ public class DatasetDataSource extends DataSource {
             MetadataProvider metadataProvider, IDataSource<DataSourceId> dataSource,
             List<LogicalVariable> scanVariables, List<LogicalVariable> projectVariables, boolean projectPushed,
             List<LogicalVariable> minFilterVars, List<LogicalVariable> maxFilterVars,
-            ITupleFilterFactory tupleFilterFactory, IOperatorSchema opSchema, IVariableTypeEnvironment typeEnv,
-            JobGenContext context, JobSpecification jobSpec, Object implConfig) throws AlgebricksException {
+            ITupleFilterFactory tupleFilterFactory, IUnnestingEvaluatorFactory unnestingFactory,
+            IOperatorSchema opSchema, IVariableTypeEnvironment typeEnv, JobGenContext context, JobSpecification jobSpec,
+            Object implConfig) throws AlgebricksException {
         switch (dataset.getDatasetType()) {
             case EXTERNAL:
                 Dataset externalDataset = ((DatasetDataSource) dataSource).getDataset();
@@ -120,7 +122,7 @@ public class DatasetDataSource extends DataSource {
                 return metadataProvider.buildBtreeRuntime(jobSpec, opSchema, typeEnv, context, true, false,
                         ((DatasetDataSource) dataSource).getDataset(), fieldName, primaryIndex.getIndexName(), null,
                         null, true, true, false, minFilterFieldIndexes, maxFilterFieldIndexes, tupleFilterFactory,
-                        false);
+                        unnestingFactory, false);
             default:
                 throw new AlgebricksException("Unknown datasource type");
         }

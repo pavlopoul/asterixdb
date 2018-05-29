@@ -29,7 +29,9 @@ import org.apache.hyracks.algebricks.core.algebra.base.IOptimizationContext;
 import org.apache.hyracks.algebricks.core.algebra.base.LogicalOperatorTag;
 import org.apache.hyracks.algebricks.core.algebra.base.LogicalVariable;
 import org.apache.hyracks.algebricks.core.algebra.base.PhysicalOperatorTag;
+import org.apache.hyracks.algebricks.core.algebra.expressions.IExpressionRuntimeProvider;
 import org.apache.hyracks.algebricks.core.algebra.expressions.IVariableTypeEnvironment;
+import org.apache.hyracks.algebricks.core.algebra.expressions.UnnestingFunctionCallExpression;
 import org.apache.hyracks.algebricks.core.algebra.metadata.IDataSource;
 import org.apache.hyracks.algebricks.core.algebra.metadata.IDataSourcePropertiesProvider;
 import org.apache.hyracks.algebricks.core.algebra.metadata.IMetadataProvider;
@@ -42,6 +44,7 @@ import org.apache.hyracks.algebricks.core.algebra.properties.IPhysicalProperties
 import org.apache.hyracks.algebricks.core.algebra.properties.PhysicalRequirements;
 import org.apache.hyracks.algebricks.core.algebra.properties.StructuralPropertiesVector;
 import org.apache.hyracks.algebricks.core.jobgen.impl.JobGenContext;
+import org.apache.hyracks.algebricks.runtime.base.IUnnestingEvaluatorFactory;
 import org.apache.hyracks.api.dataflow.IOperatorDescriptor;
 import org.apache.hyracks.storage.am.common.api.ITupleFilterFactory;
 
@@ -110,13 +113,21 @@ public class DataSourceScanPOperator extends AbstractScanPOperator {
         List<LogicalVariable> vars = scan.getVariables();
         List<LogicalVariable> projectVars = scan.getProjectVariables();
         ITupleFilterFactory tupleFilterFactory = null;
-        if (scan.getExtendedDataSource() != null) {
+        IUnnestingEvaluatorFactory unnestingFactory = null;
+        IExpressionRuntimeProvider expressionRuntimeProvider = context.getExpressionRuntimeProvider();
+        if (scan.getUnnestDataSource() != null) {
             tupleFilterFactory = context.getMetadataProvider().createTupleFilterFactory(
-                    new IOperatorSchema[] { opSchema }, typeEnv, scan.getExtendedDataSource().getValue(), context);
+                    new IOperatorSchema[] { opSchema }, typeEnv, scan.getUnnestDataSource().getValue(), context);
+        } else if (scan.getExtendedDataSource() != null) {
+            UnnestingFunctionCallExpression agg =
+                    (UnnestingFunctionCallExpression) scan.getUnnestDataSource().getValue();
+            unnestingFactory = expressionRuntimeProvider.createUnnestingFunctionFactory(agg,
+                    context.getTypeEnvironment(op.getInputs().get(0).getValue()), inputSchemas, context);
         }
-        Pair<IOperatorDescriptor, AlgebricksPartitionConstraint> p =
-                mp.getScannerRuntime(dataSource, vars, projectVars, scan.isProjectPushed(), scan.getMinFilterVars(),
-                        scan.getMaxFilterVars(), tupleFilterFactory, opSchema, typeEnv, context, builder.getJobSpec(), implConfig);
+
+        Pair<IOperatorDescriptor, AlgebricksPartitionConstraint> p = mp.getScannerRuntime(dataSource, vars, projectVars,
+                scan.isProjectPushed(), scan.getMinFilterVars(), scan.getMaxFilterVars(), tupleFilterFactory,
+                unnestingFactory, opSchema, typeEnv, context, builder.getJobSpec(), implConfig);
         builder.contributeHyracksOperator(scan, p.first);
         if (p.second != null) {
             builder.contributeAlgebricksPartitionConstraint(p.first, p.second);

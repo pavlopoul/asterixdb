@@ -109,9 +109,9 @@ public class StatisticsManager implements IStatisticsManager {
     private List<String> parsePathComponents(String componentPath) throws HyracksDataException {
         //TODO: Find a more elegant way of getting dataverse/dataset/timestamp from stats rather then parsing filepaths
         String numPattern = "\\d";
-        String namePattern = "([^\\]+)";
-        String dirPattern = namePattern + "\\";
-        String indexDatasetPattern = namePattern + "\\" + numPattern + "\\" + namePattern + "\\";
+        String namePattern = "([^\\\\]+)";
+        String dirPattern = namePattern + "\\\\";
+        String indexDatasetPattern = namePattern + "\\\\" + numPattern + "\\\\" + namePattern + "\\\\";
         // Disk component name format: T2_T1_s. T2 & T1 are the same for flush component.
         // For merged component T2 is the max timestamp of the latest component, T1 - min timestamp of the earliest.
         String timestampPattern = "(\\d{4}-\\d{2}-\\d{2}-\\d{2}-\\d{2}-\\d{2}-\\d{3})";

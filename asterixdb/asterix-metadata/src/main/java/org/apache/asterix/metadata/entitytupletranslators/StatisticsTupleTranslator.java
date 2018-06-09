@@ -301,41 +301,38 @@ public class StatisticsTupleTranslator extends AbstractTupleTranslator<Statistic
                 .getFieldTypes()[MetadataRecordTypes.STATISTICS_SYNOPSIS_ARECORD_ELEMENTS_FIELD_INDEX]);
         for (ISynopsisElement<Long> synopsisElement : synopsis.getElements()) {
             // Skip synopsis elements with 0 value
-            if (synopsisElement.getValue() != 0.0) {
-                synopsisElementRecordBuilder.reset(MetadataRecordTypes.STATISTICS_SYNOPSIS_ELEMENT_RECORDTYPE);
-                itemValue.reset();
+            synopsisElementRecordBuilder.reset(MetadataRecordTypes.STATISTICS_SYNOPSIS_ELEMENT_RECORDTYPE);
+            itemValue.reset();
 
-                // write subrecord field 0
+            // write subrecord field 0
+            fieldValue.reset();
+            aInt64.setValue(synopsisElement.getKey());
+            int64Serde.serialize(aInt64, fieldValue.getDataOutput());
+            synopsisElementRecordBuilder
+                    .addField(MetadataRecordTypes.STATISTICS_SYNOPSIS_ELEMENT_ARECORD_KEY_FIELD_INDEX, fieldValue);
+
+            // write subrecord field 1
+            fieldValue.reset();
+            aDouble.setValue(synopsisElement.getValue());
+            doubleSerde.serialize(aDouble, fieldValue.getDataOutput());
+            synopsisElementRecordBuilder
+                    .addField(MetadataRecordTypes.STATISTICS_SYNOPSIS_ELEMENT_ARECORD_VALUE_FIELD_INDEX, fieldValue);
+
+            // write optional field 2
+            if (synopsisElement instanceof UniformHistogramBucket) {
+                ArrayBackedValueStorage nameValue = new ArrayBackedValueStorage();
+
                 fieldValue.reset();
-                aInt64.setValue(synopsisElement.getKey());
+                nameValue.reset();
+                aString.setValue(MetadataRecordTypes.STATISTICS_SYNOPSIS_ELEMENT_ARECORD_UNIQUE_VALUES_NUM_FIELD_NAME);
+                stringSerde.serialize(aString, nameValue.getDataOutput());
+                aInt64.setValue(((UniformHistogramBucket) synopsisElement).getUniqueElementsNum());
                 int64Serde.serialize(aInt64, fieldValue.getDataOutput());
-                synopsisElementRecordBuilder
-                        .addField(MetadataRecordTypes.STATISTICS_SYNOPSIS_ELEMENT_ARECORD_KEY_FIELD_INDEX, fieldValue);
-
-                // write subrecord field 1
-                fieldValue.reset();
-                aDouble.setValue(synopsisElement.getValue());
-                doubleSerde.serialize(aDouble, fieldValue.getDataOutput());
-                synopsisElementRecordBuilder.addField(
-                        MetadataRecordTypes.STATISTICS_SYNOPSIS_ELEMENT_ARECORD_VALUE_FIELD_INDEX, fieldValue);
-
-                // write optional field 2
-                if (synopsisElement instanceof UniformHistogramBucket) {
-                    ArrayBackedValueStorage nameValue = new ArrayBackedValueStorage();
-
-                    fieldValue.reset();
-                    nameValue.reset();
-                    aString.setValue(
-                            MetadataRecordTypes.STATISTICS_SYNOPSIS_ELEMENT_ARECORD_UNIQUE_VALUES_NUM_FIELD_NAME);
-                    stringSerde.serialize(aString, nameValue.getDataOutput());
-                    aInt64.setValue(((UniformHistogramBucket) synopsisElement).getUniqueElementsNum());
-                    int64Serde.serialize(aInt64, fieldValue.getDataOutput());
-                    synopsisElementRecordBuilder.addField(nameValue, fieldValue);
-                }
-
-                synopsisElementRecordBuilder.write(itemValue.getDataOutput(), true);
-                listBuilder.addItem(itemValue);
+                synopsisElementRecordBuilder.addField(nameValue, fieldValue);
             }
+
+            synopsisElementRecordBuilder.write(itemValue.getDataOutput(), true);
+            listBuilder.addItem(itemValue);
         }
         // write field 2
         fieldValue.reset();

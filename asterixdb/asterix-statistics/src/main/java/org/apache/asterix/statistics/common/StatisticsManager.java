@@ -18,7 +18,6 @@
  */
 package org.apache.asterix.statistics.common;
 
-import java.io.File;
 import java.io.Serializable;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
@@ -109,11 +108,10 @@ public class StatisticsManager implements IStatisticsManager {
 
     private List<String> parsePathComponents(String componentPath) throws HyracksDataException {
         //TODO: Find a more elegant way of getting dataverse/dataset/timestamp from stats rather then parsing filepaths
-        String numPattern = "\\d";
-        String namePattern = "([^" + File.separator + "]+)";
-        String dirPattern = namePattern + File.separator;
-        String indexDatasetPattern =
-                namePattern + File.separator + numPattern + File.separator + namePattern + File.separator;
+        String numPattern = "(\\d)";
+        String namePattern = "([^\\\\]+)";
+        String dirPattern = namePattern + "\\\\";
+        String indexDatasetPattern = namePattern + "\\\\" + numPattern + "\\\\" + namePattern + "\\\\";
         // Disk component name format: T2_T1_s. T2 & T1 are the same for flush component.
         // For merged component T2 is the max timestamp of the latest component, T1 - min timestamp of the earliest.
         String timestampPattern = "(\\d{4}-\\d{2}-\\d{2}-\\d{2}-\\d{2}-\\d{2}-\\d{3})";
@@ -156,9 +154,9 @@ public class StatisticsManager implements IStatisticsManager {
                         new ReportFlushComponentStatisticsMessage(flushComponentSynopsis, ncContext.getNodeId(),
                                 parsedComponentsPath.get(1),
                                 new ComponentStatisticsId(
-                                        LocalDateTime.parse(parsedComponentsPath.get(6),
+                                        LocalDateTime.parse(parsedComponentsPath.get(7),
                                                 AbstractLSMIndexFileManager.FORMATTER),
-                                        LocalDateTime.parse(parsedComponentsPath.get(5),
+                                        LocalDateTime.parse(parsedComponentsPath.get(6),
                                                 AbstractLSMIndexFileManager.FORMATTER)),
                                 isAntimatter);
                 sendMessage(msg);

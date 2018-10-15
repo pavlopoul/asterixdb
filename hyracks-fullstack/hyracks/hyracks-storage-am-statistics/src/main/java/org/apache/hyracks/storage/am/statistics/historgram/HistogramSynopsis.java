@@ -64,8 +64,8 @@ public abstract class HistogramSynopsis<T extends HistogramBucket> extends Abstr
     public double rangeQuery(long startPosition, long endPosition) {
         int startBucket = getPointBucket(startPosition);
         int endBucket = getPointBucket(endPosition);
-        if(endBucket==getBuckets().size()){
-            endBucket=endBucket-1;
+        if (endBucket == getBuckets().size()) {
+            endBucket = endBucket - 1;
         }
         long endBucketLeftBorder = getBucketStartPosition(endBucket);
         double value = 0.0;

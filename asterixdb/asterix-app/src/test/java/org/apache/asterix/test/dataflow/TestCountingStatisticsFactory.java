@@ -64,7 +64,7 @@ public class TestCountingStatisticsFactory extends AbstractStatisticsFactory {
         }
 
         @Override
-        public double joinQuery(ISynopsis synopsis) {
+        public double joinQuery(ISynopsis synopsis, boolean primIndex) {
             // TODO Auto-generated method stub
             return 0;
         }

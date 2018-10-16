@@ -72,6 +72,6 @@ public interface ISynopsis<T extends ISynopsisElement> extends Serializable {
 
     double rangeQuery(long startPosition, long endPosition);
 
-    double joinQuery(ISynopsis synopsis);
+    double joinQuery(ISynopsis synopsis, boolean primIndex);
 
 }

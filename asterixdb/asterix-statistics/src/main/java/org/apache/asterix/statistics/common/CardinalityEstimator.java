@@ -32,6 +32,8 @@ public class CardinalityEstimator implements ICardinalityEstimator {
 
     public static CardinalityEstimator INSTANCE = new CardinalityEstimator();
 
+    private boolean primIndex;
+
     private long estimationTime;
 
     private CardinalityEstimator() {
@@ -100,7 +102,7 @@ public class CardinalityEstimator implements ICardinalityEstimator {
         }
         for (Statistics s : stats) {
             for (Statistics sec : secStats) {
-                result += s.getSynopsis().joinQuery(sec.getSynopsis());
+                result += s.getSynopsis().joinQuery(sec.getSynopsis(), this.primIndex);
             }
         }
         return Math.round(result);
@@ -112,12 +114,16 @@ public class CardinalityEstimator implements ICardinalityEstimator {
         List<Index> datasetIndexes =
                 ((MetadataProvider) metadataProvider).getDatasetIndexes(dataverseName, datasetName);
         for (Index idx : datasetIndexes) {
+
             // TODO : allow statistics on nested fields
             List<Statistics> fieldStats = ((MetadataProvider) metadataProvider).getMergedStatistics(dataverseName,
                     datasetName, idx.getIndexName(), String.join(".", fieldName));
             // use the last if multiple stats on the same field are available
             if (!fieldStats.isEmpty()) {
                 stats = fieldStats;
+                if (idx.isPrimaryIndex()) {
+                    this.primIndex = true;
+                }
             }
         }
         return stats;

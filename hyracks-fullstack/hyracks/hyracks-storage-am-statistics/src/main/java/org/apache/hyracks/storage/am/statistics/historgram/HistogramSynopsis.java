@@ -87,10 +87,11 @@ public abstract class HistogramSynopsis<T extends HistogramBucket> extends Abstr
     }
 
     @Override
-    public double joinQuery(ISynopsis synopsis) {
+    public double joinQuery(ISynopsis synopsis, boolean primIndex) {
         HistogramSynopsis<T> histogram = (HistogramSynopsis<T>) synopsis;
         double leftEstimate = 0.0;
         double rightEstimate = 0.0;
+        double estimate = 0.0;
         List<long[]> leftBuckets = new ArrayList<>();
         List<long[]> rightBuckets = new ArrayList<>();
         for (int i = 0; i < getBuckets().size(); i++) {
@@ -115,20 +116,26 @@ public abstract class HistogramSynopsis<T extends HistogramBucket> extends Abstr
                 if (arrayL[0] <= arrayR[0] && arrayL[1] >= arrayR[1]) {
                     leftEstimate += rangeQuery(arrayR[0], arrayR[1]);
                     rightEstimate += histogram.rangeQuery(arrayR[0], arrayR[1]);
+                    estimate += rangeQuery(arrayR[0], arrayR[1]) * histogram.rangeQuery(arrayR[0], arrayR[1]);
                 } else if (arrayL[0] <= arrayR[0] && arrayL[1] <= arrayR[1] && arrayL[1] >= arrayR[0]) {
                     leftEstimate += rangeQuery(arrayR[0], arrayL[1]);
                     rightEstimate += histogram.rangeQuery(arrayR[0], arrayL[1]);
+                    estimate += rangeQuery(arrayR[0], arrayL[1]) * histogram.rangeQuery(arrayR[0], arrayL[1]);
                 } else if (arrayL[0] >= arrayR[0] && arrayL[1] >= arrayR[1] && arrayL[0] <= arrayR[1]) {
                     leftEstimate += rangeQuery(arrayL[0], arrayR[1]);
                     rightEstimate += histogram.rangeQuery(arrayL[0], arrayR[1]);
+                    estimate += rangeQuery(arrayL[0], arrayR[1]) * histogram.rangeQuery(arrayL[0], arrayR[1]);
                 } else if (arrayL[0] >= arrayR[0] && arrayL[1] <= arrayR[1]) {
                     leftEstimate += rangeQuery(arrayL[0], arrayL[1]);
                     rightEstimate += histogram.rangeQuery(arrayL[0], arrayL[1]);
+                    estimate += rangeQuery(arrayL[0], arrayL[1]) * histogram.rangeQuery(arrayL[0], arrayL[1]);
                 }
             }
         }
 
-        return Math.max(rightEstimate, leftEstimate);
+        if (primIndex == true)
+            return Math.max(rightEstimate, leftEstimate);
+        return estimate;
     }
 
     public double approximateValueWithinBucket(int bucketIdx, long startPosition, long endPosition) {

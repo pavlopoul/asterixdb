@@ -62,6 +62,12 @@ public class TestCountingStatisticsFactory extends AbstractStatisticsFactory {
         public double rangeQuery(long startPosition, long endPosition) {
             return 0;
         }
+
+        @Override
+        public double joinQuery(ISynopsis synopsis) {
+            // TODO Auto-generated method stub
+            return 0;
+        }
     }
 
     class CountingSynopsisBuilder extends AbstractSynopsisBuilder {

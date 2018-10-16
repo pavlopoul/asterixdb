@@ -63,4 +63,10 @@ public class TestSynopsis implements ISynopsis<TestSynopsisElement> {
             elements.addAll(mergeSynopsis.getElements());
         }
     }
+
+    @Override
+    public double joinQuery(ISynopsis synopsis) {
+        // TODO Auto-generated method stub
+        return 0;
+    }
 }

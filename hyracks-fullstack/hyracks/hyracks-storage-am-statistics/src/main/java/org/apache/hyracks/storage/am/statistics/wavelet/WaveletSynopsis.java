@@ -454,4 +454,10 @@ public class WaveletSynopsis extends AbstractSynopsis<WaveletCoefficient> {
             addElement(e.getKey(), e.getValue(), WaveletCoefficient.getLevel(e.getKey(), maxLevel), normalize);
         }
     }
+
+    @Override
+    public double joinQuery(ISynopsis synopsis) {
+        // TODO Auto-generated method stub
+        return 0;
+    }
 }

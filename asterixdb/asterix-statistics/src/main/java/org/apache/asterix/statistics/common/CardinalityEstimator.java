@@ -80,8 +80,47 @@ public class CardinalityEstimator implements ICardinalityEstimator {
     @Override
     public long getJoinCardinality(IMetadataProvider metadataProvider, String innerDataverseName,
             String innerDatasetName, List<String> innerFieldName, String outerDataverseName, String outerDatasetName,
-            List<String> outerFieldName) {
-        return CardinalityInferenceVisitor.UNKNOWN;
+            List<String> outerFieldName) throws AlgebricksException {
+        List<Statistics> innerStats =
+                getFieldStats(metadataProvider, innerDataverseName, innerDatasetName, innerFieldName);
+        List<Statistics> outerStats =
+                getFieldStats(metadataProvider, outerDataverseName, outerDatasetName, outerFieldName);
+        double result = 0.0;
+        if ((innerStats == null || innerStats.isEmpty()) && (outerStats == null || outerStats.isEmpty())) {
+            return CardinalityInferenceVisitor.UNKNOWN;
+        }
+        List<Statistics> stats;
+        List<Statistics> secStats;
+        if (innerStats.get(0).getSynopsis().getSize() > outerStats.get(0).getSynopsis().getSize()) {
+            stats = outerStats;
+            secStats = innerStats;
+        } else {
+            stats = innerStats;
+            secStats = outerStats;
+        }
+        for (Statistics s : stats) {
+            for (Statistics sec : secStats) {
+                result += s.getSynopsis().joinQuery(sec.getSynopsis());
+            }
+        }
+        return Math.round(result);
+    }
+
+    private List<Statistics> getFieldStats(IMetadataProvider metadataProvider, String dataverseName, String datasetName,
+            List<String> fieldName) throws AlgebricksException {
+        List<Statistics> stats = null;
+        List<Index> datasetIndexes =
+                ((MetadataProvider) metadataProvider).getDatasetIndexes(dataverseName, datasetName);
+        for (Index idx : datasetIndexes) {
+            // TODO : allow statistics on nested fields
+            List<Statistics> fieldStats = ((MetadataProvider) metadataProvider).getMergedStatistics(dataverseName,
+                    datasetName, idx.getIndexName(), String.join(".", fieldName));
+            // use the last if multiple stats on the same field are available
+            if (!fieldStats.isEmpty()) {
+                stats = fieldStats;
+            }
+        }
+        return stats;
     }
 
     @Override

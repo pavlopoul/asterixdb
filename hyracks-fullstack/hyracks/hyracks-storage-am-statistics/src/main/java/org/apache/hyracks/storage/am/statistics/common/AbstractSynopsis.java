@@ -20,6 +20,7 @@ package org.apache.hyracks.storage.am.statistics.common;
 
 import java.util.Collection;
 import java.util.List;
+import java.util.Map;
 import java.util.Objects;
 
 import org.apache.commons.collections4.CollectionUtils;
@@ -37,13 +38,15 @@ public abstract class AbstractSynopsis<T extends ISynopsisElement> implements IS
     protected final int size;
 
     protected Collection<T> synopsisElements;
+    protected Map<Long,Integer> uniqueMap;
 
-    public AbstractSynopsis(long domainStart, long domainEnd, int maxLevel, int size, Collection<T> synopsisElements) {
+    public AbstractSynopsis(long domainStart, long domainEnd, int maxLevel, int size, Collection<T> synopsisElements, Map<Long,Integer> uniqueMap) {
         this.domainStart = domainStart;
         this.domainEnd = domainEnd;
         this.maxLevel = maxLevel;
         this.size = size;
         this.synopsisElements = synopsisElements;
+        this.uniqueMap = uniqueMap;
     }
 
     public long getDomainEnd() {
@@ -65,6 +68,10 @@ public abstract class AbstractSynopsis<T extends ISynopsisElement> implements IS
 
     public Collection<T> getElements() {
         return synopsisElements;
+    }
+    
+    public Map<Long, Integer> getMap() {
+        return uniqueMap;
     }
 
     public void merge(List<ISynopsis<T>> synopsisList) throws HyracksDataException {

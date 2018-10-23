@@ -69,6 +69,7 @@ public class CardinalityEstimator implements ICardinalityEstimator {
             } else if (rangeStart == rangeStop) {
                 synopsisEstimate = s.getSynopsis().pointQuery(rangeStart);
             }
+            int size = s.getSynopsis().getMap().size();
             estimate += synopsisEstimate * (s.isAntimatter() ? -1 : 1);
         }
         long endTime = System.nanoTime();

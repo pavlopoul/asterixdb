@@ -46,8 +46,8 @@ public class WaveletSynopsis extends AbstractSynopsis<WaveletCoefficient> {
     protected boolean linearApproximation;
 
     public WaveletSynopsis(long domainStart, long domainEnd, int maxLevel, int size,
-            Collection<WaveletCoefficient> coefficients, boolean normalize, boolean linearApproximation) {
-        super(domainStart, domainEnd, maxLevel, size, coefficients);
+            Collection<WaveletCoefficient> coefficients, boolean normalize, boolean linearApproximation, Map<Long,Integer> uniquemap) {
+        super(domainStart, domainEnd, maxLevel, size, coefficients, uniquemap);
         this.normalize = normalize;
         this.linearApproximation = linearApproximation;
     }

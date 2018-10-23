@@ -32,7 +32,7 @@ public class ContinuousHistogramSynopsis extends EquiHeightHistogramSynopsis<His
 
     public ContinuousHistogramSynopsis(long domainStart, long domainEnd, int maxLevel, long elementsNum, int bucketsNum,
             List<HistogramBucket> buckets) {
-        super(domainStart, domainEnd, maxLevel, elementsNum, bucketsNum, buckets);
+        super(domainStart, domainEnd, maxLevel, elementsNum, bucketsNum, buckets, null);
     }
 
     @Override

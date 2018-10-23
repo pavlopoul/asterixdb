@@ -26,7 +26,9 @@ import java.rmi.RemoteException;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeParseException;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 import org.apache.asterix.builders.IARecordBuilder;
 import org.apache.asterix.builders.OrderedListBuilder;
@@ -136,8 +138,11 @@ public class StatisticsTupleTranslator extends AbstractTupleTranslator<Statistic
                 .getValueByPos(MetadataRecordTypes.STATISTICS_SYNOPSIS_ARECORD_SIZE_FIELD_INDEX)).getIntegerValue();
         AOrderedList elementsList = (AOrderedList) synopsisRecord
                 .getValueByPos(MetadataRecordTypes.STATISTICS_SYNOPSIS_ARECORD_ELEMENTS_FIELD_INDEX);
+        AOrderedList uniqueList = (AOrderedList) synopsisRecord
+                .getValueByPos(MetadataRecordTypes.STATISTICS_SYNOPSIS_ARECORD_UNIQUE_FIELD_INDEX);
         IACursor cursor = elementsList.getCursor();
         List<ISynopsisElement> elems = new ArrayList<>(elementsList.size());
+        Map<Long,Integer> uniqueElems=new HashMap<>();
         Dataset ds = metadataNode.getDataset(txnId, dataverseName, datasetName);
         Datatype type = metadataNode.getDatatype(txnId, ds.getItemTypeDataverseName(), ds.getItemTypeName());
         ITypeTraits keyTypeTraits =
@@ -161,9 +166,21 @@ public class StatisticsTupleTranslator extends AbstractTupleTranslator<Statistic
                         uniqueValNum, keyTypeTraits));
 
             }
+            IACursor cursorUnique = uniqueList.getCursor();
+            while (cursorUnique.next()) {
+                ARecord coeff = (ARecord) cursorUnique.get();
+                uniqueElems.put(
+                        ((AInt64) coeff
+                                .getValueByPos(MetadataRecordTypes.STATISTICS_SYNOPSIS_UNIQUE_ARECORD_KEY_FIELD_INDEX))
+                                        .getLongValue(),
+                        ((AInt32) coeff.getValueByPos(
+                                MetadataRecordTypes.STATISTICS_SYNOPSIS_UNIQUE_ARECORD_VALUE_FIELD_INDEX))
+                                        .getIntegerValue());
+
+            }
             return new Statistics(dataverseName, datasetName, indexName, fieldName, nodeName, partitionName,
                     new ComponentStatisticsId(componentMinId, componentMaxId), false, isAntimatter,
-                    SynopsisFactory.createSynopsis(synopsisType, keyTypeTraits, elems, elems.size(), synopsisSize));
+                    SynopsisFactory.createSynopsis(synopsisType, keyTypeTraits, elems, elems.size(), synopsisSize, uniqueElems));
         } catch (DateTimeParseException | HyracksDataException e) {
             throw new MetadataException(e);
         }
@@ -281,8 +298,10 @@ public class StatisticsTupleTranslator extends AbstractTupleTranslator<Statistic
     private void writeSynopsisRecordType(IARecordBuilder synopsisRecordBuilder,
             ISynopsis<? extends ISynopsisElement<Long>> synopsis, DataOutput dataOutput) throws HyracksDataException {
         OrderedListBuilder listBuilder = new OrderedListBuilder();
+        OrderedListBuilder mapBuilder = new OrderedListBuilder();
         ArrayBackedValueStorage itemValue = new ArrayBackedValueStorage();
         IARecordBuilder synopsisElementRecordBuilder = new RecordBuilder();
+        IARecordBuilder synopsisUniqueRecordBuilder = new RecordBuilder();
         ArrayBackedValueStorage fieldValue = new ArrayBackedValueStorage();
 
         // write field 0
@@ -339,6 +358,36 @@ public class StatisticsTupleTranslator extends AbstractTupleTranslator<Statistic
         listBuilder.write(fieldValue.getDataOutput(), true);
         synopsisRecordBuilder.addField(MetadataRecordTypes.STATISTICS_SYNOPSIS_ARECORD_ELEMENTS_FIELD_INDEX,
                 fieldValue);
+        
+        mapBuilder.reset((AOrderedListType) MetadataRecordTypes.STATISTICS_SYNOPSIS_RECORDTYPE
+                .getFieldTypes()[MetadataRecordTypes.STATISTICS_SYNOPSIS_ARECORD_UNIQUE_FIELD_INDEX]);
+        for (Map.Entry<Long, Integer> synopsisUnique : synopsis.getMap().entrySet()) {
+            // Skip synopsis elements with 0 value
+            synopsisUniqueRecordBuilder.reset(MetadataRecordTypes.STATISTICS_SYNOPSIS_UNIQUE_RECORDTYPE);
+            itemValue.reset();
+
+            // write subrecord field 0
+            fieldValue.reset();
+            aInt64.setValue(synopsisUnique.getKey());
+            int64Serde.serialize(aInt64, fieldValue.getDataOutput());
+            synopsisUniqueRecordBuilder
+                    .addField(MetadataRecordTypes.STATISTICS_SYNOPSIS_UNIQUE_ARECORD_KEY_FIELD_INDEX, fieldValue);
+
+            // write subrecord field 1
+            fieldValue.reset();
+            aInt32.setValue(synopsisUnique.getValue());
+            int32Serde.serialize(aInt32, fieldValue.getDataOutput());
+            synopsisUniqueRecordBuilder
+                    .addField(MetadataRecordTypes.STATISTICS_SYNOPSIS_UNIQUE_ARECORD_VALUE_FIELD_INDEX, fieldValue);
+
+
+            synopsisUniqueRecordBuilder.write(itemValue.getDataOutput(), true);
+            mapBuilder.addItem(itemValue);
+        }
+        // write field 3
+        fieldValue.reset();
+        mapBuilder.write(fieldValue.getDataOutput(), true);
+        synopsisRecordBuilder.addField(MetadataRecordTypes.STATISTICS_SYNOPSIS_ARECORD_UNIQUE_FIELD_INDEX, fieldValue);
 
         synopsisRecordBuilder.write(dataOutput, true);
     }

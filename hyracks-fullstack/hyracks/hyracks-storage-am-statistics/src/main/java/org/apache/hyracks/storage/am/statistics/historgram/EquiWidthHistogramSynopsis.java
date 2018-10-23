@@ -19,6 +19,7 @@
 package org.apache.hyracks.storage.am.statistics.historgram;
 
 import java.util.Collection;
+import java.util.Map;
 
 import org.apache.hyracks.api.exceptions.HyracksDataException;
 import org.apache.hyracks.storage.am.lsm.common.api.ISynopsis;
@@ -27,8 +28,8 @@ public class EquiWidthHistogramSynopsis extends HistogramSynopsis<HistogramBucke
     private final long bucketWidth;
 
     public EquiWidthHistogramSynopsis(long domainStart, long domainEnd, int maxLevel, int bucketsNum,
-            Collection<HistogramBucket> synopsisElements) {
-        super(domainStart, domainEnd, maxLevel, bucketsNum, synopsisElements);
+            Collection<HistogramBucket> synopsisElements, Map<Long,Integer> uniqueMap) {
+        super(domainStart, domainEnd, maxLevel, bucketsNum, synopsisElements, uniqueMap);
         //TODO:avoid numeric overflows
         bucketWidth = (domainEnd - domainStart + 1) / bucketsNum;
         long border = domainStart + bucketWidth;
@@ -59,6 +60,11 @@ public class EquiWidthHistogramSynopsis extends HistogramSynopsis<HistogramBucke
     @Override
     public void merge(ISynopsis<HistogramBucket> mergeSynopsis) throws HyracksDataException {
         EquiWidthHistogramSynopsis histogramToMerge = (EquiWidthHistogramSynopsis) mergeSynopsis;
+        for (Map.Entry<Long, Integer> entry : histogramToMerge.uniqueMap.entrySet()) {
+            if (!uniqueMap.containsKey(entry.getKey())) {
+                uniqueMap.put(entry.getKey(), entry.getValue());
+            }
+        }
         if (getSize() != histogramToMerge.getSize())
             throw new HyracksDataException("Cannot merge equi-width histograms with different number of buckets");
         for (int i = 0; i < getSize(); i++) {

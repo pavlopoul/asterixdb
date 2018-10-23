@@ -23,14 +23,15 @@ import java.util.Collection;
 import java.util.Collections;
 import java.util.Comparator;
 import java.util.List;
+import java.util.Map;
 
 import org.apache.hyracks.storage.am.lsm.common.api.ISynopsis;
 import org.apache.hyracks.storage.am.statistics.common.AbstractSynopsis;
 
 public abstract class HistogramSynopsis<T extends HistogramBucket> extends AbstractSynopsis<T> {
     public HistogramSynopsis(long domainStart, long domainEnd, int maxLevel, int bucketsNum,
-            Collection<T> synopsisElements) {
-        super(domainStart, domainEnd, maxLevel, bucketsNum, synopsisElements);
+            Collection<T> synopsisElements, Map<Long,Integer> uniqueMap) {
+        super(domainStart, domainEnd, maxLevel, bucketsNum, synopsisElements, uniqueMap);
     }
 
     //implicit cast to operate with buckets as a list

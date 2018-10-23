@@ -28,7 +28,7 @@ public class PrefixSumWaveletSynopsis extends WaveletSynopsis {
 
     public PrefixSumWaveletSynopsis(long domainStart, long domainEnd, int maxLevel, int size,
             Collection<WaveletCoefficient> coefficients, boolean normalize, boolean linearApproximation) {
-        super(domainStart, domainEnd, maxLevel, size, coefficients, normalize, linearApproximation);
+        super(domainStart, domainEnd, maxLevel, size, coefficients, normalize, linearApproximation, null);
     }
 
     @Override

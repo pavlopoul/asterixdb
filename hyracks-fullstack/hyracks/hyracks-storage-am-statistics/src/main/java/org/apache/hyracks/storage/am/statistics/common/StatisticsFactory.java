@@ -19,6 +19,7 @@
 
 package org.apache.hyracks.storage.am.statistics.common;
 
+import java.util.HashMap;
 import java.util.List;
 import java.util.logging.Logger;
 
@@ -85,7 +86,7 @@ public class StatisticsFactory extends AbstractStatisticsFactory {
         long numElements =
                 isAntimatter ? componentStatistics.getNumAntimatterTuples() : componentStatistics.getNumTuples();
         ISynopsis synopsis = SynopsisFactory.createSynopsis(type, fieldExtractor.getFieldTypeTraits(),
-                SynopsisElementFactory.createSynopsisElementsCollection(type, size), numElements, size);
+                SynopsisElementFactory.createSynopsisElementsCollection(type, size), numElements, size, new HashMap<Long, Integer>());
         switch (type) {
             case UniformHistogram:
             case ContinuousHistogram:
@@ -111,4 +112,5 @@ public class StatisticsFactory extends AbstractStatisticsFactory {
                 throw new HyracksDataException("Cannot instantiate new synopsis builder for type " + type);
         }
     }
+
 }

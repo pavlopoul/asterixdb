@@ -48,14 +48,14 @@ public class QuantileSketchBuilder
         long bucketHeight = 0;
         for (Long r : ranks) {
             if (prev != null && r != prev) {
-                synopsis.getElements().add(new HistogramBucket(prev, bucketHeight));
+                synopsis.getElements().add(new HistogramBucket(prev, bucketHeight, 0l));
                 bucketHeight = 0;
             }
             bucketHeight += synopsis.getElementsPerBucket();
             prev = r;
         }
         if (prev != null) {
-            synopsis.getElements().add(new HistogramBucket(prev, bucketHeight));
+            synopsis.getElements().add(new HistogramBucket(prev, bucketHeight, 0l));
         }
     }
 

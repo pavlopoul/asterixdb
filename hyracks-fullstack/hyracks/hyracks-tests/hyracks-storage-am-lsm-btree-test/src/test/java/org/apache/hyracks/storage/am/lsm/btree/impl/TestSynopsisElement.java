@@ -70,4 +70,10 @@ public class TestSynopsisElement implements ISynopsisElement<Comparable>, Compar
     public int hashCode() {
         return key != null ? key.hashCode() : 0;
     }
+
+    @Override
+    public Long getUniqueValue() {
+        // TODO Auto-generated method stub
+        return null;
+    }
 }

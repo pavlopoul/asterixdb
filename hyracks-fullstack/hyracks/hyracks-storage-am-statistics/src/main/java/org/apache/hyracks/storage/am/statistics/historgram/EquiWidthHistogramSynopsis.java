@@ -28,13 +28,13 @@ public class EquiWidthHistogramSynopsis extends HistogramSynopsis<HistogramBucke
     private final long bucketWidth;
 
     public EquiWidthHistogramSynopsis(long domainStart, long domainEnd, int maxLevel, int bucketsNum,
-            Collection<HistogramBucket> synopsisElements, Map<Long,Integer> uniqueMap) {
+            Collection<HistogramBucket> synopsisElements, Map<Long, Integer> uniqueMap) {
         super(domainStart, domainEnd, maxLevel, bucketsNum, synopsisElements, uniqueMap);
         //TODO:avoid numeric overflows
         bucketWidth = (domainEnd - domainStart + 1) / bucketsNum;
         long border = domainStart + bucketWidth;
         for (int i = 0; i < bucketsNum; i++) {
-            getBuckets().add(new HistogramBucket(border, 0.0));
+            getBuckets().add(new HistogramBucket(border, 0.0, 0));
             border += bucketWidth;
         }
         getBuckets().get(bucketsNum - 1).setRightBorder(domainEnd);
@@ -69,6 +69,8 @@ public class EquiWidthHistogramSynopsis extends HistogramSynopsis<HistogramBucke
             throw new HyracksDataException("Cannot merge equi-width histograms with different number of buckets");
         for (int i = 0; i < getSize(); i++) {
             getBuckets().get(i).appendToValue(histogramToMerge.getBuckets().get(i).getValue());
+            getBuckets().get(i).setUniqueValue(Math.max(getBuckets().get(i).getUniqueValue(),
+                    histogramToMerge.getBuckets().get(i).getUniqueValue()));
         }
     }
 }

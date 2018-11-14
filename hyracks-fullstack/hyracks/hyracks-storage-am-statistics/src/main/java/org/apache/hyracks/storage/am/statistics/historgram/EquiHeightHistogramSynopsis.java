@@ -29,7 +29,7 @@ public abstract class EquiHeightHistogramSynopsis<T extends HistogramBucket> ext
     private final long elementsPerBucket;
 
     public EquiHeightHistogramSynopsis(long domainStart, long domainEnd, int maxLevel, long elementsNum, int bucketsNum,
-            List<T> buckets, Map<Long,Integer> uniqueMap) {
+            List<T> buckets, Map<Long, Integer> uniqueMap) {
         super(domainStart, domainEnd, maxLevel, bucketsNum, buckets, uniqueMap);
         elementsPerBucket = Math.max((long) Math.ceil((double) elementsNum / bucketsNum), 1);
     }

@@ -66,8 +66,8 @@ public interface ISynopsis<T extends ISynopsisElement> extends Serializable {
     int getSize();
 
     Collection<T> getElements();
-    
-    Map<Long, Integer> getMap(); 
+
+    Map<Long, Integer> getMap();
 
     void merge(ISynopsis<T> mergeSynopsis) throws HyracksDataException;
 
@@ -76,5 +76,7 @@ public interface ISynopsis<T extends ISynopsisElement> extends Serializable {
     double rangeQuery(long startPosition, long endPosition);
 
     double joinQuery(ISynopsis synopsis, boolean primIndex);
+    
+    long uniqueQuery(boolean primIndex);
 
 }

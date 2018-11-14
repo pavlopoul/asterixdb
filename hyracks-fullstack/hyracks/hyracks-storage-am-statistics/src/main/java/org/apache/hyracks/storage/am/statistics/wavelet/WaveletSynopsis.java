@@ -46,7 +46,8 @@ public class WaveletSynopsis extends AbstractSynopsis<WaveletCoefficient> {
     protected boolean linearApproximation;
 
     public WaveletSynopsis(long domainStart, long domainEnd, int maxLevel, int size,
-            Collection<WaveletCoefficient> coefficients, boolean normalize, boolean linearApproximation, Map<Long,Integer> uniquemap) {
+            Collection<WaveletCoefficient> coefficients, boolean normalize, boolean linearApproximation,
+            Map<Long, Integer> uniquemap) {
         super(domainStart, domainEnd, maxLevel, size, coefficients, uniquemap);
         this.normalize = normalize;
         this.linearApproximation = linearApproximation;
@@ -457,6 +458,12 @@ public class WaveletSynopsis extends AbstractSynopsis<WaveletCoefficient> {
 
     @Override
     public double joinQuery(ISynopsis synopsis, boolean primIndex) {
+        // TODO Auto-generated method stub
+        return 0;
+    }
+
+    @Override
+    public long uniqueQuery(boolean primIndex) {
         // TODO Auto-generated method stub
         return 0;
     }

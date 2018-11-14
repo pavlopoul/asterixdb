@@ -38,9 +38,10 @@ public abstract class AbstractSynopsis<T extends ISynopsisElement> implements IS
     protected final int size;
 
     protected Collection<T> synopsisElements;
-    protected Map<Long,Integer> uniqueMap;
+    protected Map<Long, Integer> uniqueMap;
 
-    public AbstractSynopsis(long domainStart, long domainEnd, int maxLevel, int size, Collection<T> synopsisElements, Map<Long,Integer> uniqueMap) {
+    public AbstractSynopsis(long domainStart, long domainEnd, int maxLevel, int size, Collection<T> synopsisElements,
+            Map<Long, Integer> uniqueMap) {
         this.domainStart = domainStart;
         this.domainEnd = domainEnd;
         this.maxLevel = maxLevel;
@@ -69,7 +70,7 @@ public abstract class AbstractSynopsis<T extends ISynopsisElement> implements IS
     public Collection<T> getElements() {
         return synopsisElements;
     }
-    
+
     public Map<Long, Integer> getMap() {
         return uniqueMap;
     }

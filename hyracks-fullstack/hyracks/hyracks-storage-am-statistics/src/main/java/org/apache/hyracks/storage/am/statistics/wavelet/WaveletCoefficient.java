@@ -225,4 +225,10 @@ public class WaveletCoefficient implements ISynopsisElement<Long> {
             return ((index << level) & mask) + domainMin;
         }
     }
+
+    @Override
+    public Long getUniqueValue() {
+        // TODO Auto-generated method stub
+        return null;
+    }
 }

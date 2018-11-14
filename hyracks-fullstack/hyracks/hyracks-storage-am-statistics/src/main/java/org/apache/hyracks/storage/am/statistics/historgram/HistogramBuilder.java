@@ -31,7 +31,7 @@ public class HistogramBuilder extends AbstractIntegerSynopsisBuilder<HistogramSy
     private int activeBucket;
     private int activeBucketElementsNum;
     private long lastAddedTuplePosition;
-    private Map<Long,Integer> unique_map=new HashMap<>();
+    private Map<Long, Integer> unique_map = new HashMap<>();
     private int uniqueValues;
 
     public HistogramBuilder(HistogramSynopsis<? extends HistogramBucket> histogram, String dataverse, String dataset,
@@ -49,8 +49,14 @@ public class HistogramBuilder extends AbstractIntegerSynopsisBuilder<HistogramSy
                 lastAddedTuplePosition)) {
             activeBucket++;
             activeBucketElementsNum = 0;
+            uniqueValues = 0;
         }
-        if(!synopsis.getMap().containsKey(currTuplePosition)){
+
+        if (lastAddedTuplePosition != currTuplePosition) {
+            synopsis.getBuckets().get(activeBucket).appendToUniqueValue(1);
+        }
+
+        if (!synopsis.getMap().containsKey(currTuplePosition)) {
             synopsis.getMap().put(currTuplePosition, 1);
             uniqueValues++;
         }

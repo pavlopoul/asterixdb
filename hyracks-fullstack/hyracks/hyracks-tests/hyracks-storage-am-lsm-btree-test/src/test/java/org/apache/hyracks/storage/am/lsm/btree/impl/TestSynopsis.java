@@ -76,4 +76,10 @@ public class TestSynopsis implements ISynopsis<TestSynopsisElement> {
         // TODO Auto-generated method stub
         return null;
     }
+
+    @Override
+    public long uniqueQuery(boolean primIndex) {
+        // TODO Auto-generated method stub
+        return 0;
+    }
 }

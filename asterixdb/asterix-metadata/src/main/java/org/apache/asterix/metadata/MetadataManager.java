@@ -481,7 +481,7 @@ public abstract class MetadataManager implements IMetadataManager {
             LocalDateTime minComponentId = LocalDateTime.MAX;
             LocalDateTime maxComponentId = LocalDateTime.MIN;
             int synopsisSize = 0;
-            Map<Long, Integer> uniqueMap=new HashMap<>();
+            Map<Long, Integer> uniqueMap = new HashMap<>();
             int maxSynopsisElements = 0;
             //TODO : proactively merge only stats only within a node/partition?
             for (Statistics stat : fieldStats) {
@@ -523,7 +523,7 @@ public abstract class MetadataManager implements IMetadataManager {
                     try {
                         AbstractSynopsis mergedSynopsis = SynopsisFactory.createSynopsis(type, keyTypeTraits,
                                 SynopsisElementFactory.createSynopsisElementsCollection(type, maxSynopsisElements),
-                                maxSynopsisElements, synopsisSize,uniqueMap);
+                                maxSynopsisElements, synopsisSize, uniqueMap);
                         //trigger stats merge routine manually
                         mergedSynopsis.merge(synopsisList);
                         mergedStats = new Statistics(dataverseName, datasetName, indexName, fieldName,

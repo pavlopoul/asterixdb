@@ -41,7 +41,7 @@ public class SynopsisFactory {
     @SuppressWarnings("unchecked")
     public static AbstractSynopsis<? extends ISynopsisElement<Long>> createSynopsis(SynopsisType type,
             ITypeTraits keyTypeTraits, Collection<? extends ISynopsisElement> synopsisElements,
-            long synopsisElementsNum, int synopsisSize, Map<Long,Integer> uniquemap) throws HyracksDataException {
+            long synopsisElementsNum, int synopsisSize, Map<Long, Integer> uniquemap) throws HyracksDataException {
         long domainStart = TypeTraitsDomainUtils.minDomainValue(keyTypeTraits);
         long domainEnd = TypeTraitsDomainUtils.maxDomainValue(keyTypeTraits);
         int maxLevel = TypeTraitsDomainUtils.maxLevel(keyTypeTraits);

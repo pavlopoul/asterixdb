@@ -86,7 +86,8 @@ public class StatisticsFactory extends AbstractStatisticsFactory {
         long numElements =
                 isAntimatter ? componentStatistics.getNumAntimatterTuples() : componentStatistics.getNumTuples();
         ISynopsis synopsis = SynopsisFactory.createSynopsis(type, fieldExtractor.getFieldTypeTraits(),
-                SynopsisElementFactory.createSynopsisElementsCollection(type, size), numElements, size, new HashMap<Long, Integer>());
+                SynopsisElementFactory.createSynopsisElementsCollection(type, size), numElements, size,
+                new HashMap<Long, Integer>());
         switch (type) {
             case UniformHistogram:
             case ContinuousHistogram:

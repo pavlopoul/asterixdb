@@ -68,6 +68,12 @@ public class TestCountingStatisticsFactory extends AbstractStatisticsFactory {
             // TODO Auto-generated method stub
             return 0;
         }
+
+        @Override
+        public long uniqueQuery(boolean primIndex) {
+            // TODO Auto-generated method stub
+            return 0;
+        }
     }
 
     class CountingSynopsisBuilder extends AbstractSynopsisBuilder {

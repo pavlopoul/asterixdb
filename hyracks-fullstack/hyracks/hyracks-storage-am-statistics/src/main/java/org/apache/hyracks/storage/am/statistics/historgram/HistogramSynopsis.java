@@ -98,9 +98,9 @@ public abstract class HistogramSynopsis<T extends HistogramBucket> extends Abstr
         for (int i = 0; i < getBuckets().size(); i++) {
             if (getBuckets().get(i).getValue() != 0.0) {
                 leftEstimate += getBuckets().get(i).getValue();
-//                long startPosition = getBucketStartPosition(i);
-//                long array[] = { startPosition, getBuckets().get(i).getKey() };
-//                leftBuckets.add(array);
+                //                long startPosition = getBucketStartPosition(i);
+                //                long array[] = { startPosition, getBuckets().get(i).getKey() };
+                //                leftBuckets.add(array);
 
             }
         }
@@ -108,36 +108,36 @@ public abstract class HistogramSynopsis<T extends HistogramBucket> extends Abstr
         for (int i = 0; i < histogram.getBuckets().size(); i++) {
             if (histogram.getBuckets().get(i).getValue() != 0.0) {
                 rightEstimate += histogram.getBuckets().get(i).getValue();
-//                long startPosition = histogram.getBucketStartPosition(i);
-//                long array[] = { startPosition, histogram.getBuckets().get(i).getKey() };
-//                rightBuckets.add(array);
+                //                long startPosition = histogram.getBucketStartPosition(i);
+                //                long array[] = { startPosition, histogram.getBuckets().get(i).getKey() };
+                //                rightBuckets.add(array);
 
             }
         }
-//        for (long[] arrayL : leftBuckets) {
-//            for (long[] arrayR : rightBuckets) {
-//                if (arrayL[0] <= arrayR[0] && arrayL[1] >= arrayR[1]) {
-//                    leftEstimate += rangeQuery(arrayR[0], arrayR[1]);
-//                    rightEstimate += histogram.rangeQuery(arrayR[0], arrayR[1]);
-//                    estimate += rangeQuery(arrayR[0], arrayR[1]) * histogram.rangeQuery(arrayR[0], arrayR[1]);
-//                } else if (arrayL[0] <= arrayR[0] && arrayL[1] <= arrayR[1] && arrayL[1] >= arrayR[0]) {
-//                    leftEstimate += rangeQuery(arrayR[0], arrayL[1]);
-//                    rightEstimate += histogram.rangeQuery(arrayR[0], arrayL[1]);
-//                    estimate += rangeQuery(arrayR[0], arrayL[1]) * histogram.rangeQuery(arrayR[0], arrayL[1]);
-//                } else if (arrayL[0] >= arrayR[0] && arrayL[1] >= arrayR[1] && arrayL[0] <= arrayR[1]) {
-//                    leftEstimate += rangeQuery(arrayL[0], arrayR[1]);
-//                    rightEstimate += histogram.rangeQuery(arrayL[0], arrayR[1]);
-//                    estimate += rangeQuery(arrayL[0], arrayR[1]) * histogram.rangeQuery(arrayL[0], arrayR[1]);
-//                } else if (arrayL[0] >= arrayR[0] && arrayL[1] <= arrayR[1]) {
-//                    leftEstimate += rangeQuery(arrayL[0], arrayL[1]);
-//                    rightEstimate += histogram.rangeQuery(arrayL[0], arrayL[1]);
-//                    estimate += rangeQuery(arrayL[0], arrayL[1]) * histogram.rangeQuery(arrayL[0], arrayL[1]);
-//                }
-//            }
-//        }
-//
-//        if (primIndex == true)
-//            return Math.max(rightEstimate, leftEstimate);
+        //        for (long[] arrayL : leftBuckets) {
+        //            for (long[] arrayR : rightBuckets) {
+        //                if (arrayL[0] <= arrayR[0] && arrayL[1] >= arrayR[1]) {
+        //                    leftEstimate += rangeQuery(arrayR[0], arrayR[1]);
+        //                    rightEstimate += histogram.rangeQuery(arrayR[0], arrayR[1]);
+        //                    estimate += rangeQuery(arrayR[0], arrayR[1]) * histogram.rangeQuery(arrayR[0], arrayR[1]);
+        //                } else if (arrayL[0] <= arrayR[0] && arrayL[1] <= arrayR[1] && arrayL[1] >= arrayR[0]) {
+        //                    leftEstimate += rangeQuery(arrayR[0], arrayL[1]);
+        //                    rightEstimate += histogram.rangeQuery(arrayR[0], arrayL[1]);
+        //                    estimate += rangeQuery(arrayR[0], arrayL[1]) * histogram.rangeQuery(arrayR[0], arrayL[1]);
+        //                } else if (arrayL[0] >= arrayR[0] && arrayL[1] >= arrayR[1] && arrayL[0] <= arrayR[1]) {
+        //                    leftEstimate += rangeQuery(arrayL[0], arrayR[1]);
+        //                    rightEstimate += histogram.rangeQuery(arrayL[0], arrayR[1]);
+        //                    estimate += rangeQuery(arrayL[0], arrayR[1]) * histogram.rangeQuery(arrayL[0], arrayR[1]);
+        //                } else if (arrayL[0] >= arrayR[0] && arrayL[1] <= arrayR[1]) {
+        //                    leftEstimate += rangeQuery(arrayL[0], arrayL[1]);
+        //                    rightEstimate += histogram.rangeQuery(arrayL[0], arrayL[1]);
+        //                    estimate += rangeQuery(arrayL[0], arrayL[1]) * histogram.rangeQuery(arrayL[0], arrayL[1]);
+        //                }
+        //            }
+        //        }
+        //
+        //        if (primIndex == true)
+        //            return Math.max(rightEstimate, leftEstimate);
         estimate = leftEstimate * rightEstimate;
         return estimate;
     }
@@ -160,7 +160,7 @@ public abstract class HistogramSynopsis<T extends HistogramBucket> extends Abstr
         }
         return distinctValues;
     }
-    
+
     public double approximateValueWithinBucket(int bucketIdx, long startPosition, long endPosition) {
         return getBuckets().get(bucketIdx).getValue() * (endPosition - startPosition + 1) / getBucketSpan(bucketIdx);
     }

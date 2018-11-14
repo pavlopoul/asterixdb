@@ -90,26 +90,28 @@ public class CardinalityEstimator implements ICardinalityEstimator {
         List<Statistics> outerStats =
                 getFieldStats(metadataProvider, outerDataverseName, outerDatasetName, outerFieldName);
         double result = 0.0;
-        long innerUniqueValues = getUniqueCardinality(metadataProvider, innerDataverseName, innerDatasetName, innerFieldName);
-        long outerUniqueValues = getUniqueCardinality(metadataProvider, outerDataverseName, outerDatasetName, outerFieldName);
+        long innerUniqueValues =
+                getUniqueCardinality(metadataProvider, innerDataverseName, innerDatasetName, innerFieldName);
+        long outerUniqueValues =
+                getUniqueCardinality(metadataProvider, outerDataverseName, outerDatasetName, outerFieldName);
         if ((innerStats == null || innerStats.isEmpty()) && (outerStats == null || outerStats.isEmpty())) {
             return CardinalityInferenceVisitor.UNKNOWN;
         }
-//        List<Statistics> stats;
-//        List<Statistics> secStats;
-//        if (innerStats.get(0).getSynopsis().getSize() > outerStats.get(0).getSynopsis().getSize()) {
-//            stats = outerStats;
-//            secStats = innerStats;
-//        } else {
-//            stats = innerStats;
-//            secStats = outerStats;
-//        }
+        //        List<Statistics> stats;
+        //        List<Statistics> secStats;
+        //        if (innerStats.get(0).getSynopsis().getSize() > outerStats.get(0).getSynopsis().getSize()) {
+        //            stats = outerStats;
+        //            secStats = innerStats;
+        //        } else {
+        //            stats = innerStats;
+        //            secStats = outerStats;
+        //        }
         for (Statistics s : innerStats) {
             for (Statistics sec : outerStats) {
                 result += s.getSynopsis().joinQuery(sec.getSynopsis(), this.primIndex);
             }
         }
-        return Math.round(result)/Math.max(innerUniqueValues, outerUniqueValues);
+        return Math.round(result) / Math.max(innerUniqueValues, outerUniqueValues);
     }
 
     private List<Statistics> getFieldStats(IMetadataProvider metadataProvider, String dataverseName, String datasetName,
@@ -127,15 +129,14 @@ public class CardinalityEstimator implements ICardinalityEstimator {
                 stats = fieldStats;
                 if (idx.isPrimaryIndex()) {
                     this.primIndex = true;
-                }
-                else{
+                } else {
                     this.primIndex = false;
                 }
             }
         }
         return stats;
     }
-    
+
     @Override
     public long getUniqueCardinality(IMetadataProvider metadataProvider, String dataverseName, String datasetName,
             List<String> fieldName) throws AlgebricksException {
@@ -151,7 +152,6 @@ public class CardinalityEstimator implements ICardinalityEstimator {
         }
         return Math.round(estimate);
     }
-
 
     @Override
     public long getEstimationTime() {

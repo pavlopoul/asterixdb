@@ -45,7 +45,7 @@ public class HistogramBucket implements ISynopsisElement<Long> {
     public void appendToUniqueValue(long appendedValue) {
         this.unique += appendedValue;
     }
-    
+
     public void setUniqueValue(long appendedValue) {
         this.unique = appendedValue;
     }

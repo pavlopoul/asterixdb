@@ -26,6 +26,7 @@ import org.apache.asterix.common.config.MessagingProperties;
 import org.apache.asterix.common.config.MetadataProperties;
 import org.apache.asterix.common.config.NodeProperties;
 import org.apache.asterix.common.config.ReplicationProperties;
+import org.apache.asterix.common.config.StatisticsProperties;
 import org.apache.asterix.common.config.StorageProperties;
 import org.apache.asterix.common.config.TransactionProperties;
 
@@ -100,4 +101,11 @@ public interface IPropertiesFactory {
      * @return new node properties
      */
     NodeProperties newNodeProperties();
+
+    /**
+     * Creates new {@link StatisticsProperties}
+     *
+     * @return new node properties
+     */
+    StatisticsProperties newStatisticsProperties();
 }

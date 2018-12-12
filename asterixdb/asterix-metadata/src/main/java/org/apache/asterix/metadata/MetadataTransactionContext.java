@@ -36,7 +36,9 @@ import org.apache.asterix.metadata.entities.Function;
 import org.apache.asterix.metadata.entities.Index;
 import org.apache.asterix.metadata.entities.Library;
 import org.apache.asterix.metadata.entities.NodeGroup;
+import org.apache.asterix.metadata.entities.Statistics;
 import org.apache.asterix.metadata.utils.MetadataUtil;
+import org.apache.hyracks.storage.am.lsm.common.impls.ComponentStatisticsId;
 
 /**
  * Used to implement serializable transactions against the MetadataCache.
@@ -119,6 +121,11 @@ public class MetadataTransactionContext extends MetadataCache {
 
     }
 
+    public void addStatistics(Statistics stat) {
+        droppedCache.dropStatistics(stat);
+        logAndApply(new MetadataLogicalOperation(stat, true));
+    }
+
     public void dropDataset(String dataverseName, String datasetName) {
         Dataset dataset = new Dataset(dataverseName, datasetName, null, null, null, null, null, null, null, null, -1,
                 MetadataUtil.PENDING_NO_OP);
@@ -173,6 +180,14 @@ public class MetadataTransactionContext extends MetadataCache {
         Library library = new Library(dataverseName, libraryName);
         droppedCache.addLibraryIfNotExists(library);
         logAndApply(new MetadataLogicalOperation(library, false));
+    }
+
+    public void dropStatistics(String dataverseName, String datasetName, String indexName, String fieldName,
+            boolean isAntimatter, String node, String partition, ComponentStatisticsId componentId) {
+        Statistics stat = new Statistics(dataverseName, datasetName, indexName, fieldName, node, partition, componentId,
+                false, isAntimatter, null);
+        droppedCache.addStatisticsIfNotExists(stat);
+        logAndApply(new MetadataLogicalOperation(stat, false));
     }
 
     public void logAndApply(MetadataLogicalOperation op) {

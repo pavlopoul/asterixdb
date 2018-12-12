@@ -44,13 +44,15 @@ import org.apache.hyracks.storage.common.IResourceFactory;
 public class TestDataset extends Dataset {
 
     private static final long serialVersionUID = 1L;
+    private final boolean hasStatistics;
 
     public TestDataset(String dataverseName, String datasetName, String recordTypeDataverseName, String recordTypeName,
             String nodeGroupName, String compactionPolicy, Map<String, String> compactionPolicyProperties,
             IDatasetDetails datasetDetails, Map<String, String> hints, DatasetType datasetType, int datasetId,
-            int pendingOp) {
+            int pendingOp, boolean hasStatistics) {
         super(dataverseName, datasetName, recordTypeDataverseName, recordTypeName, nodeGroupName, compactionPolicy,
                 compactionPolicyProperties, datasetDetails, hints, datasetType, datasetId, pendingOp);
+        this.hasStatistics = hasStatistics;
     }
 
     @Override
@@ -73,9 +75,9 @@ public class TestDataset extends Dataset {
         ITypeTraits[] filterTypeTraits = DatasetUtil.computeFilterTypeTraits(this, recordType);
         IBinaryComparatorFactory[] filterCmpFactories = DatasetUtil.computeFilterBinaryComparatorFactories(this,
                 recordType, mdProvider.getStorageComponentProvider().getComparatorFactoryProvider());
-        IResourceFactory resourceFactory =
-                TestLsmBTreeResourceFactoryProvider.INSTANCE.getResourceFactory(mdProvider, this, index, recordType,
-                        metaType, mergePolicyFactory, mergePolicyProperties, filterTypeTraits, filterCmpFactories);
+        IResourceFactory resourceFactory = new TestLsmBTreeResourceFactoryProvider(hasStatistics).getResourceFactory(
+                mdProvider, this, index, recordType, metaType, mergePolicyFactory, mergePolicyProperties,
+                filterTypeTraits, filterCmpFactories);
         return new DatasetLocalResourceFactory(getDatasetId(), resourceFactory);
     }
 

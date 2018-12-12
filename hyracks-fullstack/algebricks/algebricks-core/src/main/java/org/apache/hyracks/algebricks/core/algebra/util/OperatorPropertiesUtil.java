@@ -286,12 +286,13 @@ public class OperatorPropertiesUtil {
 
     public static boolean isCardinalityExactOne(ILogicalOperator operator) throws AlgebricksException {
         CardinalityInferenceVisitor visitor = new CardinalityInferenceVisitor();
-        return operator.accept(visitor, null) == 1L;
+        return operator.accept(visitor, null) == CardinalityInferenceVisitor.ONE;
     }
 
     public static boolean isCardinalityZeroOrOne(ILogicalOperator operator) throws AlgebricksException {
         CardinalityInferenceVisitor visitor = new CardinalityInferenceVisitor();
-        return operator.accept(visitor, null) <= 1;
+        long cardinality = operator.accept(visitor, null);
+        return cardinality == CardinalityInferenceVisitor.ONE || cardinality == CardinalityInferenceVisitor.ZERO_OR_ONE;
     }
 
     /**

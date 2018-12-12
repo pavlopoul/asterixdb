@@ -22,12 +22,11 @@ import java.io.DataInput;
 import java.io.DataOutput;
 
 import org.apache.asterix.om.base.AInt64;
-import org.apache.hyracks.api.dataflow.value.ISerializerDeserializer;
 import org.apache.hyracks.api.exceptions.HyracksDataException;
 import org.apache.hyracks.data.std.primitive.LongPointable;
 import org.apache.hyracks.dataflow.common.data.marshalling.Integer64SerializerDeserializer;
 
-public class AInt64SerializerDeserializer implements ISerializerDeserializer<AInt64> {
+public class AInt64SerializerDeserializer implements AIntegerSerializerDeserializer<AInt64> {
 
     private static final long serialVersionUID = 1L;
 
@@ -50,4 +49,8 @@ public class AInt64SerializerDeserializer implements ISerializerDeserializer<AIn
         return LongPointable.getLong(bytes, offset);
     }
 
+    @Override
+    public long getLongValue(byte[] bytes, int offset) {
+        return getLong(bytes, offset);
+    }
 }

@@ -444,7 +444,7 @@ public class ExternalBTree extends LSMBTree implements ITwoPCIndex {
             ioOpCallback.scheduled(loadOp);
             ioOpCallback.beforeOperation(loadOp);
             componentBulkLoader =
-                    component.createBulkLoader(loadOp, fillFactor, verifyInput, numElementsHint, false, true, true);
+                    component.createBulkLoader(loadOp, fillFactor, verifyInput, numElementsHint, 0L, false, true, true);
         }
 
         // It is expected that the mode was set to insert operation before

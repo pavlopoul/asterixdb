@@ -34,6 +34,7 @@ import org.apache.hyracks.algebricks.core.jobgen.impl.JobGenContext;
 import org.apache.hyracks.algebricks.core.jobgen.impl.PlanCompiler;
 import org.apache.hyracks.algebricks.core.rewriter.base.AlgebricksOptimizationContext;
 import org.apache.hyracks.algebricks.core.rewriter.base.HeuristicOptimizer;
+import org.apache.hyracks.algebricks.core.rewriter.base.ICardinalityEstimator;
 import org.apache.hyracks.algebricks.core.rewriter.base.IOptimizationContextFactory;
 import org.apache.hyracks.algebricks.core.rewriter.base.PhysicalOptimizationConfig;
 import org.apache.hyracks.api.job.IJobletEventListenerFactory;
@@ -53,12 +54,13 @@ public class HeuristicCompilerFactoryBuilder extends AbstractCompilerFactoryBuil
                 IExpressionEvalSizeComputer expressionEvalSizeComputer,
                 IMergeAggregationExpressionFactory mergeAggregationExpressionFactory,
                 IExpressionTypeComputer expressionTypeComputer, IMissableTypeComputer missableTypeComputer,
-                IConflictingTypeResolver conflictingTypeResolver, PhysicalOptimizationConfig physicalOptimizationConfig,
-                AlgebricksPartitionConstraint clusterLocations) {
+                IConflictingTypeResolver conflictingTypeResolver, ICardinalityEstimator cardinalityEstimator,
+                PhysicalOptimizationConfig physicalOptimizationConfig, AlgebricksPartitionConstraint clusterLocations) {
             LogicalOperatorPrettyPrintVisitor prettyPrintVisitor = new LogicalOperatorPrettyPrintVisitor();
             return new AlgebricksOptimizationContext(varCounter, expressionEvalSizeComputer,
                     mergeAggregationExpressionFactory, expressionTypeComputer, missableTypeComputer,
-                    conflictingTypeResolver, physicalOptimizationConfig, clusterLocations, prettyPrintVisitor);
+                    conflictingTypeResolver, cardinalityEstimator, physicalOptimizationConfig, clusterLocations,
+                    prettyPrintVisitor);
         }
     }
 
@@ -80,7 +82,8 @@ public class HeuristicCompilerFactoryBuilder extends AbstractCompilerFactoryBuil
                     int varCounter) {
                 final IOptimizationContext oc = optCtxFactory.createOptimizationContext(varCounter,
                         expressionEvalSizeComputer, mergeAggregationExpressionFactory, expressionTypeComputer,
-                        missableTypeComputer, conflictingTypeResolver, physicalOptimizationConfig, clusterLocations);
+                        missableTypeComputer, conflictingTypeResolver, cardinalityEstimator, physicalOptimizationConfig,
+                        clusterLocations);
                 oc.setMetadataDeclarations(metadata);
                 final HeuristicOptimizer opt = new HeuristicOptimizer(plan, logicalRewrites, physicalRewrites, oc);
                 return new ICompiler() {

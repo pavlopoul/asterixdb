@@ -137,6 +137,9 @@ public class LogicalOperatorPrettyPrintVisitorJson extends AbstractLogicalOperat
         }
         appendln(out, ",");
         pad(out, currentIndent);
+        append(out, "\"cardinality\": \"" + op.getCardinality() + '"');
+        appendln(out, ",");
+        pad(out, currentIndent);
         append(out, "\"execution-mode\": \"" + op.getExecutionMode() + '"');
         if (!op.getInputs().isEmpty()) {
             appendln(out, ",");

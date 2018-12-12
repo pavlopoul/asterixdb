@@ -26,6 +26,8 @@ import org.apache.hyracks.api.io.IJsonSerializable;
 import org.apache.hyracks.api.io.IPersistedResourceRegistry;
 import org.apache.hyracks.storage.am.lsm.common.api.ILSMIOOperationScheduler;
 import org.apache.hyracks.storage.am.lsm.common.api.ILSMIOOperationSchedulerProvider;
+import org.apache.hyracks.storage.am.lsm.common.api.IStatisticsManager;
+import org.apache.hyracks.storage.am.lsm.common.api.IStatisticsManagerProvider;
 import org.apache.hyracks.storage.common.ILocalResourceRepository;
 import org.apache.hyracks.storage.common.IStorageManager;
 import org.apache.hyracks.storage.common.buffercache.IBufferCache;
@@ -33,7 +35,8 @@ import org.apache.hyracks.storage.common.file.IResourceIdFactory;
 
 import com.fasterxml.jackson.databind.JsonNode;
 
-public class RuntimeComponentsProvider implements IStorageManager, ILSMIOOperationSchedulerProvider {
+public class RuntimeComponentsProvider
+        implements IStorageManager, ILSMIOOperationSchedulerProvider, IStatisticsManagerProvider {
 
     private static final long serialVersionUID = 1L;
 
@@ -75,5 +78,9 @@ public class RuntimeComponentsProvider implements IStorageManager, ILSMIOOperati
     @SuppressWarnings("squid:S1172") // unused parameter
     public static IJsonSerializable fromJson(IPersistedResourceRegistry registry, JsonNode json) {
         return RUNTIME_PROVIDER;
+    }
+
+    public IStatisticsManager getStatisticsManager(INCServiceContext ctx) {
+        return ((INcApplicationContext) ctx.getApplicationContext()).getStatisticsManager();
     }
 }

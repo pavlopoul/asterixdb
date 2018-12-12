@@ -152,5 +152,4 @@ public class TypeUtil {
         }
         return recordNameTypesMap;
     }
-
 }

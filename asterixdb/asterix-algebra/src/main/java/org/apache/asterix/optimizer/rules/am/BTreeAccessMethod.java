@@ -81,7 +81,7 @@ import org.apache.hyracks.algebricks.core.algebra.util.OperatorManipulationUtil;
 public class BTreeAccessMethod implements IAccessMethod {
 
     // Describes whether a search predicate is an open/closed interval.
-    private enum LimitType {
+    public enum LimitType {
         LOW_INCLUSIVE,
         LOW_EXCLUSIVE,
         HIGH_INCLUSIVE,
@@ -814,7 +814,7 @@ public class BTreeAccessMethod implements IAccessMethod {
         return -1;
     }
 
-    private LimitType getLimitType(IOptimizableFuncExpr optFuncExpr, OptimizableOperatorSubTree probeSubTree) {
+    public static LimitType getLimitType(IOptimizableFuncExpr optFuncExpr, OptimizableOperatorSubTree probeSubTree) {
         ComparisonKind ck =
                 AlgebricksBuiltinFunctions.getComparisonType(optFuncExpr.getFuncExpr().getFunctionIdentifier());
         LimitType limit = null;
@@ -898,7 +898,7 @@ public class BTreeAccessMethod implements IAccessMethod {
         return false;
     }
 
-    private boolean probeIsOnLhs(IOptimizableFuncExpr optFuncExpr, OptimizableOperatorSubTree probeSubTree) {
+    public static boolean probeIsOnLhs(IOptimizableFuncExpr optFuncExpr, OptimizableOperatorSubTree probeSubTree) {
         if (probeSubTree == null) {
             if (optFuncExpr.getConstantExpressions().length == 0) {
                 return optFuncExpr.getLogicalExpr(0) == null;

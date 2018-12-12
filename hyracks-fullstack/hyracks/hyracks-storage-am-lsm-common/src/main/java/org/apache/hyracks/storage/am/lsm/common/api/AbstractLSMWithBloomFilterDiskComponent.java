@@ -34,8 +34,8 @@ import org.apache.hyracks.storage.common.buffercache.IPageWriteFailureCallback;
 
 public abstract class AbstractLSMWithBloomFilterDiskComponent extends AbstractLSMDiskComponent {
     public AbstractLSMWithBloomFilterDiskComponent(AbstractLSMIndex lsmIndex, IMetadataPageManager mdPageManager,
-            ILSMComponentFilter filter) {
-        super(lsmIndex, mdPageManager, filter);
+            ILSMComponentFilter filter, IStatisticsFactory statisticsFactory, IStatisticsManager statisticsManager) {
+        super(lsmIndex, mdPageManager, filter, statisticsFactory, statisticsManager);
     }
 
     public abstract BloomFilter getBloomFilter();
@@ -86,12 +86,12 @@ public abstract class AbstractLSMWithBloomFilterDiskComponent extends AbstractLS
 
     @Override
     public ChainedLSMDiskComponentBulkLoader createBulkLoader(ILSMIOOperation operation, float fillFactor,
-            boolean verifyInput, long numElementsHint, boolean checkIfEmptyIndex, boolean withFilter,
-            boolean cleanupEmptyComponent) throws HyracksDataException {
+            boolean verifyInput, long numElementsHint, long numAntimatterElementsHint, boolean checkIfEmptyIndex,
+            boolean withFilter, boolean cleanupEmptyComponent) throws HyracksDataException {
         ChainedLSMDiskComponentBulkLoader chainedBulkLoader = super.createBulkLoader(operation, fillFactor, verifyInput,
-                numElementsHint, checkIfEmptyIndex, withFilter, cleanupEmptyComponent);
-        if (numElementsHint > 0) {
-            chainedBulkLoader.addBulkLoader(createBloomFilterBulkLoader(numElementsHint));
+                numElementsHint, numAntimatterElementsHint, checkIfEmptyIndex, withFilter, cleanupEmptyComponent);
+        if (numElementsHint + numAntimatterElementsHint > 0) {
+            chainedBulkLoader.addBulkLoader(createBloomFilterBulkLoader(numElementsHint + numAntimatterElementsHint));
         }
         return chainedBulkLoader;
     }

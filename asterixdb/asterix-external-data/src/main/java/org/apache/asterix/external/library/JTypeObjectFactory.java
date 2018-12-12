@@ -46,7 +46,7 @@ import org.apache.asterix.om.types.ARecordType;
 import org.apache.asterix.om.types.AUnionType;
 import org.apache.asterix.om.types.AUnorderedListType;
 import org.apache.asterix.om.types.IAType;
-import org.apache.asterix.om.util.container.IObjectFactory;
+import org.apache.hyracks.util.objectpool.IObjectFactory;
 
 public class JTypeObjectFactory implements IObjectFactory<IJObject, IAType> {
 

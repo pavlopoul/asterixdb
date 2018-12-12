@@ -18,25 +18,20 @@
  */
 package org.apache.asterix.test.dataflow;
 
-import java.util.List;
 import java.util.Map;
 
-import org.apache.asterix.common.config.DatasetConfig.DatasetType;
 import org.apache.asterix.common.context.AsterixVirtualBufferCacheProvider;
 import org.apache.asterix.common.context.IStorageComponentProvider;
-import org.apache.asterix.external.indexing.FilesIndexDescription;
-import org.apache.asterix.external.indexing.IndexingConstants;
 import org.apache.asterix.metadata.api.IResourceFactoryProvider;
+import org.apache.asterix.metadata.declared.BTreeResourceFactoryProvider;
 import org.apache.asterix.metadata.declared.MetadataProvider;
 import org.apache.asterix.metadata.entities.Dataset;
 import org.apache.asterix.metadata.entities.Index;
 import org.apache.asterix.metadata.utils.IndexUtil;
 import org.apache.asterix.om.types.ARecordType;
-import org.apache.asterix.om.types.IAType;
+import org.apache.asterix.runtime.statistics.StatisticsUtil;
 import org.apache.asterix.transaction.management.opcallbacks.PrimaryIndexOperationTrackerFactory;
 import org.apache.hyracks.algebricks.common.exceptions.AlgebricksException;
-import org.apache.hyracks.algebricks.common.utils.Pair;
-import org.apache.hyracks.algebricks.data.IBinaryComparatorFactoryProvider;
 import org.apache.hyracks.algebricks.data.ITypeTraitProvider;
 import org.apache.hyracks.api.dataflow.value.IBinaryComparatorFactory;
 import org.apache.hyracks.api.dataflow.value.ITypeTraits;
@@ -51,9 +46,10 @@ import org.apache.hyracks.storage.common.IStorageManager;
 
 public class TestLsmBTreeResourceFactoryProvider implements IResourceFactoryProvider {
 
-    public static final TestLsmBTreeResourceFactoryProvider INSTANCE = new TestLsmBTreeResourceFactoryProvider();
+    private final boolean hasStatistics;
 
-    private TestLsmBTreeResourceFactoryProvider() {
+    public TestLsmBTreeResourceFactoryProvider(boolean hasStatistics) {
+        this.hasStatistics = hasStatistics;
     }
 
     @Override
@@ -64,9 +60,12 @@ public class TestLsmBTreeResourceFactoryProvider implements IResourceFactoryProv
         int[] filterFields = IndexUtil.getFilterFields(dataset, index, filterTypeTraits);
         int[] btreeFields = IndexUtil.getBtreeFieldsIfFiltered(dataset, index);
         IStorageComponentProvider storageComponentProvider = mdProvider.getStorageComponentProvider();
-        ITypeTraits[] typeTraits = getTypeTraits(mdProvider, dataset, index, recordType, metaType);
-        IBinaryComparatorFactory[] cmpFactories = getCmpFactories(mdProvider, dataset, index, recordType, metaType);
-        int[] bloomFilterFields = getBloomFilterFields(dataset, index);
+        ITypeTraitProvider typeTraitProvider = storageComponentProvider.getTypeTraitProvider();
+        ITypeTraits[] typeTraits =
+                BTreeResourceFactoryProvider.getTypeTraits(typeTraitProvider, dataset, index, recordType, metaType);
+        IBinaryComparatorFactory[] cmpFactories =
+                BTreeResourceFactoryProvider.getCmpFactories(mdProvider, dataset, index, recordType, metaType);
+        int[] bloomFilterFields = BTreeResourceFactoryProvider.getBloomFilterFields(dataset, index);
         double bloomFilterFalsePositiveRate = mdProvider.getStorageProperties().getBloomFilterFalsePositiveRate();
         ILSMOperationTrackerFactory opTrackerFactory = dataset.getIndexOperationTrackerFactory(index);
         if (opTrackerFactory instanceof PrimaryIndexOperationTrackerFactory) {
@@ -82,93 +81,11 @@ public class TestLsmBTreeResourceFactoryProvider implements IResourceFactoryProv
         return new TestLsmBtreeLocalResourceFactory(storageManager, typeTraits, cmpFactories, filterTypeTraits,
                 filterCmpFactories, filterFields, opTrackerFactory, ioOpCallbackFactory, metadataPageManagerFactory,
                 vbcProvider, ioSchedulerProvider, mergePolicyFactory, mergePolicyProperties, true, bloomFilterFields,
-                bloomFilterFalsePositiveRate, index.isPrimaryIndex(), btreeFields);
-    }
-
-    private static ITypeTraits[] getTypeTraits(MetadataProvider metadataProvider, Dataset dataset, Index index,
-            ARecordType recordType, ARecordType metaType) throws AlgebricksException {
-        ITypeTraits[] primaryTypeTraits = dataset.getPrimaryTypeTraits(metadataProvider, recordType, metaType);
-        if (index.isPrimaryIndex()) {
-            return primaryTypeTraits;
-        } else if (dataset.getDatasetType() == DatasetType.EXTERNAL
-                && index.getIndexName().equals(IndexingConstants.getFilesIndexName(dataset.getDatasetName()))) {
-            return FilesIndexDescription.EXTERNAL_FILE_INDEX_TYPE_TRAITS;
-        }
-        int numPrimaryKeys = dataset.getPrimaryKeys().size();
-        int numSecondaryKeys = index.getKeyFieldNames().size();
-        ITypeTraitProvider typeTraitProvider = metadataProvider.getStorageComponentProvider().getTypeTraitProvider();
-        ITypeTraits[] secondaryTypeTraits = new ITypeTraits[numSecondaryKeys + numPrimaryKeys];
-        for (int i = 0; i < numSecondaryKeys; i++) {
-            ARecordType sourceType;
-            List<Integer> keySourceIndicators = index.getKeyFieldSourceIndicators();
-            if (keySourceIndicators == null || keySourceIndicators.get(i) == 0) {
-                sourceType = recordType;
-            } else {
-                sourceType = metaType;
-            }
-            Pair<IAType, Boolean> keyTypePair = Index.getNonNullableOpenFieldType(index.getKeyFieldTypes().get(i),
-                    index.getKeyFieldNames().get(i), sourceType);
-            IAType keyType = keyTypePair.first;
-            secondaryTypeTraits[i] = typeTraitProvider.getTypeTrait(keyType);
-        }
-        // Add serializers and comparators for primary index fields.
-        for (int i = 0; i < numPrimaryKeys; i++) {
-            secondaryTypeTraits[numSecondaryKeys + i] = primaryTypeTraits[i];
-        }
-        return secondaryTypeTraits;
-    }
-
-    private static IBinaryComparatorFactory[] getCmpFactories(MetadataProvider metadataProvider, Dataset dataset,
-            Index index, ARecordType recordType, ARecordType metaType) throws AlgebricksException {
-        IBinaryComparatorFactory[] primaryCmpFactories =
-                dataset.getPrimaryComparatorFactories(metadataProvider, recordType, metaType);
-        if (index.isPrimaryIndex()) {
-            return dataset.getPrimaryComparatorFactories(metadataProvider, recordType, metaType);
-        } else if (dataset.getDatasetType() == DatasetType.EXTERNAL
-                && index.getIndexName().equals(IndexingConstants.getFilesIndexName(dataset.getDatasetName()))) {
-            return FilesIndexDescription.FILES_INDEX_COMP_FACTORIES;
-        }
-        int numPrimaryKeys = dataset.getPrimaryKeys().size();
-        int numSecondaryKeys = index.getKeyFieldNames().size();
-        IBinaryComparatorFactoryProvider cmpFactoryProvider =
-                metadataProvider.getStorageComponentProvider().getComparatorFactoryProvider();
-        IBinaryComparatorFactory[] secondaryCmpFactories =
-                new IBinaryComparatorFactory[numSecondaryKeys + numPrimaryKeys];
-        for (int i = 0; i < numSecondaryKeys; i++) {
-            ARecordType sourceType;
-            List<Integer> keySourceIndicators = index.getKeyFieldSourceIndicators();
-            if (keySourceIndicators == null || keySourceIndicators.get(i) == 0) {
-                sourceType = recordType;
-            } else {
-                sourceType = metaType;
-            }
-            Pair<IAType, Boolean> keyTypePair = Index.getNonNullableOpenFieldType(index.getKeyFieldTypes().get(i),
-                    index.getKeyFieldNames().get(i), sourceType);
-            IAType keyType = keyTypePair.first;
-            secondaryCmpFactories[i] = cmpFactoryProvider.getBinaryComparatorFactory(keyType, true);
-        }
-        // Add serializers and comparators for primary index fields.
-        for (int i = 0; i < numPrimaryKeys; i++) {
-            secondaryCmpFactories[numSecondaryKeys + i] = primaryCmpFactories[i];
-        }
-        return secondaryCmpFactories;
-    }
-
-    private static int[] getBloomFilterFields(Dataset dataset, Index index) throws AlgebricksException {
-        if (index.isPrimaryIndex()) {
-            return dataset.getPrimaryBloomFilterFields();
-        } else if (dataset.getDatasetType() == DatasetType.EXTERNAL) {
-            if (index.getIndexName().equals(IndexingConstants.getFilesIndexName(dataset.getDatasetName()))) {
-                return FilesIndexDescription.BLOOM_FILTER_FIELDS;
-            } else {
-                return new int[] { index.getKeyFieldNames().size() };
-            }
-        }
-        int numKeys = index.getKeyFieldNames().size();
-        int[] bloomFilterKeyFields = new int[numKeys];
-        for (int i = 0; i < numKeys; i++) {
-            bloomFilterKeyFields[i] = i;
-        }
-        return bloomFilterKeyFields;
+                bloomFilterFalsePositiveRate, index.isPrimaryIndex(), btreeFields,
+                new TestCountingStatisticsFactory(dataset.getDataverseName(), dataset.getDatasetName(),
+                        index.getIndexName(),
+                        StatisticsUtil.computeStatisticsFieldExtractors(typeTraitProvider, recordType,
+                                index.getKeyFieldNames(), index.isPrimaryIndex(), true, null)),
+                hasStatistics ? storageComponentProvider.getStatisticsManagerProvider() : null);
     }
 }

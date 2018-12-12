@@ -56,7 +56,7 @@ public class LSMBTreeFileManagerTest {
                 harness.getFileReference(), harness.getDiskBufferCache(), fieldSerdes, 1,
                 harness.getBoomFilterFalsePositiveRate(), harness.getMergePolicy(), harness.getOperationTracker(),
                 harness.getIOScheduler(), harness.getIOOperationCallbackFactory(),
-                harness.getMetadataPageManagerFactory(), false, true, false);
+                harness.getMetadataPageManagerFactory(), false, true, false, null, null);
         ctx.getIndex().create();
         ctx.getIndex().activate();
 

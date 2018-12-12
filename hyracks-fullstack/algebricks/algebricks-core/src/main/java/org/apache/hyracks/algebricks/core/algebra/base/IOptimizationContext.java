@@ -31,6 +31,7 @@ import org.apache.hyracks.algebricks.core.algebra.properties.ILogicalPropertiesV
 import org.apache.hyracks.algebricks.core.algebra.properties.INodeDomain;
 import org.apache.hyracks.algebricks.core.algebra.typing.ITypingContext;
 import org.apache.hyracks.algebricks.core.rewriter.base.IAlgebraicRewriteRule;
+import org.apache.hyracks.algebricks.core.rewriter.base.ICardinalityEstimator;
 import org.apache.hyracks.algebricks.core.rewriter.base.PhysicalOptimizationConfig;
 
 public interface IOptimizationContext extends ITypingContext, IVariableContext {
@@ -80,6 +81,8 @@ public interface IOptimizationContext extends ITypingContext, IVariableContext {
     public PhysicalOptimizationConfig getPhysicalOptimizationConfig();
 
     public void updatePrimaryKeys(Map<LogicalVariable, LogicalVariable> mappedVars);
+
+    public ICardinalityEstimator getCardinalityEstimator();
 
     public LogicalOperatorPrettyPrintVisitor getPrettyPrintVisitor();
 

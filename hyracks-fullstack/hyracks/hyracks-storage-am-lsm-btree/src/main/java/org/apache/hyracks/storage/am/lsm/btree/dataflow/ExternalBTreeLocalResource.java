@@ -56,7 +56,7 @@ public class ExternalBTreeLocalResource extends LSMBTreeLocalResource {
         super(typeTraits, cmpFactories, bloomFilterKeyFields, bloomFilterFalsePositiveRate, isPrimary, path,
                 storageManager, mergePolicyFactory, mergePolicyProperties, filterTypeTraits, filterCmpFactories,
                 btreeFields, filterFields, opTrackerProvider, ioOpCallbackFactory, metadataPageManagerFactory, null,
-                ioSchedulerProvider, durable, NoOpCompressorDecompressorFactory.INSTANCE);
+                ioSchedulerProvider, durable, NoOpCompressorDecompressorFactory.INSTANCE, null, null);
     }
 
     private ExternalBTreeLocalResource(IPersistedResourceRegistry registry, JsonNode json, int[] bloomFilterKeyFields,

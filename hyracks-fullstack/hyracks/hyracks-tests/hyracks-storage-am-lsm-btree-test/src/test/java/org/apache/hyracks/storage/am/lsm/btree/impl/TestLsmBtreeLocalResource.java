@@ -36,6 +36,8 @@ import org.apache.hyracks.storage.am.lsm.common.api.ILSMIOOperationSchedulerProv
 import org.apache.hyracks.storage.am.lsm.common.api.ILSMIndex;
 import org.apache.hyracks.storage.am.lsm.common.api.ILSMMergePolicyFactory;
 import org.apache.hyracks.storage.am.lsm.common.api.ILSMOperationTrackerFactory;
+import org.apache.hyracks.storage.am.lsm.common.api.IStatisticsFactory;
+import org.apache.hyracks.storage.am.lsm.common.api.IStatisticsManagerProvider;
 import org.apache.hyracks.storage.am.lsm.common.api.IVirtualBufferCache;
 import org.apache.hyracks.storage.am.lsm.common.api.IVirtualBufferCacheProvider;
 import org.apache.hyracks.storage.common.IStorageManager;
@@ -54,11 +56,13 @@ public class TestLsmBtreeLocalResource extends LSMBTreeLocalResource {
             IBinaryComparatorFactory[] filterCmpFactories, int[] btreeFields, int[] filterFields,
             ILSMOperationTrackerFactory opTrackerProvider, ILSMIOOperationCallbackFactory ioOpCallbackFactory,
             IMetadataPageManagerFactory metadataPageManagerFactory, IVirtualBufferCacheProvider vbcProvider,
-            ILSMIOOperationSchedulerProvider ioSchedulerProvider, boolean durable) {
+            ILSMIOOperationSchedulerProvider ioSchedulerProvider, boolean durable, IStatisticsFactory statisticsFactory,
+            IStatisticsManagerProvider statisticsManagerProvider) {
         super(typeTraits, cmpFactories, bloomFilterKeyFields, bloomFilterFalsePositiveRate, isPrimary, path,
                 storageManager, mergePolicyFactory, mergePolicyProperties, filterTypeTraits, filterCmpFactories,
                 btreeFields, filterFields, opTrackerProvider, ioOpCallbackFactory, metadataPageManagerFactory,
-                vbcProvider, ioSchedulerProvider, durable, NoOpCompressorDecompressorFactory.INSTANCE);
+                vbcProvider, ioSchedulerProvider, durable, NoOpCompressorDecompressorFactory.INSTANCE,
+                statisticsFactory, statisticsManagerProvider);
     }
 
     protected TestLsmBtreeLocalResource(IPersistedResourceRegistry registry, JsonNode json, int[] bloomFilterKeyFields,
@@ -85,7 +89,8 @@ public class TestLsmBtreeLocalResource extends LSMBTreeLocalResource {
                 mergePolicyFactory.createMergePolicy(mergePolicyProperties, serviceCtx),
                 opTrackerProvider.getOperationTracker(serviceCtx, this), ioSchedulerProvider.getIoScheduler(serviceCtx),
                 ioOpCallbackFactory, isPrimary, filterTypeTraits, filterCmpFactories, btreeFields, filterFields,
-                durable, metadataPageManagerFactory, false, serviceCtx.getTracer());
+                durable, metadataPageManagerFactory, false, serviceCtx.getTracer(), statisticsFactory,
+                statisticsManagerProvider == null ? null : statisticsManagerProvider.getStatisticsManager(serviceCtx));
     }
 
     @Override

@@ -186,6 +186,7 @@ public class QueryServiceServlet extends AbstractQueryApiServlet {
     private enum Metrics {
         ELAPSED_TIME("elapsedTime"),
         EXECUTION_TIME("executionTime"),
+        OPTIMIZATION_TIME("optimizationTime"),
         RESULT_COUNT("resultCount"),
         RESULT_SIZE("resultSize"),
         ERROR_COUNT("errorCount"),

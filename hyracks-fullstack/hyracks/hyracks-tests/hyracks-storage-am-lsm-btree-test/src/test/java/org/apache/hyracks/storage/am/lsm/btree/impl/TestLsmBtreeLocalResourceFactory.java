@@ -29,6 +29,8 @@ import org.apache.hyracks.storage.am.lsm.common.api.ILSMIOOperationCallbackFacto
 import org.apache.hyracks.storage.am.lsm.common.api.ILSMIOOperationSchedulerProvider;
 import org.apache.hyracks.storage.am.lsm.common.api.ILSMMergePolicyFactory;
 import org.apache.hyracks.storage.am.lsm.common.api.ILSMOperationTrackerFactory;
+import org.apache.hyracks.storage.am.lsm.common.api.IStatisticsFactory;
+import org.apache.hyracks.storage.am.lsm.common.api.IStatisticsManagerProvider;
 import org.apache.hyracks.storage.am.lsm.common.api.IVirtualBufferCacheProvider;
 import org.apache.hyracks.storage.am.lsm.common.dataflow.LsmResource;
 import org.apache.hyracks.storage.common.IStorageManager;
@@ -44,11 +46,13 @@ public class TestLsmBtreeLocalResourceFactory extends LSMBTreeLocalResourceFacto
             IMetadataPageManagerFactory metadataPageManagerFactory, IVirtualBufferCacheProvider vbcProvider,
             ILSMIOOperationSchedulerProvider ioSchedulerProvider, ILSMMergePolicyFactory mergePolicyFactory,
             Map<String, String> mergePolicyProperties, boolean durable, int[] bloomFilterKeyFields,
-            double bloomFilterFalsePositiveRate, boolean isPrimary, int[] btreeFields) {
+            double bloomFilterFalsePositiveRate, boolean isPrimary, int[] btreeFields,
+            IStatisticsFactory statisticsFactory, IStatisticsManagerProvider statisticsManagerProvider) {
         super(storageManager, typeTraits, cmpFactories, filterTypeTraits, filterCmpFactories, filterFields,
                 opTrackerFactory, ioOpCallbackFactory, metadataPageManagerFactory, vbcProvider, ioSchedulerProvider,
                 mergePolicyFactory, mergePolicyProperties, durable, bloomFilterKeyFields, bloomFilterFalsePositiveRate,
-                isPrimary, btreeFields, NoOpCompressorDecompressorFactory.INSTANCE);
+                isPrimary, btreeFields, NoOpCompressorDecompressorFactory.INSTANCE, statisticsFactory,
+                statisticsManagerProvider);
     }
 
     @Override
@@ -57,6 +61,6 @@ public class TestLsmBtreeLocalResourceFactory extends LSMBTreeLocalResourceFacto
                 bloomFilterFalsePositiveRate, isPrimary, fileRef.getRelativePath(), storageManager, mergePolicyFactory,
                 mergePolicyProperties, filterTypeTraits, filterCmpFactories, btreeFields, filterFields,
                 opTrackerProvider, ioOpCallbackFactory, metadataPageManagerFactory, vbcProvider, ioSchedulerProvider,
-                durable);
+                durable, statisticsFactory, statisticsManagerProvider);
     }
 }

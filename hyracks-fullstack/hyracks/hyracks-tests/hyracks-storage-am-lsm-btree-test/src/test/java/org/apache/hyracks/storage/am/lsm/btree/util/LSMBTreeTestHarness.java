@@ -37,10 +37,12 @@ import org.apache.hyracks.storage.am.common.api.IMetadataPageManagerFactory;
 import org.apache.hyracks.storage.am.common.freepage.AppendOnlyLinkedMetadataPageManagerFactory;
 import org.apache.hyracks.storage.am.config.AccessMethodTestsConfig;
 import org.apache.hyracks.storage.am.lsm.btree.impl.CountingIoOperationCallbackFactory;
+import org.apache.hyracks.storage.am.lsm.btree.impl.TestStatisticsManager;
 import org.apache.hyracks.storage.am.lsm.common.api.ILSMIOOperationCallbackFactory;
 import org.apache.hyracks.storage.am.lsm.common.api.ILSMIOOperationScheduler;
 import org.apache.hyracks.storage.am.lsm.common.api.ILSMMergePolicy;
 import org.apache.hyracks.storage.am.lsm.common.api.ILSMOperationTracker;
+import org.apache.hyracks.storage.am.lsm.common.api.IStatisticsManager;
 import org.apache.hyracks.storage.am.lsm.common.api.IVirtualBufferCache;
 import org.apache.hyracks.storage.am.lsm.common.impls.NoMergePolicy;
 import org.apache.hyracks.storage.am.lsm.common.impls.SynchronousSchedulerProvider;
@@ -86,6 +88,7 @@ public class LSMBTreeTestHarness {
     protected final static String sep = System.getProperty("file.separator");
     protected String onDiskDir;
     protected FileReference file;
+    protected IStatisticsManager statisticsManager;
 
     public LSMBTreeTestHarness() {
         this.diskPageSize = AccessMethodTestsConfig.LSM_BTREE_DISK_PAGE_SIZE;
@@ -119,6 +122,7 @@ public class LSMBTreeTestHarness {
             virtualBufferCaches.add(virtualBufferCache);
         }
         rnd.setSeed(RANDOM_SEED);
+        statisticsManager = new TestStatisticsManager();
     }
 
     public void tearDown() throws HyracksDataException {
@@ -215,5 +219,9 @@ public class LSMBTreeTestHarness {
 
     public IMetadataPageManagerFactory getMetadataPageManagerFactory() {
         return metadataPageManagerFactory;
+    }
+
+    public IStatisticsManager getStatisticsManager() {
+        return statisticsManager;
     }
 }

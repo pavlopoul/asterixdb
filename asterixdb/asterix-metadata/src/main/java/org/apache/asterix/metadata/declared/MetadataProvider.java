@@ -74,6 +74,7 @@ import org.apache.asterix.metadata.entities.Feed;
 import org.apache.asterix.metadata.entities.FeedConnection;
 import org.apache.asterix.metadata.entities.FeedPolicyEntity;
 import org.apache.asterix.metadata.entities.Index;
+import org.apache.asterix.metadata.entities.Statistics;
 import org.apache.asterix.metadata.feeds.FeedMetadataUtil;
 import org.apache.asterix.metadata.lock.ExternalDatasetsRegistry;
 import org.apache.asterix.metadata.utils.DatasetUtil;
@@ -124,9 +125,9 @@ import org.apache.hyracks.api.dataflow.value.IResultSerializerFactory;
 import org.apache.hyracks.api.dataflow.value.ISerializerDeserializer;
 import org.apache.hyracks.api.dataflow.value.ITypeTraits;
 import org.apache.hyracks.api.dataflow.value.RecordDescriptor;
-import org.apache.hyracks.api.result.ResultSetId;
 import org.apache.hyracks.api.io.FileSplit;
 import org.apache.hyracks.api.job.JobSpecification;
+import org.apache.hyracks.api.result.ResultSetId;
 import org.apache.hyracks.data.std.primitive.ShortPointable;
 import org.apache.hyracks.dataflow.common.data.marshalling.ShortSerializerDeserializer;
 import org.apache.hyracks.dataflow.std.file.IFileSplitProvider;
@@ -138,6 +139,8 @@ import org.apache.hyracks.storage.am.common.api.ITupleFilterFactory;
 import org.apache.hyracks.storage.am.common.dataflow.IIndexDataflowHelperFactory;
 import org.apache.hyracks.storage.am.common.dataflow.IndexDataflowHelperFactory;
 import org.apache.hyracks.storage.am.common.ophelpers.IndexOperation;
+import org.apache.hyracks.storage.am.lsm.common.api.ISynopsis;
+import org.apache.hyracks.storage.am.lsm.common.impls.ComponentStatisticsId;
 import org.apache.hyracks.storage.am.lsm.invertedindex.dataflow.BinaryTokenizerOperatorDescriptor;
 import org.apache.hyracks.storage.am.lsm.invertedindex.tokenizers.IBinaryTokenizerFactory;
 import org.apache.hyracks.storage.am.rtree.dataflow.RTreeSearchOperatorDescriptor;
@@ -387,6 +390,27 @@ public class MetadataProvider implements IMetadataProvider<DataSourceId, String>
 
     public List<Index> getDatasetIndexes(String dataverseName, String datasetName) throws AlgebricksException {
         return MetadataManagerUtil.getDatasetIndexes(mdTxnCtx, dataverseName, datasetName);
+    }
+
+    public List<Statistics> getMergedStatistics(String dataverseName, String datasetName, String indexName,
+            String fieldName) throws AlgebricksException {
+        return MetadataManager.INSTANCE.getMergedStatistics(mdTxnCtx, dataverseName, datasetName, indexName, fieldName);
+    }
+
+    @Override
+    public void addStatistics(String dataverseName, String datasetName, String indexName, String fieldName, String node,
+            String partition, ComponentStatisticsId componentId, boolean isAntimatter, ISynopsis synopsis)
+            throws AlgebricksException {
+        MetadataManager.INSTANCE.addStatistics(mdTxnCtx, new Statistics(dataverseName, datasetName, indexName,
+                fieldName, node, partition, componentId, false, isAntimatter, synopsis));
+    }
+
+    @Override
+    public void dropStatistics(String dataverseName, String datasetName, String indexName, String fieldName,
+            String node, String partition, ComponentStatisticsId componentId, boolean isAntimatter)
+            throws AlgebricksException {
+        MetadataManager.INSTANCE.dropStatistics(mdTxnCtx, dataverseName, datasetName, indexName, fieldName, node,
+                partition, componentId, isAntimatter);
     }
 
     @Override
@@ -1478,7 +1502,7 @@ public class MetadataProvider implements IMetadataProvider<DataSourceId, String>
         String itemTypeName = dataset.getItemTypeName();
         IAType itemType;
         try {
-            itemType = MetadataManager.INSTANCE.getDatatype(mdTxnCtx, dataset.getItemTypeDataverseName(), itemTypeName)
+            itemType = MetadataManager.INSTANCE.getDatatype(mdTxnCtx, dataset.getDataverseName(), itemTypeName)
                     .getDatatype();
 
             if (itemType.getTypeTag() != ATypeTag.OBJECT) {

@@ -22,9 +22,10 @@ import java.io.DataOutput;
 import java.io.IOException;
 import java.util.Arrays;
 import java.util.BitSet;
-import java.util.EnumMap;
+import java.util.EnumSet;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.function.BiFunction;
 
 import org.apache.asterix.common.exceptions.ErrorCode;
 import org.apache.asterix.common.exceptions.RuntimeDataException;
@@ -47,7 +48,7 @@ public class ATypeHierarchy {
     private static final Map<Integer, ITypeConvertComputer> promoteComputerMap = new HashMap<>();
     private static final Map<Integer, Pair<ITypeConvertComputer, ITypeConvertComputer>> demoteComputerMap =
             new HashMap<>();
-    private static Map<ATypeTag, Domain> hierarchyDomains = new EnumMap<>(ATypeTag.class);
+    private static Map<ATypeTag, EnumSet<Domain>> hierarchyDomains = new HashMap<>();
 
     // allow type promotion or demotion to the type itself
     static {
@@ -116,35 +117,45 @@ public class ATypeHierarchy {
     }
 
     static {
-        hierarchyDomains.put(ATypeTag.POINT, Domain.SPATIAL);
-        hierarchyDomains.put(ATypeTag.LINE, Domain.SPATIAL);
-        hierarchyDomains.put(ATypeTag.CIRCLE, Domain.SPATIAL);
-        hierarchyDomains.put(ATypeTag.POLYGON, Domain.SPATIAL);
-        hierarchyDomains.put(ATypeTag.RECTANGLE, Domain.SPATIAL);
-        hierarchyDomains.put(ATypeTag.TINYINT, Domain.NUMERIC);
-        hierarchyDomains.put(ATypeTag.SMALLINT, Domain.NUMERIC);
-        hierarchyDomains.put(ATypeTag.INTEGER, Domain.NUMERIC);
-        hierarchyDomains.put(ATypeTag.BIGINT, Domain.NUMERIC);
-        hierarchyDomains.put(ATypeTag.FLOAT, Domain.NUMERIC);
-        hierarchyDomains.put(ATypeTag.DOUBLE, Domain.NUMERIC);
-        hierarchyDomains.put(ATypeTag.ARRAY, Domain.LIST);
-        hierarchyDomains.put(ATypeTag.MULTISET, Domain.LIST);
-    }
-
-    public static Domain getTypeDomain(ATypeTag tag) {
-        return hierarchyDomains.get(tag);
+        for (ATypeTag t : ATypeTag.values()) {
+            hierarchyDomains.put(t, EnumSet.of(Domain.ANY));
+        }
+        BiFunction<EnumSet<Domain>, EnumSet<Domain>, EnumSet<Domain>> mergeFunc = (s1, s2) -> {
+            EnumSet<Domain> s = EnumSet.copyOf(s1);
+            s.addAll(s2);
+            return s;
+        };
+        hierarchyDomains.merge(ATypeTag.POINT, EnumSet.of(Domain.SPATIAL), mergeFunc);
+        hierarchyDomains.merge(ATypeTag.LINE, EnumSet.of(Domain.SPATIAL), mergeFunc);
+        hierarchyDomains.merge(ATypeTag.CIRCLE, EnumSet.of(Domain.SPATIAL), mergeFunc);
+        hierarchyDomains.merge(ATypeTag.POLYGON, EnumSet.of(Domain.SPATIAL), mergeFunc);
+        hierarchyDomains.merge(ATypeTag.RECTANGLE, EnumSet.of(Domain.SPATIAL), mergeFunc);
+        hierarchyDomains.merge(ATypeTag.TINYINT, EnumSet.of(Domain.NUMERIC, Domain.INTEGER), mergeFunc);
+        hierarchyDomains.merge(ATypeTag.SMALLINT, EnumSet.of(Domain.NUMERIC, Domain.INTEGER), mergeFunc);
+        hierarchyDomains.merge(ATypeTag.INTEGER, EnumSet.of(Domain.NUMERIC, Domain.INTEGER), mergeFunc);
+        hierarchyDomains.merge(ATypeTag.BIGINT, EnumSet.of(Domain.NUMERIC, Domain.INTEGER), mergeFunc);
+        hierarchyDomains.merge(ATypeTag.FLOAT, EnumSet.of(Domain.NUMERIC, Domain.FLOATING), mergeFunc);
+        hierarchyDomains.merge(ATypeTag.DOUBLE, EnumSet.of(Domain.NUMERIC, Domain.FLOATING), mergeFunc);
+        hierarchyDomains.merge(ATypeTag.ARRAY, EnumSet.of(Domain.LIST), mergeFunc);
+        hierarchyDomains.merge(ATypeTag.MULTISET, EnumSet.of(Domain.LIST), mergeFunc);
     }
 
     public static boolean isSameTypeDomain(ATypeTag tag1, ATypeTag tag2, boolean useListDomain) {
-        Domain tagHierarchy1 = hierarchyDomains.get(tag1);
-        Domain tagHierarchy2 = hierarchyDomains.get(tag2);
+        EnumSet<Domain> tagHierarchy1 = hierarchyDomains.get(tag1);
+        EnumSet<Domain> tagHierarchy2 = hierarchyDomains.get(tag2);
         if (tagHierarchy1 == null || tagHierarchy2 == null) {
             return false;
         }
-        if (useListDomain && tagHierarchy1 == Domain.LIST && tagHierarchy2 == Domain.LIST) {
+        if (useListDomain && tagHierarchy1.contains(Domain.LIST) && tagHierarchy2.contains(Domain.LIST)) {
             return true;
         }
-        return tagHierarchy1.equals(tagHierarchy2) && !useListDomain;
+        tagHierarchy1.retainAll(tagHierarchy2);
+        return !tagHierarchy1.equals(EnumSet.of(Domain.ANY)) || useListDomain;
+    }
+
+    public static boolean belongsToDomain(ATypeTag tag, Domain d) {
+        EnumSet<Domain> domain = hierarchyDomains.get(tag);
+        return domain.contains(d);
     }
 
     private static void addPromotionRule(ATypeTag type1, ATypeTag type2, ITypeConvertComputer promoteComputer) {
@@ -423,6 +434,8 @@ public class ATypeHierarchy {
 
     public enum Domain {
         SPATIAL,
+        INTEGER,
+        FLOATING,
         NUMERIC,
         LIST,
         ANY

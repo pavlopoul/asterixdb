@@ -1,0 +1,3 @@
+{ "DataverseName": "test", "DatasetName": "TestDataset", "IndexName": "TestIdx", "FieldName": "sid", "IsAntimatter": false, "Synopsis": { "Type": "EquiWidthHistogram", "Size": 256, "Elements": [ { "Key": -92, "Value": 1.0 } ] }
+{ "DataverseName": "test", "DatasetName": "TestDataset", "IndexName": "TestIdx", "FieldName": "sid", "IsAntimatter": false, "Synopsis": { "Type": "EquiWidthHistogram", "Size": 256, "Elements": [ { "Key": 104, "Value": 1.0 } ] }
+{ "DataverseName": "test", "DatasetName": "TestDataset", "IndexName": "TestIdx", "FieldName": "sid", "IsAntimatter": true, "Synopsis": { "Type": "EquiWidthHistogram", "Size": 256, "Elements": [ { "Key": -92, "Value": 1.0 } ] }

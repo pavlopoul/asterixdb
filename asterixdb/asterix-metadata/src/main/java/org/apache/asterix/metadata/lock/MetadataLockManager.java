@@ -22,6 +22,7 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.Function;
 
 import org.apache.asterix.common.api.IMetadataLockManager;
+import org.apache.asterix.common.exceptions.AsterixException;
 import org.apache.asterix.common.metadata.IMetadataLock;
 import org.apache.asterix.common.metadata.LockList;
 import org.apache.hyracks.algebricks.common.exceptions.AlgebricksException;
@@ -42,6 +43,9 @@ public class MetadataLockManager implements IMetadataLockManager {
     private static final String MERGE_POLICY_PREFIX = "MergePolicy:";
     private static final String DATATYPE_PREFIX = "DataType:";
     private static final String EXTENSION_PREFIX = "Extension:";
+    private static final String STATISTICS_PREFIX = "Statistics:";
+
+    private static final String DELIMITER = ":";
 
     public MetadataLockManager() {
         mdlocks = new ConcurrentHashMap<>();
@@ -209,5 +213,14 @@ public class MetadataLockManager implements IMetadataLockManager {
         String key = DATASET_PREFIX + fullyQualifiedName;
         DatasetLock lock = (DatasetLock) mdlocks.computeIfAbsent(key, DATASET_LOCK_FUNCTION);
         locks.downgrade(IMetadataLock.Mode.EXCLUSIVE_MODIFY, lock);
+    }
+
+    @Override
+    public void acquireStatisticsWriteLock(LockList locks, String dataverse, String dataset, String indexName,
+            String fieldName, String nodeName, String partitionId, boolean isAntimatter) throws AsterixException {
+        String key = STATISTICS_PREFIX + dataset + DELIMITER + indexName + DELIMITER + fieldName + DELIMITER + nodeName
+                + DELIMITER + partitionId + DELIMITER + isAntimatter;
+        IMetadataLock lock = mdlocks.computeIfAbsent(key, LOCK_FUNCTION);
+        locks.add(IMetadataLock.Mode.WRITE, lock);
     }
 }

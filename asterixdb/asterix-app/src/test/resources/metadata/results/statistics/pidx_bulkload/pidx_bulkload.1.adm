@@ -1,0 +1,1 @@
+{ "DataverseName": "test", "DatasetName": "TestDataset", "IndexName": "TestDataset", "FieldName": "id", "IsAntimatter": false, "Synopsis": { "Type": "EquiWidthHistogram", "Size": 256, "Elements": [ { "Key": 73, "Value": 1.0 } ] }

@@ -123,7 +123,7 @@ public class LSMBTreeUpdateInPlaceScanDiskComponentsTest extends OrderedIndexTes
                 harness.getFileReference(), harness.getDiskBufferCache(), fieldSerdes, numKeys,
                 harness.getBoomFilterFalsePositiveRate(), harness.getMergePolicy(), harness.getOperationTracker(),
                 harness.getIOScheduler(), harness.getIOOperationCallbackFactory(),
-                harness.getMetadataPageManagerFactory(), false, !hasOnlyKeys, hasOnlyKeys);
+                harness.getMetadataPageManagerFactory(), false, !hasOnlyKeys, hasOnlyKeys, null, null);
     }
 
     interface IndexModification {

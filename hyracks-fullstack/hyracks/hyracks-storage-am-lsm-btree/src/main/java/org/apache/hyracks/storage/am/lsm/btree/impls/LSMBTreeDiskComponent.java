@@ -26,6 +26,8 @@ import org.apache.hyracks.storage.am.btree.impls.BTree;
 import org.apache.hyracks.storage.am.btree.impls.DiskBTree;
 import org.apache.hyracks.storage.am.common.api.IMetadataPageManager;
 import org.apache.hyracks.storage.am.lsm.common.api.ILSMComponentFilter;
+import org.apache.hyracks.storage.am.lsm.common.api.IStatisticsFactory;
+import org.apache.hyracks.storage.am.lsm.common.api.IStatisticsManager;
 import org.apache.hyracks.storage.am.lsm.common.impls.AbstractLSMDiskComponent;
 import org.apache.hyracks.storage.am.lsm.common.impls.AbstractLSMIndex;
 import org.apache.hyracks.storage.common.compression.file.CompressedFileReference;
@@ -33,8 +35,9 @@ import org.apache.hyracks.storage.common.compression.file.CompressedFileReferenc
 public class LSMBTreeDiskComponent extends AbstractLSMDiskComponent {
     protected final DiskBTree btree;
 
-    public LSMBTreeDiskComponent(AbstractLSMIndex lsmIndex, DiskBTree btree, ILSMComponentFilter filter) {
-        super(lsmIndex, getMetadataPageManager(btree), filter);
+    public LSMBTreeDiskComponent(AbstractLSMIndex lsmIndex, DiskBTree btree, ILSMComponentFilter filter,
+            IStatisticsFactory statisticsFactory, IStatisticsManager statisticsManager) {
+        super(lsmIndex, getMetadataPageManager(btree), filter, statisticsFactory, statisticsManager);
         this.btree = btree;
     }
 

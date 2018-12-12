@@ -293,7 +293,7 @@ public class LSMInvertedIndex extends AbstractLSMIndex implements IInvertedIndex
         }
 
         ILSMDiskComponentBulkLoader componentBulkLoader =
-                component.createBulkLoader(operation, 1.0f, false, numBTreeTuples, false, false, false);
+                component.createBulkLoader(operation, 1.0f, false, numBTreeTuples, 0L, false, false, false);
 
         // Create a scan cursor on the deleted keys BTree underlying the in-memory inverted index.
         IIndexCursor deletedKeysScanCursor = deletedKeysBTreeAccessor.createSearchCursor(false);
@@ -346,6 +346,7 @@ public class LSMInvertedIndex extends AbstractLSMIndex implements IInvertedIndex
         LSMInvertedIndexMergeOperation mergeOp = (LSMInvertedIndexMergeOperation) operation;
         RangePredicate mergePred = new RangePredicate(null, null, true, true, null, null);
         IIndexCursor cursor = mergeOp.getCursor();
+
         ILSMIndexOperationContext opCtx = ((LSMInvertedIndexMergeCursor) cursor).getOpCtx();
         // Scan diskInvertedIndexes ignoring the memoryInvertedIndex.
         // Create an inverted index instance.
@@ -366,19 +367,20 @@ public class LSMInvertedIndex extends AbstractLSMIndex implements IInvertedIndex
                             .getBloomFilter().getNumElements();
                 }
                 componentBulkLoader =
-                        component.createBulkLoader(operation, 1.0f, false, numElements, false, false, false);
+                        component.createBulkLoader(operation, 1.0f, false, numElements, 0L, false, false, false);
                 loadDeleteTuples(opCtx, btreeCursor, mergePred, componentBulkLoader);
             } finally {
                 btreeCursor.destroy();
             }
         } else {
-            componentBulkLoader = component.createBulkLoader(operation, 1.0f, false, 0L, false, false, false);
+            componentBulkLoader = component.createBulkLoader(operation, 1.0f, false, 0L, 0L, false, false, false);
         }
         search(opCtx, cursor, mergePred);
         try {
             while (cursor.hasNext()) {
                 cursor.next();
                 componentBulkLoader.add(cursor.getTuple());
+
             }
         } finally {
             try {

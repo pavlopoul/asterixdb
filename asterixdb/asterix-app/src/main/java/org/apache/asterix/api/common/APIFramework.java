@@ -37,6 +37,7 @@ import org.apache.asterix.api.http.server.ResultUtil;
 import org.apache.asterix.common.api.INodeJobTracker;
 import org.apache.asterix.common.config.CompilerProperties;
 import org.apache.asterix.common.config.OptimizationConfUtil;
+import org.apache.asterix.common.config.StatisticsProperties;
 import org.apache.asterix.common.exceptions.ACIDException;
 import org.apache.asterix.common.exceptions.AsterixException;
 import org.apache.asterix.common.exceptions.CompilationException;
@@ -71,6 +72,7 @@ import org.apache.asterix.om.base.IAObject;
 import org.apache.asterix.optimizer.base.FuzzyUtils;
 import org.apache.asterix.optimizer.rules.am.AbstractIntroduceAccessMethodRule;
 import org.apache.asterix.runtime.job.listener.JobEventListenerFactory;
+import org.apache.asterix.statistics.common.CardinalityEstimator;
 import org.apache.asterix.translator.CompiledStatements.ICompiledDmlStatement;
 import org.apache.asterix.translator.ExecutionPlans;
 import org.apache.asterix.translator.IStatementExecutor.Stats;
@@ -99,6 +101,7 @@ import org.apache.hyracks.algebricks.core.algebra.prettyprint.LogicalOperatorPre
 import org.apache.hyracks.algebricks.core.algebra.prettyprint.LogicalOperatorPrettyPrintVisitorJson;
 import org.apache.hyracks.algebricks.core.algebra.prettyprint.PlanPrettyPrinter;
 import org.apache.hyracks.algebricks.core.rewriter.base.AlgebricksOptimizationContext;
+import org.apache.hyracks.algebricks.core.rewriter.base.ICardinalityEstimator;
 import org.apache.hyracks.algebricks.core.rewriter.base.IOptimizationContextFactory;
 import org.apache.hyracks.algebricks.core.rewriter.base.PhysicalOptimizationConfig;
 import org.apache.hyracks.algebricks.data.IPrinterFactoryProvider;
@@ -128,16 +131,18 @@ public class APIFramework {
 
     // A white list of supported configurable parameters.
     public static final String PREFIX_INTERNAL_PARAMETERS = "_internal";
-    private static final Set<String> CONFIGURABLE_PARAMETER_NAMES =
-            ImmutableSet.of(CompilerProperties.COMPILER_JOINMEMORY_KEY, CompilerProperties.COMPILER_GROUPMEMORY_KEY,
-                    CompilerProperties.COMPILER_SORTMEMORY_KEY, CompilerProperties.COMPILER_TEXTSEARCHMEMORY_KEY,
-                    CompilerProperties.COMPILER_PARALLELISM_KEY, CompilerProperties.COMPILER_SORT_PARALLEL_KEY,
-                    CompilerProperties.COMPILER_SORT_SAMPLES_KEY, FunctionUtil.IMPORT_PRIVATE_FUNCTIONS,
-                    FuzzyUtils.SIM_FUNCTION_PROP_NAME, FuzzyUtils.SIM_THRESHOLD_PROP_NAME,
-                    StartFeedStatement.WAIT_FOR_COMPLETION, FeedActivityDetails.FEED_POLICY_NAME,
-                    FeedActivityDetails.COLLECT_LOCATIONS, SqlppQueryRewriter.INLINE_WITH_OPTION,
-                    SqlppExpressionToPlanTranslator.REWRITE_IN_AS_OR_OPTION, "hash_merge", "output-record-type",
-                    AbstractIntroduceAccessMethodRule.NO_INDEX_ONLY_PLAN_OPTION);
+    private static final Set<String> CONFIGURABLE_PARAMETER_NAMES = ImmutableSet.of(
+            CompilerProperties.COMPILER_JOINMEMORY_KEY, CompilerProperties.COMPILER_GROUPMEMORY_KEY,
+            CompilerProperties.COMPILER_SORTMEMORY_KEY, CompilerProperties.COMPILER_TEXTSEARCHMEMORY_KEY,
+            CompilerProperties.COMPILER_PARALLELISM_KEY, CompilerProperties.COMPILER_SORT_PARALLEL_KEY,
+            CompilerProperties.COMPILER_SORT_SAMPLES_KEY, FunctionUtil.IMPORT_PRIVATE_FUNCTIONS,
+            FuzzyUtils.SIM_FUNCTION_PROP_NAME, FuzzyUtils.SIM_THRESHOLD_PROP_NAME,
+            StartFeedStatement.WAIT_FOR_COMPLETION, FeedActivityDetails.FEED_POLICY_NAME,
+            FeedActivityDetails.COLLECT_LOCATIONS, SqlppQueryRewriter.INLINE_WITH_OPTION,
+            SqlppExpressionToPlanTranslator.REWRITE_IN_AS_OR_OPTION, "hash_merge", "output-record-type",
+            AbstractIntroduceAccessMethodRule.NO_INDEX_ONLY_PLAN_OPTION,
+            StatisticsProperties.STATISTICS_PRIMARY_KEYS_ENABLED, StatisticsProperties.STATISTICS_SYNOPSIS_SIZE_KEY,
+            StatisticsProperties.STATISTICS_SYNOPSIS_TYPE_KEY);
 
     private final IRewriterFactory rewriterFactory;
     private final IAstPrintVisitorFactory astPrintVisitorFactory;
@@ -165,11 +170,11 @@ public class APIFramework {
                 IExpressionEvalSizeComputer expressionEvalSizeComputer,
                 IMergeAggregationExpressionFactory mergeAggregationExpressionFactory,
                 IExpressionTypeComputer expressionTypeComputer, IMissableTypeComputer missableTypeComputer,
-                IConflictingTypeResolver conflictingTypeResolver, PhysicalOptimizationConfig physicalOptimizationConfig,
-                AlgebricksPartitionConstraint clusterLocations) {
+                IConflictingTypeResolver conflictingTypeResolver, ICardinalityEstimator cardinalityEstimator,
+                PhysicalOptimizationConfig physicalOptimizationConfig, AlgebricksPartitionConstraint clusterLocations) {
             return new AlgebricksOptimizationContext(varCounter, expressionEvalSizeComputer,
                     mergeAggregationExpressionFactory, expressionTypeComputer, missableTypeComputer,
-                    conflictingTypeResolver, physicalOptimizationConfig, clusterLocations);
+                    conflictingTypeResolver, cardinalityEstimator, physicalOptimizationConfig, clusterLocations);
         }
     }
 
@@ -191,7 +196,7 @@ public class APIFramework {
 
     public JobSpecification compileQuery(IClusterInfoCollector clusterInfoCollector, MetadataProvider metadataProvider,
             Query query, int varCounter, String outputDatasetName, SessionOutput output,
-            ICompiledDmlStatement statement, Map<VarIdentifier, IAObject> externalVars)
+            ICompiledDmlStatement statement, Map<VarIdentifier, IAObject> externalVars, Stats stats)
             throws AlgebricksException, ACIDException {
 
         // establish facts
@@ -236,6 +241,7 @@ public class APIFramework {
         builder.setExpressionTypeComputer(ExpressionTypeComputer.INSTANCE);
         builder.setMissableTypeComputer(MissableTypeComputer.INSTANCE);
         builder.setConflictingTypeResolver(ConflictingTypeResolver.INSTANCE);
+        builder.setCardinalityEstimator(CardinalityEstimator.INSTANCE);
 
         int parallelism = getParallelism((String) querySpecificConfig.get(CompilerProperties.COMPILER_PARALLELISM_KEY),
                 compilerProperties.getParallelism());
@@ -245,6 +251,7 @@ public class APIFramework {
 
         ICompiler compiler = compilerFactory.createCompiler(plan, metadataProvider, t.getVarCounter());
         if (conf.isOptimize()) {
+            long optimizeStart = System.nanoTime();
             compiler.optimize();
             if (conf.is(SessionConfig.OOB_OPTIMIZED_LOGICAL_PLAN) || isExplainOnly) {
                 if (conf.is(SessionConfig.FORMAT_ONLY_PHYSICAL_OPS)) {

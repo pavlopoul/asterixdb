@@ -59,7 +59,7 @@ public class ExternalBTreeWithBuddyLocalResource extends LSMBTreeLocalResource {
         super(typeTraits, cmpFactories, buddyBtreeFields, bloomFilterFalsePositiveRate, isPrimary, path, storageManager,
                 mergePolicyFactory, mergePolicyProperties, filterTypeTraits, filterCmpFactories, btreeFields,
                 filterFields, opTrackerProvider, ioOpCallbackFactory, metadataPageManagerFactory, null,
-                ioSchedulerProvider, durable, NoOpCompressorDecompressorFactory.INSTANCE);
+                ioSchedulerProvider, durable, NoOpCompressorDecompressorFactory.INSTANCE, null, null);
     }
 
     private ExternalBTreeWithBuddyLocalResource(IPersistedResourceRegistry registry, JsonNode json,

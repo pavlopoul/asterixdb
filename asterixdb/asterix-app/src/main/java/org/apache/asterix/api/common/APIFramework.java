@@ -253,7 +253,7 @@ public class APIFramework {
                     PlanPrettyPrinter.printPhysicalOps(plan, buffer, 0);
                 } else {
                     if (isQuery || isLoad) {
-                        generateOptimizedLogicalPlan(plan, output.config().getPlanFormat());
+                        generateOptimizedLogicalPlan(plan, output.config().getPlanFormat(), isQuery);
                     }
                 }
             }
@@ -484,11 +484,15 @@ public class APIFramework {
         }
     }
 
-    private void generateOptimizedLogicalPlan(ILogicalPlan plan, SessionConfig.PlanFormat format)
+    private void generateOptimizedLogicalPlan(ILogicalPlan plan, SessionConfig.PlanFormat format, boolean isQuery)
             throws AlgebricksException {
         final StringWriter stringWriter = new StringWriter();
         try (PrintWriter writer = new PrintWriter(stringWriter)) {
-            PlanPrettyPrinter.printPlan(plan, getPrettyPrintVisitor(format, writer), 0);
+            if (isQuery) {
+                PlanPrettyPrinter.printSplitPlan(plan, getPrettyPrintVisitor(format, writer), 0);
+            } else {
+                PlanPrettyPrinter.printPlan(plan, getPrettyPrintVisitor(format, writer), 0);
+            }
             executionPlans.setOptimizedLogicalPlan(stringWriter.toString());
         }
     }

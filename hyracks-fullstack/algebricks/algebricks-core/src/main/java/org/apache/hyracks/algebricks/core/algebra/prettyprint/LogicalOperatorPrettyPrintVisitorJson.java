@@ -789,4 +789,10 @@ public class LogicalOperatorPrettyPrintVisitorJson extends AbstractLogicalOperat
                 return first.getExpressionRef().toString();
         }
     }
+
+    @Override
+    public void printSplitOperator(AbstractLogicalOperator op, int indent) throws AlgebricksException {
+        // TODO Auto-generated method stub
+
+    }
 }

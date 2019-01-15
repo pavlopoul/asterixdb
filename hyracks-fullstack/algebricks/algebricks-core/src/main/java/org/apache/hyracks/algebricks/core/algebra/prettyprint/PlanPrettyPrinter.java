@@ -28,6 +28,11 @@ public class PlanPrettyPrinter {
         pvisitor.printOperator(op, indent);
     }
 
+    public static void printSplitPlan(ILogicalPlan plan, AbstractLogicalOperatorPrettyPrintVisitor pvisitor, int indent)
+            throws AlgebricksException {
+        pvisitor.printSplitPlan(plan, indent);
+    }
+
     public static void printPlan(ILogicalPlan plan, AbstractLogicalOperatorPrettyPrintVisitor pvisitor, int indent)
             throws AlgebricksException {
         pvisitor.printPlan(plan, indent);

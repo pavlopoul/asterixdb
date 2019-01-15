@@ -110,6 +110,28 @@ public class LogicalOperatorPrettyPrintVisitor extends AbstractLogicalOperatorPr
     }
 
     @Override
+    public void printSplitOperator(AbstractLogicalOperator op, int indent) throws AlgebricksException {
+        for (Mutable<ILogicalOperator> i : op.getInputs()) {
+            if (!((AbstractLogicalOperator) i.getValue()).hasInputs()) {
+                final AlgebricksAppendable out = this.get();
+                op.accept(this, indent);
+                IPhysicalOperator pOp = op.getPhysicalOperator();
+
+                if (pOp != null) {
+                    out.append("\n");
+                    pad(out, indent);
+                    appendln(out, "-- " + pOp.toString() + "  |" + op.getExecutionMode() + "|");
+                } else {
+                    appendln(out, " -- |" + op.getExecutionMode() + "|");
+                }
+            } else {
+                printSplitOperator((AbstractLogicalOperator) i.getValue(), indent);
+            }
+        }
+
+    }
+
+    @Override
     public Void visitAggregateOperator(AggregateOperator op, Integer indent) throws AlgebricksException {
         addIndent(indent).append("aggregate ").append(str(op.getVariables())).append(" <- ");
         pprintExprList(op.getExpressions(), indent);
@@ -601,4 +623,5 @@ public class LogicalOperatorPrettyPrintVisitor extends AbstractLogicalOperatorPr
             buffer.append("(" + fst + ", " + p.second.getValue().accept(exprVisitor, indent) + ") ");
         }
     }
+
 }

@@ -91,6 +91,12 @@ public abstract class AbstractLogicalOperatorPrettyPrintVisitor implements ILogi
         return buffer;
     }
 
+    public void printSplitPlan(ILogicalPlan plan, int indent) throws AlgebricksException {
+        for (Mutable<ILogicalOperator> root : plan.getRoots()) {
+            printSplitOperator((AbstractLogicalOperator) root.getValue(), indent);
+        }
+    }
+
     public void printPlan(ILogicalPlan plan, int indent) throws AlgebricksException {
         for (Mutable<ILogicalOperator> root : plan.getRoots()) {
             printOperator((AbstractLogicalOperator) root.getValue(), indent);
@@ -98,6 +104,8 @@ public abstract class AbstractLogicalOperatorPrettyPrintVisitor implements ILogi
     }
 
     public abstract void printOperator(AbstractLogicalOperator op, int indent) throws AlgebricksException;
+
+    public abstract void printSplitOperator(AbstractLogicalOperator op, int indent) throws AlgebricksException;
 
     public static void printPhysicalOperator(AbstractLogicalOperator op, int indent, AlgebricksAppendable out)
             throws AlgebricksException {

@@ -286,7 +286,12 @@ public class APIFramework {
 
         JobEventListenerFactory jobEventListenerFactory =
                 new JobEventListenerFactory(txnId, metadataProvider.isWriteTransaction());
-        JobSpecification spec = compiler.createJob(metadataProvider.getApplicationContext(), jobEventListenerFactory);
+        JobSpecification spec = null;
+        if (isLoad) {
+            spec = compiler.createLoadJob(metadataProvider.getApplicationContext(), jobEventListenerFactory);
+        } else {
+            spec = compiler.createJob(metadataProvider.getApplicationContext(), jobEventListenerFactory);
+        }
 
         if (isQuery) {
             // Sets a required capacity, only for read-only queries.

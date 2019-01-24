@@ -37,6 +37,8 @@ import org.apache.hyracks.api.job.JobSpecification;
 
 public class PlanCompiler {
     private JobGenContext context;
+    private List<ILogicalOperator> operators = new ArrayList<>();
+    private boolean finished = false;
     private Map<Mutable<ILogicalOperator>, List<Mutable<ILogicalOperator>>> operatorVisitedToParents =
             new HashMap<Mutable<ILogicalOperator>, List<Mutable<ILogicalOperator>>>();
 
@@ -46,6 +48,11 @@ public class PlanCompiler {
 
     public JobGenContext getContext() {
         return context;
+    }
+
+    public JobSpecification compileLoadPlan(ILogicalPlan plan, IJobletEventListenerFactory jobEventListenerFactory)
+            throws AlgebricksException {
+        return compileLoadPlanImpl(plan, false, null, jobEventListenerFactory);
     }
 
     public JobSpecification compilePlan(ILogicalPlan plan, IJobletEventListenerFactory jobEventListenerFactory)
@@ -58,8 +65,9 @@ public class PlanCompiler {
         return compilePlanImpl(plan, true, outerPlanSchema, null);
     }
 
-    private JobSpecification compilePlanImpl(ILogicalPlan plan, boolean isNestedPlan, IOperatorSchema outerPlanSchema,
-            IJobletEventListenerFactory jobEventListenerFactory) throws AlgebricksException {
+    private JobSpecification compileLoadPlanImpl(ILogicalPlan plan, boolean isNestedPlan,
+            IOperatorSchema outerPlanSchema, IJobletEventListenerFactory jobEventListenerFactory)
+            throws AlgebricksException {
         JobSpecification spec = new JobSpecification(context.getFrameSize());
         if (jobEventListenerFactory != null) {
             spec.setJobletEventListenerFactory(jobEventListenerFactory);
@@ -67,8 +75,8 @@ public class PlanCompiler {
         List<ILogicalOperator> rootOps = new ArrayList<>();
         JobBuilder builder = new JobBuilder(spec, context.getClusterLocations());
         for (Mutable<ILogicalOperator> opRef : plan.getRoots()) {
-            rootOps = compileOpRef(opRef, spec, builder, outerPlanSchema);
-            //rootOps.add(opRef.getValue());
+            compileLoadOpRef(opRef, spec, builder, outerPlanSchema);
+            rootOps.add(opRef.getValue());
         }
         reviseEdges(builder);
         operatorVisitedToParents.clear();
@@ -82,49 +90,105 @@ public class PlanCompiler {
         return spec;
     }
 
-    private List<ILogicalOperator> compileOpRef(Mutable<ILogicalOperator> opRef, IOperatorDescriptorRegistry spec,
+    private void compileLoadOpRef(Mutable<ILogicalOperator> opRef, IOperatorDescriptorRegistry spec,
             IHyracksJobBuilder builder, IOperatorSchema outerPlanSchema) throws AlgebricksException {
         ILogicalOperator op = opRef.getValue();
         int n = op.getInputs().size();
         IOperatorSchema[] schemas = new IOperatorSchema[n];
         int i = 0;
-        List<ILogicalOperator> rootOps = new ArrayList<>();
-        while (op.hasInputs()) {
-            Mutable<ILogicalOperator> opChild = op.getInputs().get(0);
-            //for (Mutable<ILogicalOperator> opChild : op.getInputs()) {
-            if (!opChild.getValue().hasInputs()) {
-                IOperatorSchema opSchema = new OperatorSchemaImpl();
-                context.putSchema(opChild.getValue(), opSchema);
-                opChild.getValue().getVariablePropagationPolicy().propagateVariables(opSchema, schemas);
-                opChild.getValue().contributeRuntimeOperator(builder, context, opSchema, schemas, outerPlanSchema);
-                rootOps.add(opChild.getValue());
+        for (Mutable<ILogicalOperator> opChild : op.getInputs()) {
+            List<Mutable<ILogicalOperator>> parents = operatorVisitedToParents.get(opChild);
+            if (parents == null) {
+                parents = new ArrayList<Mutable<ILogicalOperator>>();
+                operatorVisitedToParents.put(opChild, parents);
+                parents.add(opRef);
+                compileLoadOpRef(opChild, spec, builder, outerPlanSchema);
                 schemas[i++] = context.getSchema(opChild.getValue());
-                op = opChild.getValue();
             } else {
-                //compileOpRef(opChild, spec, builder, outerPlanSchema);
-                op = opChild.getValue();
+                if (!parents.contains(opRef))
+                    parents.add(opRef);
+                schemas[i++] = context.getSchema(opChild.getValue());
+                continue;
             }
-
-            //            List<Mutable<ILogicalOperator>> parents = operatorVisitedToParents.get(opChild);
-            //            if (parents == null) {
-            //                parents = new ArrayList<Mutable<ILogicalOperator>>();
-            //                operatorVisitedToParents.put(opChild, parents);
-            //                parents.add(opRef);
-            //                compileOpRef(opChild, spec, builder, outerPlanSchema);
-            //                schemas[i++] = context.getSchema(opChild.getValue());
-            //            } else {
-            //                if (!parents.contains(opRef))
-            //                    parents.add(opRef);
-            //                schemas[i++] = context.getSchema(opChild.getValue());
-            //                continue;
-            //            }
         }
-        return rootOps;
 
-        //        IOperatorSchema opSchema = new OperatorSchemaImpl();
-        //        context.putSchema(op, opSchema);
-        //        op.getVariablePropagationPolicy().propagateVariables(opSchema, schemas);
-        //        op.contributeRuntimeOperator(builder, context, opSchema, schemas, outerPlanSchema);
+        IOperatorSchema opSchema = new OperatorSchemaImpl();
+        context.putSchema(op, opSchema);
+        op.getVariablePropagationPolicy().propagateVariables(opSchema, schemas);
+        op.contributeRuntimeOperator(builder, context, opSchema, schemas, outerPlanSchema);
+    }
+
+    private JobSpecification compilePlanImpl(ILogicalPlan plan, boolean isNestedPlan, IOperatorSchema outerPlanSchema,
+            IJobletEventListenerFactory jobEventListenerFactory) throws AlgebricksException {
+        JobSpecification spec = new JobSpecification(context.getFrameSize());
+        if (jobEventListenerFactory != null) {
+            spec.setJobletEventListenerFactory(jobEventListenerFactory);
+        }
+        List<ILogicalOperator> rootOps = new ArrayList<>();
+        JobBuilder builder = new JobBuilder(spec, context.getClusterLocations());
+        Mutable<ILogicalOperator> opRef = plan.getRoots().get(0);
+        traversePlan(opRef);
+        while (!finished) {
+            compileOpRef(opRef, spec, builder, outerPlanSchema);
+        }
+        rootOps.add(opRef.getValue());
+        reviseEdges(builder);
+        operatorVisitedToParents.clear();
+        builder.buildSpec(rootOps);
+        spec.setConnectorPolicyAssignmentPolicy(new ConnectorPolicyAssignmentPolicy());
+        // Do not do activity cluster planning because it is slow on large clusters
+        spec.setUseConnectorPolicyForScheduling(false);
+        if (isNestedPlan) {
+            spec.setMetaOps(builder.getGeneratedMetaOps());
+        }
+        return spec;
+    }
+
+    private void traversePlan(Mutable<ILogicalOperator> opRef) {
+        ILogicalOperator op = opRef.getValue();
+        while (op.hasInputs()) {
+            operators.add(op);
+            op = op.getInputs().get(0).getValue();
+        }
+        operators.add(op);
+
+    }
+
+    private void compileOpRef(Mutable<ILogicalOperator> opRef, IOperatorDescriptorRegistry spec,
+            IHyracksJobBuilder builder, IOperatorSchema outerPlanSchema) throws AlgebricksException {
+        ILogicalOperator op = opRef.getValue();
+        for (int j = 0; j < operators.size(); j++) {
+            int n = op.getInputs().size();
+            IOperatorSchema[] schemas = new IOperatorSchema[n];
+            int i = 0;
+            if (j == operators.size() - 1) {
+                operators.remove(0);
+                if (op.hasInputs()) {
+                    schemas[i++] = context.getSchema(op.getInputs().get(0).getValue());
+                }
+                IOperatorSchema opSchema = new OperatorSchemaImpl();
+                context.putSchema(op, opSchema);
+                op.getVariablePropagationPolicy().propagateVariables(opSchema, schemas);
+                op.contributeRuntimeOperator(builder, context, opSchema, schemas, outerPlanSchema);
+            } else {
+                Mutable<ILogicalOperator> opChild = op.getInputs().get(0);
+                List<Mutable<ILogicalOperator>> parents = operatorVisitedToParents.get(opChild);
+                if (parents == null) {
+                    parents = new ArrayList<Mutable<ILogicalOperator>>();
+                    operatorVisitedToParents.put(opChild, parents);
+                    parents.add(opRef);
+                    op = opChild.getValue();
+                } else {
+                    if (!parents.contains(opRef))
+                        parents.add(opRef);
+                    op = opChild.getValue();
+                    continue;
+                }
+
+            }
+        }
+        if (operators.isEmpty())
+            finished = true;
     }
 
     private void reviseEdges(IHyracksJobBuilder builder) {

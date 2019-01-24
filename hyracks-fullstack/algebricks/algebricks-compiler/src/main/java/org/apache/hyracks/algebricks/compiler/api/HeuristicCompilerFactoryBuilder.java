@@ -106,6 +106,23 @@ public class HeuristicCompilerFactoryBuilder extends AbstractCompilerFactoryBuil
                         PlanCompiler pc = new PlanCompiler(context);
                         return pc.compilePlan(plan, jobEventListenerFactory);
                     }
+
+                    @Override
+                    public JobSpecification createLoadJob(Object appContext,
+                            IJobletEventListenerFactory jobEventListenerFactory) throws AlgebricksException {
+                        AlgebricksConfig.ALGEBRICKS_LOGGER.trace("Starting Job Generation.\n");
+                        JobGenContext context = new JobGenContext(null, metadata, appContext,
+                                serializerDeserializerProvider, hashFunctionFactoryProvider, hashFunctionFamilyProvider,
+                                comparatorFactoryProvider, typeTraitProvider, binaryBooleanInspectorFactory,
+                                binaryIntegerInspectorFactory, printerProvider, missingWriterFactory,
+                                normalizedKeyComputerFactoryProvider, expressionRuntimeProvider, expressionTypeComputer,
+                                oc, expressionEvalSizeComputer, partialAggregationTypeComputer,
+                                predEvaluatorFactoryProvider, physicalOptimizationConfig.getFrameSize(),
+                                clusterLocations);
+
+                        PlanCompiler pc = new PlanCompiler(context);
+                        return pc.compileLoadPlan(plan, jobEventListenerFactory);
+                    }
                 };
             }
         };

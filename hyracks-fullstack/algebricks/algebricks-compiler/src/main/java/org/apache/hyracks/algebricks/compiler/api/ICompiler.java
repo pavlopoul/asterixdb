@@ -30,4 +30,6 @@ public interface ICompiler {
 
     public JobSpecification createLoadJob(Object appContext, IJobletEventListenerFactory jobEventListenerFactory)
             throws AlgebricksException;
+
+    boolean getFinished(Object appContext) throws AlgebricksException;
 }

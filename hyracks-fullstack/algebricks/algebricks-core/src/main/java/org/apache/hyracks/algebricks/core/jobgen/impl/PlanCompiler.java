@@ -127,14 +127,11 @@ public class PlanCompiler {
         List<ILogicalOperator> rootOps = new ArrayList<>();
         JobBuilder builder = new JobBuilder(spec, context.getClusterLocations());
         Mutable<ILogicalOperator> opRef = plan.getRoots().get(0);
-        traversePlan(opRef);
-        while (!finished) {
-            compileOpRef(opRef, spec, builder, outerPlanSchema);
-        }
+        compileOpRef(opRef, spec, builder, outerPlanSchema);
         rootOps.add(opRef.getValue());
         reviseEdges(builder);
-        operatorVisitedToParents.clear();
-        builder.buildSpec(rootOps);
+        //operatorVisitedToParents.clear();
+        //builder.buildSpec(rootOps);
         spec.setConnectorPolicyAssignmentPolicy(new ConnectorPolicyAssignmentPolicy());
         // Do not do activity cluster planning because it is slow on large clusters
         spec.setUseConnectorPolicyForScheduling(false);
@@ -144,7 +141,12 @@ public class PlanCompiler {
         return spec;
     }
 
-    private void traversePlan(Mutable<ILogicalOperator> opRef) {
+    public boolean getFinished() {
+        return finished;
+    }
+
+    public void traversePlan(ILogicalPlan plan) {
+        Mutable<ILogicalOperator> opRef = plan.getRoots().get(0);
         ILogicalOperator op = opRef.getValue();
         while (op.hasInputs()) {
             operators.add(op);

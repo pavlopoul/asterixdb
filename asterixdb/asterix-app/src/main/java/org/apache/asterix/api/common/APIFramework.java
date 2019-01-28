@@ -290,6 +290,7 @@ public class APIFramework {
         if (isLoad) {
             spec = compiler.createLoadJob(metadataProvider.getApplicationContext(), jobEventListenerFactory);
         } else {
+            compiler.traversePlan(metadataProvider.getApplicationContext());
             while (!compiler.getFinished(metadataProvider.getApplicationContext())) {
                 spec = compiler.createJob(metadataProvider.getApplicationContext(), jobEventListenerFactory);
             }

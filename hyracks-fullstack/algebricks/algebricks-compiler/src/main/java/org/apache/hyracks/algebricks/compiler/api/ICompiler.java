@@ -32,4 +32,6 @@ public interface ICompiler {
             throws AlgebricksException;
 
     boolean getFinished(Object appContext) throws AlgebricksException;
+
+    void traversePlan(Object appContext) throws AlgebricksException;
 }

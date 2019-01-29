@@ -222,7 +222,7 @@ public class QueryTranslator extends AbstractLangTranslator implements IStatemen
     protected Dataverse activeDataverse;
     protected final List<FunctionDecl> declaredFunctions;
     protected final ILangCompilationProvider compilationProvider;
-    protected final APIFramework apiFramework;
+    protected static APIFramework apiFramework;
     protected final IRewriterFactory rewriterFactory;
     protected final ExecutorService executorService;
     protected final EnumSet<JobFlag> jobFlags = EnumSet.noneOf(JobFlag.class);
@@ -874,8 +874,9 @@ public class QueryTranslator extends AbstractLangTranslator implements IStatemen
                     overridesFieldTypes = true;
                 }
                 if (fieldType == null) {
-                    throw new CompilationException(ErrorCode.UNKNOWN_TYPE, sourceLoc, fieldExpr.second == null
-                            ? String.valueOf(fieldExpr.first) : String.valueOf(fieldExpr.second));
+                    throw new CompilationException(ErrorCode.UNKNOWN_TYPE, sourceLoc,
+                            fieldExpr.second == null ? String.valueOf(fieldExpr.first)
+                                    : String.valueOf(fieldExpr.second));
                 }
 
                 // try to add the key & its source to the set of keys, if key couldn't be added,
@@ -1961,6 +1962,10 @@ public class QueryTranslator extends AbstractLangTranslator implements IStatemen
                 rewrittenResult.second, stmt == null ? null : stmt.getDatasetName(), sessionOutput, stmt, externalVars);
     }
 
+    public static boolean getFinished() {
+        return apiFramework.getFinished();
+    }
+
     private JobSpecification rewriteCompileInsertUpsert(IClusterInfoCollector clusterInfoCollector,
             MetadataProvider metadataProvider, InsertStatement insertUpsert, Map<String, IAObject> stmtParams,
             IStatementRewriter stmtRewriter) throws AlgebricksException, ACIDException {
@@ -2589,7 +2594,10 @@ public class QueryTranslator extends AbstractLangTranslator implements IStatemen
         ClientJobRequest req = null;
         locker.lock();
         try {
-            final JobSpecification jobSpec = compiler.compile();
+            JobSpecification jobSpec = null;
+            while (!getFinished()) {
+                jobSpec = compiler.compile();
+            }
             if (jobSpec == null) {
                 return;
             }

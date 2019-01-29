@@ -144,6 +144,7 @@ public class APIFramework {
     private final ILangExpressionToPlanTranslatorFactory translatorFactory;
     private final IRuleSetFactory ruleSetFactory;
     private final ExecutionPlans executionPlans;
+    public boolean finished = false;
 
     public APIFramework(ILangCompilationProvider compilationProvider) {
         this.rewriterFactory = compilationProvider.getRewriterFactory();
@@ -291,9 +292,10 @@ public class APIFramework {
             spec = compiler.createLoadJob(metadataProvider.getApplicationContext(), jobEventListenerFactory);
         } else {
             compiler.traversePlan(metadataProvider.getApplicationContext());
-            while (!compiler.getFinished(metadataProvider.getApplicationContext())) {
-                spec = compiler.createJob(metadataProvider.getApplicationContext(), jobEventListenerFactory);
-            }
+            finished = compiler.getFinished(metadataProvider.getApplicationContext());
+            //while (!compiler.getFinished(metadataProvider.getApplicationContext())) {
+            spec = compiler.createJob(metadataProvider.getApplicationContext(), jobEventListenerFactory);
+            // }
         }
 
         if (isQuery) {
@@ -311,6 +313,10 @@ public class APIFramework {
             generateJob(spec);
         }
         return spec;
+    }
+
+    public boolean getFinished() {
+        return finished;
     }
 
     private void printPlanAsResult(MetadataProvider metadataProvider, SessionOutput output) throws AlgebricksException {

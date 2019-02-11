@@ -78,6 +78,7 @@ import org.apache.asterix.translator.SessionConfig;
 import org.apache.asterix.translator.SessionOutput;
 import org.apache.asterix.translator.SqlppExpressionToPlanTranslator;
 import org.apache.asterix.utils.ResourceUtils;
+import org.apache.commons.lang3.mutable.Mutable;
 import org.apache.hyracks.algebricks.common.constraints.AlgebricksAbsolutePartitionConstraint;
 import org.apache.hyracks.algebricks.common.constraints.AlgebricksPartitionConstraint;
 import org.apache.hyracks.algebricks.common.exceptions.AlgebricksException;
@@ -85,6 +86,7 @@ import org.apache.hyracks.algebricks.common.utils.Pair;
 import org.apache.hyracks.algebricks.compiler.api.HeuristicCompilerFactoryBuilder;
 import org.apache.hyracks.algebricks.compiler.api.ICompiler;
 import org.apache.hyracks.algebricks.compiler.api.ICompilerFactory;
+import org.apache.hyracks.algebricks.core.algebra.base.ILogicalOperator;
 import org.apache.hyracks.algebricks.core.algebra.base.ILogicalPlan;
 import org.apache.hyracks.algebricks.core.algebra.base.IOptimizationContext;
 import org.apache.hyracks.algebricks.core.algebra.expressions.ExpressionRuntimeProvider;
@@ -98,6 +100,8 @@ import org.apache.hyracks.algebricks.core.algebra.prettyprint.AlgebricksAppendab
 import org.apache.hyracks.algebricks.core.algebra.prettyprint.LogicalOperatorPrettyPrintVisitor;
 import org.apache.hyracks.algebricks.core.algebra.prettyprint.LogicalOperatorPrettyPrintVisitorJson;
 import org.apache.hyracks.algebricks.core.algebra.prettyprint.PlanPrettyPrinter;
+import org.apache.hyracks.algebricks.core.jobgen.impl.JobGenContext;
+import org.apache.hyracks.algebricks.core.jobgen.impl.PlanCompiler;
 import org.apache.hyracks.algebricks.core.rewriter.base.AlgebricksOptimizationContext;
 import org.apache.hyracks.algebricks.core.rewriter.base.IOptimizationContextFactory;
 import org.apache.hyracks.algebricks.core.rewriter.base.PhysicalOptimizationConfig;
@@ -145,6 +149,10 @@ public class APIFramework {
     private final IRuleSetFactory ruleSetFactory;
     private final ExecutionPlans executionPlans;
     public boolean finished = false;
+    public List<ILogicalOperator> operators;
+    public JobGenContext context;
+    public PlanCompiler pc;
+    public Map<Mutable<ILogicalOperator>, List<Mutable<ILogicalOperator>>> operatorVisitedToParents;
 
     public APIFramework(ILangCompilationProvider compilationProvider) {
         this.rewriterFactory = compilationProvider.getRewriterFactory();
@@ -192,7 +200,9 @@ public class APIFramework {
 
     public JobSpecification compileQuery(IClusterInfoCollector clusterInfoCollector, MetadataProvider metadataProvider,
             Query query, int varCounter, String outputDatasetName, SessionOutput output,
-            ICompiledDmlStatement statement, Map<VarIdentifier, IAObject> externalVars)
+            ICompiledDmlStatement statement, Map<VarIdentifier, IAObject> externalVars,
+            List<ILogicalOperator> operators, boolean first, JobGenContext context, PlanCompiler pc,
+            Map<Mutable<ILogicalOperator>, List<Mutable<ILogicalOperator>>> operatorVisitedToParents)
             throws AlgebricksException, ACIDException {
 
         // establish facts
@@ -289,13 +299,27 @@ public class APIFramework {
                 new JobEventListenerFactory(txnId, metadataProvider.isWriteTransaction());
         JobSpecification spec = null;
         if (isLoad) {
+            finished = true;
             spec = compiler.createLoadJob(metadataProvider.getApplicationContext(), jobEventListenerFactory);
         } else {
-            compiler.traversePlan(metadataProvider.getApplicationContext());
-            finished = compiler.getFinished(metadataProvider.getApplicationContext());
+            // finished = compiler.getFinished(metadataProvider.getApplicationContext(), first, context, pc);
+
+            if (first) {
+                operators = compiler.traversePlan(metadataProvider.getApplicationContext(), first, context, pc);
+            }
+            //            if (finished) {
+            //                return null;
+            //            }
             //while (!compiler.getFinished(metadataProvider.getApplicationContext())) {
-            spec = compiler.createJob(metadataProvider.getApplicationContext(), jobEventListenerFactory);
+            spec = compiler.createJob(metadataProvider.getApplicationContext(), jobEventListenerFactory, operators,
+                    first, operatorVisitedToParents, context, pc);
+            finished = compiler.getFinished(metadataProvider.getApplicationContext(), first, context, pc);
+            //operators = compiler.getOperators();
             // }
+            this.context = compiler.getContext();
+            this.pc = compiler.getCompiler();
+            this.operators = compiler.getOperators();
+            this.operatorVisitedToParents = compiler.getParentOperators();
         }
 
         if (isQuery) {
@@ -317,6 +341,22 @@ public class APIFramework {
 
     public boolean getFinished() {
         return finished;
+    }
+
+    public JobGenContext getContext() {
+        return context;
+    }
+
+    public PlanCompiler getPlanCompiler() {
+        return pc;
+    }
+
+    public List<ILogicalOperator> getOperators() {
+        return operators;
+    }
+
+    public Map<Mutable<ILogicalOperator>, List<Mutable<ILogicalOperator>>> getParentOperators() {
+        return operatorVisitedToParents;
     }
 
     private void printPlanAsResult(MetadataProvider metadataProvider, SessionOutput output) throws AlgebricksException {

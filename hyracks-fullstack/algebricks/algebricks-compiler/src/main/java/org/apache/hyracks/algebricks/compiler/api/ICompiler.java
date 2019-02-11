@@ -18,20 +18,40 @@
  */
 package org.apache.hyracks.algebricks.compiler.api;
 
+import java.util.List;
+import java.util.Map;
+
+import org.apache.commons.lang3.mutable.Mutable;
 import org.apache.hyracks.algebricks.common.exceptions.AlgebricksException;
+import org.apache.hyracks.algebricks.core.algebra.base.ILogicalOperator;
+import org.apache.hyracks.algebricks.core.jobgen.impl.JobGenContext;
+import org.apache.hyracks.algebricks.core.jobgen.impl.PlanCompiler;
 import org.apache.hyracks.api.job.IJobletEventListenerFactory;
 import org.apache.hyracks.api.job.JobSpecification;
 
 public interface ICompiler {
     public void optimize() throws AlgebricksException;
 
-    public JobSpecification createJob(Object appContext, IJobletEventListenerFactory jobEventListenerFactory)
-            throws AlgebricksException;
+    public JobSpecification createJob(Object appContext, IJobletEventListenerFactory jobEventListenerFactory,
+            List<ILogicalOperator> operators, boolean first,
+            Map<Mutable<ILogicalOperator>, List<Mutable<ILogicalOperator>>> operatorVisitedToParents,
+            JobGenContext context, PlanCompiler pc) throws AlgebricksException;
 
     public JobSpecification createLoadJob(Object appContext, IJobletEventListenerFactory jobEventListenerFactory)
             throws AlgebricksException;
 
-    boolean getFinished(Object appContext) throws AlgebricksException;
+    boolean getFinished(Object appContext, boolean first, JobGenContext context, PlanCompiler pc)
+            throws AlgebricksException;
 
-    void traversePlan(Object appContext) throws AlgebricksException;
+    List<ILogicalOperator> traversePlan(Object appContext, boolean first, JobGenContext context, PlanCompiler pc)
+            throws AlgebricksException;
+
+    List<ILogicalOperator> getOperators() throws AlgebricksException;
+
+    JobGenContext getContext() throws AlgebricksException;
+
+    PlanCompiler getCompiler() throws AlgebricksException;
+
+    Map<Mutable<ILogicalOperator>, List<Mutable<ILogicalOperator>>> getParentOperators() throws AlgebricksException;
+
 }

@@ -18,8 +18,13 @@
  */
 package org.apache.hyracks.algebricks.compiler.api;
 
+import java.util.List;
+import java.util.Map;
+
+import org.apache.commons.lang3.mutable.Mutable;
 import org.apache.hyracks.algebricks.common.constraints.AlgebricksPartitionConstraint;
 import org.apache.hyracks.algebricks.common.exceptions.AlgebricksException;
+import org.apache.hyracks.algebricks.core.algebra.base.ILogicalOperator;
 import org.apache.hyracks.algebricks.core.algebra.base.ILogicalPlan;
 import org.apache.hyracks.algebricks.core.algebra.base.IOptimizationContext;
 import org.apache.hyracks.algebricks.core.algebra.expressions.IConflictingTypeResolver;
@@ -64,6 +69,9 @@ public class HeuristicCompilerFactoryBuilder extends AbstractCompilerFactoryBuil
 
     private IOptimizationContextFactory optCtxFactory;
 
+    public JobGenContext context;
+    public PlanCompiler pc;
+
     public HeuristicCompilerFactoryBuilder() {
         this.optCtxFactory = DefaultOptimizationContextFactory.INSTANCE;
     }
@@ -92,51 +100,96 @@ public class HeuristicCompilerFactoryBuilder extends AbstractCompilerFactoryBuil
 
                     @Override
                     public JobSpecification createJob(Object appContext,
-                            IJobletEventListenerFactory jobEventListenerFactory) throws AlgebricksException {
+                            IJobletEventListenerFactory jobEventListenerFactory, List<ILogicalOperator> operators,
+                            boolean first,
+                            Map<Mutable<ILogicalOperator>, List<Mutable<ILogicalOperator>>> operatorVisitedToParents,
+                            JobGenContext context1, PlanCompiler pc1) throws AlgebricksException {
                         AlgebricksConfig.ALGEBRICKS_LOGGER.trace("Starting Job Generation.\n");
-                        JobGenContext context = new JobGenContext(null, metadata, appContext,
-                                serializerDeserializerProvider, hashFunctionFactoryProvider, hashFunctionFamilyProvider,
-                                comparatorFactoryProvider, typeTraitProvider, binaryBooleanInspectorFactory,
-                                binaryIntegerInspectorFactory, printerProvider, missingWriterFactory,
-                                normalizedKeyComputerFactoryProvider, expressionRuntimeProvider, expressionTypeComputer,
-                                oc, expressionEvalSizeComputer, partialAggregationTypeComputer,
-                                predEvaluatorFactoryProvider, physicalOptimizationConfig.getFrameSize(),
-                                clusterLocations);
+                        //                        if (first) {
+                        //                            context = new JobGenContext(null, metadata, appContext, serializerDeserializerProvider,
+                        //                                    hashFunctionFactoryProvider, hashFunctionFamilyProvider, comparatorFactoryProvider,
+                        //                                    typeTraitProvider, binaryBooleanInspectorFactory, binaryIntegerInspectorFactory,
+                        //                                    printerProvider, missingWriterFactory, normalizedKeyComputerFactoryProvider,
+                        //                                    expressionRuntimeProvider, expressionTypeComputer, oc, expressionEvalSizeComputer,
+                        //                                    partialAggregationTypeComputer, predEvaluatorFactoryProvider,
+                        //                                    physicalOptimizationConfig.getFrameSize(), clusterLocations);
+                        //                            pc = new PlanCompiler(context);
+                        //                        } else {
+                        if (!first) {
+                            context = context1;
+                            pc = pc1;
+                        }
 
-                        PlanCompiler pc = new PlanCompiler(context);
-                        return pc.compilePlan(plan, jobEventListenerFactory);
+                        //                        }
+                        //pc = new PlanCompiler(context);
+                        return pc.compilePlan(plan, jobEventListenerFactory, operators, first,
+                                operatorVisitedToParents);
                     }
 
                     @Override
-                    public boolean getFinished(Object appContext) throws AlgebricksException {
+                    public List<ILogicalOperator> getOperators() throws AlgebricksException {
                         AlgebricksConfig.ALGEBRICKS_LOGGER.trace("Starting Job Generation.\n");
-                        JobGenContext context = new JobGenContext(null, metadata, appContext,
-                                serializerDeserializerProvider, hashFunctionFactoryProvider, hashFunctionFamilyProvider,
-                                comparatorFactoryProvider, typeTraitProvider, binaryBooleanInspectorFactory,
-                                binaryIntegerInspectorFactory, printerProvider, missingWriterFactory,
-                                normalizedKeyComputerFactoryProvider, expressionRuntimeProvider, expressionTypeComputer,
-                                oc, expressionEvalSizeComputer, partialAggregationTypeComputer,
-                                predEvaluatorFactoryProvider, physicalOptimizationConfig.getFrameSize(),
-                                clusterLocations);
+                        return pc.getOperators();
+                    }
 
-                        PlanCompiler pc = new PlanCompiler(context);
+                    @Override
+                    public Map<Mutable<ILogicalOperator>, List<Mutable<ILogicalOperator>>> getParentOperators()
+                            throws AlgebricksException {
+                        AlgebricksConfig.ALGEBRICKS_LOGGER.trace("Starting Job Generation.\n");
+                        return pc.getParentOperator();
+                    }
+
+                    @Override
+                    public JobGenContext getContext() throws AlgebricksException {
+                        AlgebricksConfig.ALGEBRICKS_LOGGER.trace("Starting Job Generation.\n");
+                        return context;
+                    }
+
+                    @Override
+                    public PlanCompiler getCompiler() throws AlgebricksException {
+                        AlgebricksConfig.ALGEBRICKS_LOGGER.trace("Starting Job Generation.\n");
+                        return pc;
+                    }
+
+                    @Override
+                    public boolean getFinished(Object appContext, boolean first, JobGenContext context1,
+                            PlanCompiler pc1) throws AlgebricksException {
+                        AlgebricksConfig.ALGEBRICKS_LOGGER.trace("Starting Job Generation.\n");
+                        //                        if (first) {
+                        //                            context = new JobGenContext(null, metadata, appContext, serializerDeserializerProvider,
+                        //                                    hashFunctionFactoryProvider, hashFunctionFamilyProvider, comparatorFactoryProvider,
+                        //                                    typeTraitProvider, binaryBooleanInspectorFactory, binaryIntegerInspectorFactory,
+                        //                                    printerProvider, missingWriterFactory, normalizedKeyComputerFactoryProvider,
+                        //                                    expressionRuntimeProvider, expressionTypeComputer, oc, expressionEvalSizeComputer,
+                        //                                    partialAggregationTypeComputer, predEvaluatorFactoryProvider,
+                        //                                    physicalOptimizationConfig.getFrameSize(), clusterLocations);
+                        //                            pc = new PlanCompiler(context);
+                        //                        } else {
+                        //                            context = context1;
+                        //                            pc = pc1;
+                        //                        }
+
                         return pc.getFinished();
                     }
 
                     @Override
-                    public void traversePlan(Object appContext) throws AlgebricksException {
+                    public List<ILogicalOperator> traversePlan(Object appContext, boolean first, JobGenContext context1,
+                            PlanCompiler pc1) throws AlgebricksException {
                         AlgebricksConfig.ALGEBRICKS_LOGGER.trace("Starting Job Generation.\n");
-                        JobGenContext context = new JobGenContext(null, metadata, appContext,
-                                serializerDeserializerProvider, hashFunctionFactoryProvider, hashFunctionFamilyProvider,
-                                comparatorFactoryProvider, typeTraitProvider, binaryBooleanInspectorFactory,
-                                binaryIntegerInspectorFactory, printerProvider, missingWriterFactory,
-                                normalizedKeyComputerFactoryProvider, expressionRuntimeProvider, expressionTypeComputer,
-                                oc, expressionEvalSizeComputer, partialAggregationTypeComputer,
-                                predEvaluatorFactoryProvider, physicalOptimizationConfig.getFrameSize(),
-                                clusterLocations);
-
-                        PlanCompiler pc = new PlanCompiler(context);
-                        pc.traversePlan(plan);
+                        // if (first) {
+                        context = new JobGenContext(null, metadata, appContext, serializerDeserializerProvider,
+                                hashFunctionFactoryProvider, hashFunctionFamilyProvider, comparatorFactoryProvider,
+                                typeTraitProvider, binaryBooleanInspectorFactory, binaryIntegerInspectorFactory,
+                                printerProvider, missingWriterFactory, normalizedKeyComputerFactoryProvider,
+                                expressionRuntimeProvider, expressionTypeComputer, oc, expressionEvalSizeComputer,
+                                partialAggregationTypeComputer, predEvaluatorFactoryProvider,
+                                physicalOptimizationConfig.getFrameSize(), clusterLocations);
+                        pc = new PlanCompiler(context);
+                        //                        } else {
+                        //                            context = context1;
+                        //                            pc = pc1;
+                        //                        }
+                        return pc.traversePlan(plan);
                     }
 
                     @Override

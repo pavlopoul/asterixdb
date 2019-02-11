@@ -32,13 +32,17 @@ import org.apache.asterix.metadata.declared.MetadataProvider;
 import org.apache.asterix.om.base.IAObject;
 import org.apache.asterix.om.types.ARecordType;
 import org.apache.asterix.translator.CompiledStatements.ICompiledDmlStatement;
+import org.apache.commons.lang3.mutable.Mutable;
 import org.apache.commons.lang3.tuple.Triple;
 import org.apache.hyracks.algebricks.common.exceptions.AlgebricksException;
+import org.apache.hyracks.algebricks.core.algebra.base.ILogicalOperator;
+import org.apache.hyracks.algebricks.core.jobgen.impl.JobGenContext;
+import org.apache.hyracks.algebricks.core.jobgen.impl.PlanCompiler;
 import org.apache.hyracks.api.client.IClusterInfoCollector;
 import org.apache.hyracks.api.client.IHyracksClientConnection;
-import org.apache.hyracks.api.result.ResultSetId;
 import org.apache.hyracks.api.job.JobId;
 import org.apache.hyracks.api.job.JobSpecification;
+import org.apache.hyracks.api.result.ResultSetId;
 
 /**
  * An interface that takes care of executing a list of statements that are submitted through an Asterix API
@@ -137,7 +141,10 @@ public interface IStatementExecutor {
      */
     JobSpecification rewriteCompileQuery(IClusterInfoCollector clusterInfoCollector, MetadataProvider metadataProvider,
             Query query, ICompiledDmlStatement dmlStatement, Map<String, IAObject> statementParameters,
-            IStatementRewriter statementRewriter) throws RemoteException, AlgebricksException, ACIDException;
+            IStatementRewriter statementRewriter, List<ILogicalOperator> operators, boolean first,
+            JobGenContext context, PlanCompiler pc,
+            Map<Mutable<ILogicalOperator>, List<Mutable<ILogicalOperator>>> operatorVisitedToParents)
+            throws RemoteException, AlgebricksException, ACIDException;
 
     /**
      * returns the active dataverse for an entity or a statement

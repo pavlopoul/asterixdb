@@ -56,7 +56,6 @@ import org.apache.asterix.lang.common.base.Expression;
 import org.apache.asterix.lang.common.base.IParser;
 import org.apache.asterix.lang.common.base.IParserFactory;
 import org.apache.asterix.lang.common.base.Statement;
-import org.apache.asterix.lang.common.clause.LetClause;
 import org.apache.asterix.lang.common.clause.WhereClause;
 import org.apache.asterix.lang.common.expression.CallExpr;
 import org.apache.asterix.lang.common.expression.LiteralExpr;
@@ -249,7 +248,8 @@ public class FeedOperations {
             clfrqs = new CompiledStatements.CompiledUpsertStatement(feedConn.getDataverseName(),
                     feedConn.getDatasetName(), feedConnQuery, stmtUpsert.getVarCounter(), null, null);
         }
-        return statementExecutor.rewriteCompileQuery(hcc, metadataProvider, feedConnQuery, clfrqs, null, null);
+        return statementExecutor.rewriteCompileQuery(hcc, metadataProvider, feedConnQuery, clfrqs, null, null, null,
+                true, null, null, null);
     }
 
     private static JobSpecification combineIntakeCollectJobs(MetadataProvider metadataProvider, Feed feed,

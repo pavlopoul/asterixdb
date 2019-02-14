@@ -24,6 +24,7 @@ import java.util.Map;
 import org.apache.commons.lang3.mutable.Mutable;
 import org.apache.hyracks.algebricks.common.exceptions.AlgebricksException;
 import org.apache.hyracks.algebricks.core.algebra.base.ILogicalOperator;
+import org.apache.hyracks.algebricks.core.jobgen.impl.JobBuilder;
 import org.apache.hyracks.algebricks.core.jobgen.impl.JobGenContext;
 import org.apache.hyracks.algebricks.core.jobgen.impl.PlanCompiler;
 import org.apache.hyracks.api.job.IJobletEventListenerFactory;
@@ -34,8 +35,8 @@ public interface ICompiler {
 
     public JobSpecification createJob(Object appContext, IJobletEventListenerFactory jobEventListenerFactory,
             List<ILogicalOperator> operators, boolean first,
-            Map<Mutable<ILogicalOperator>, List<Mutable<ILogicalOperator>>> operatorVisitedToParents,
-            JobGenContext context, PlanCompiler pc) throws AlgebricksException;
+            Map<Mutable<ILogicalOperator>, List<ILogicalOperator>> operatorVisitedToParents, JobGenContext context,
+            PlanCompiler pc, JobSpecification spec1, JobBuilder builder1) throws AlgebricksException;
 
     public JobSpecification createLoadJob(Object appContext, IJobletEventListenerFactory jobEventListenerFactory)
             throws AlgebricksException;
@@ -52,6 +53,8 @@ public interface ICompiler {
 
     PlanCompiler getCompiler() throws AlgebricksException;
 
-    Map<Mutable<ILogicalOperator>, List<Mutable<ILogicalOperator>>> getParentOperators() throws AlgebricksException;
+    Map<Mutable<ILogicalOperator>, List<ILogicalOperator>> getParentOperators() throws AlgebricksException;
+
+    JobBuilder getBuilder() throws AlgebricksException;
 
 }

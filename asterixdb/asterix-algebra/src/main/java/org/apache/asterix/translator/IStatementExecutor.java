@@ -36,6 +36,7 @@ import org.apache.commons.lang3.mutable.Mutable;
 import org.apache.commons.lang3.tuple.Triple;
 import org.apache.hyracks.algebricks.common.exceptions.AlgebricksException;
 import org.apache.hyracks.algebricks.core.algebra.base.ILogicalOperator;
+import org.apache.hyracks.algebricks.core.jobgen.impl.JobBuilder;
 import org.apache.hyracks.algebricks.core.jobgen.impl.JobGenContext;
 import org.apache.hyracks.algebricks.core.jobgen.impl.PlanCompiler;
 import org.apache.hyracks.api.client.IClusterInfoCollector;
@@ -143,8 +144,8 @@ public interface IStatementExecutor {
             Query query, ICompiledDmlStatement dmlStatement, Map<String, IAObject> statementParameters,
             IStatementRewriter statementRewriter, List<ILogicalOperator> operators, boolean first,
             JobGenContext context, PlanCompiler pc,
-            Map<Mutable<ILogicalOperator>, List<Mutable<ILogicalOperator>>> operatorVisitedToParents)
-            throws RemoteException, AlgebricksException, ACIDException;
+            Map<Mutable<ILogicalOperator>, List<ILogicalOperator>> operatorVisitedToParents, JobSpecification spec,
+            JobBuilder builder) throws RemoteException, AlgebricksException, ACIDException;
 
     /**
      * returns the active dataverse for an entity or a statement

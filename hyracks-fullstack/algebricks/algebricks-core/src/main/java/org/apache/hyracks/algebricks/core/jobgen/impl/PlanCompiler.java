@@ -37,10 +37,12 @@ import org.apache.hyracks.api.job.JobSpecification;
 
 public class PlanCompiler {
     private JobGenContext context;
+    private JobSpecification spec;
+    private JobBuilder builder;
     private List<ILogicalOperator> operators = new ArrayList<>();
     private boolean finished = false;
-    private Map<Mutable<ILogicalOperator>, List<Mutable<ILogicalOperator>>> operatorVisitedToParents =
-            new HashMap<Mutable<ILogicalOperator>, List<Mutable<ILogicalOperator>>>();
+    private Map<Mutable<ILogicalOperator>, List<ILogicalOperator>> operatorVisitedToParents =
+            new HashMap<Mutable<ILogicalOperator>, List<ILogicalOperator>>();
 
     public PlanCompiler(JobGenContext context) {
         this.context = context;
@@ -55,19 +57,19 @@ public class PlanCompiler {
         return compileLoadPlanImpl(plan, false, null, jobEventListenerFactory);
     }
 
-    public JobSpecification compilePlan(ILogicalPlan plan, IJobletEventListenerFactory jobEventListenerFactory,
-            List<ILogicalOperator> operators2, boolean first,
-            Map<Mutable<ILogicalOperator>, List<Mutable<ILogicalOperator>>> operatorVisitedToParents2)
+    public JobSpecification compilePlan(JobSpecification spec1, JobBuilder builder1, ILogicalPlan plan,
+            IJobletEventListenerFactory jobEventListenerFactory, List<ILogicalOperator> operators2, boolean first,
+            Map<Mutable<ILogicalOperator>, List<ILogicalOperator>> operatorVisitedToParents2)
             throws AlgebricksException {
         if (!first) {
             operatorVisitedToParents = operatorVisitedToParents2;
         }
-        return compilePlanImpl(plan, false, null, jobEventListenerFactory, operators2, first);
+        return compilePlanImpl(spec1, builder1, plan, false, null, jobEventListenerFactory, operators2, first);
     }
 
-    public JobSpecification compileNestedPlan(ILogicalPlan plan, IOperatorSchema outerPlanSchema)
-            throws AlgebricksException {
-        return compilePlanImpl(plan, true, outerPlanSchema, null, null, true);
+    public JobSpecification compileNestedPlan(JobSpecification spec1, JobBuilder builder1, ILogicalPlan plan,
+            IOperatorSchema outerPlanSchema) throws AlgebricksException {
+        return compilePlanImpl(spec1, builder1, plan, true, outerPlanSchema, null, null, true);
     }
 
     private JobSpecification compileLoadPlanImpl(ILogicalPlan plan, boolean isNestedPlan,
@@ -102,16 +104,16 @@ public class PlanCompiler {
         IOperatorSchema[] schemas = new IOperatorSchema[n];
         int i = 0;
         for (Mutable<ILogicalOperator> opChild : op.getInputs()) {
-            List<Mutable<ILogicalOperator>> parents = operatorVisitedToParents.get(opChild);
+            List<ILogicalOperator> parents = operatorVisitedToParents.get(opChild);
             if (parents == null) {
-                parents = new ArrayList<Mutable<ILogicalOperator>>();
+                parents = new ArrayList<ILogicalOperator>();
                 operatorVisitedToParents.put(opChild, parents);
-                parents.add(opRef);
+                parents.add(opRef.getValue());
                 compileLoadOpRef(opChild, spec, builder, outerPlanSchema);
                 schemas[i++] = context.getSchema(opChild.getValue());
             } else {
-                if (!parents.contains(opRef))
-                    parents.add(opRef);
+                if (!parents.contains(opRef.getValue()))
+                    parents.add(opRef.getValue());
                 schemas[i++] = context.getSchema(opChild.getValue());
                 continue;
             }
@@ -123,15 +125,25 @@ public class PlanCompiler {
         op.contributeRuntimeOperator(builder, context, opSchema, schemas, outerPlanSchema);
     }
 
-    private JobSpecification compilePlanImpl(ILogicalPlan plan, boolean isNestedPlan, IOperatorSchema outerPlanSchema,
-            IJobletEventListenerFactory jobEventListenerFactory, List<ILogicalOperator> operators2, boolean first)
-            throws AlgebricksException {
-        JobSpecification spec = new JobSpecification(context.getFrameSize());
+    private JobSpecification compilePlanImpl(JobSpecification spec1, JobBuilder builder1, ILogicalPlan plan,
+            boolean isNestedPlan, IOperatorSchema outerPlanSchema, IJobletEventListenerFactory jobEventListenerFactory,
+            List<ILogicalOperator> operators2, boolean first) throws AlgebricksException {
+        if (first) {
+            spec = new JobSpecification(context.getFrameSize());
+        } else {
+            spec = spec1;
+        }
+        //JobSpecification spec = new JobSpecification(context.getFrameSize());
         if (jobEventListenerFactory != null) {
             spec.setJobletEventListenerFactory(jobEventListenerFactory);
         }
         List<ILogicalOperator> rootOps = new ArrayList<>();
-        JobBuilder builder = new JobBuilder(spec, context.getClusterLocations());
+        if (first) {
+            builder = new JobBuilder(spec, context.getClusterLocations());
+        } else {
+            builder = builder1;
+        }
+        //JobBuilder builder = new JobBuilder(spec, context.getClusterLocations());
         Mutable<ILogicalOperator> opRef = plan.getRoots().get(0);
         operators = operators2;
         //compileOpRef(opRef, spec, builder, outerPlanSchema);
@@ -140,7 +152,7 @@ public class PlanCompiler {
         rootOps.add(compileOpRef(opRef, spec, builder, outerPlanSchema));
         reviseEdges(builder);
         //operatorVisitedToParents.clear();
-        //builder.buildSpec(rootOps);
+        builder.buildSpec(rootOps);
         spec.setConnectorPolicyAssignmentPolicy(new ConnectorPolicyAssignmentPolicy());
         // Do not do activity cluster planning because it is slow on large clusters
         spec.setUseConnectorPolicyForScheduling(false);
@@ -158,7 +170,15 @@ public class PlanCompiler {
         return operators;
     }
 
-    public Map<Mutable<ILogicalOperator>, List<Mutable<ILogicalOperator>>> getParentOperator() {
+    public JobSpecification getSpec() {
+        return spec;
+    }
+
+    public JobBuilder getBuilder() {
+        return builder;
+    }
+
+    public Map<Mutable<ILogicalOperator>, List<ILogicalOperator>> getParentOperator() {
         return operatorVisitedToParents;
     }
 
@@ -194,16 +214,16 @@ public class PlanCompiler {
                 op = operators.get(operators.size() - 1);
                 operators.remove(operators.size() - 1);
             } else {
-                Mutable<ILogicalOperator> opChild = op.getInputs().get(0);
-                List<Mutable<ILogicalOperator>> parents = operatorVisitedToParents.get(opChild);
+                Mutable<ILogicalOperator> opChild = operators.get(j).getInputs().get(0);
+                List<ILogicalOperator> parents = operatorVisitedToParents.get(opChild);
                 if (parents == null) {
-                    parents = new ArrayList<Mutable<ILogicalOperator>>();
+                    parents = new ArrayList<ILogicalOperator>();
                     operatorVisitedToParents.put(opChild, parents);
-                    parents.add(opRef);
+                    parents.add(operators.get(j));
                     op = opChild.getValue();
                 } else {
-                    if (!parents.contains(opRef))
-                        parents.add(opRef);
+                    if (!parents.contains(operators.get(j)))
+                        parents.add(operators.get(j));
                     op = opChild.getValue();
                     continue;
                 }
@@ -227,14 +247,13 @@ public class PlanCompiler {
                     if (rop.isBlocker()) {
                         // make the order of the graph edges consistent with the order of rop's outputs
                         List<Mutable<ILogicalOperator>> outputs = rop.getOutputs();
-                        for (Mutable<ILogicalOperator> parent : parents) {
-                            builder.contributeGraphEdge(child.getValue(), outputs.indexOf(parent), parent.getValue(),
-                                    0);
+                        for (ILogicalOperator parent : parents) {
+                            builder.contributeGraphEdge(child.getValue(), outputs.indexOf(parent), parent, 0);
                         }
                     } else {
                         int i = 0;
-                        for (Mutable<ILogicalOperator> parent : parents) {
-                            builder.contributeGraphEdge(child.getValue(), i, parent.getValue(), 0);
+                        for (ILogicalOperator parent : parents) {
+                            builder.contributeGraphEdge(child.getValue(), i, parent, 0);
                             i++;
                         }
                     }

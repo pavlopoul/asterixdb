@@ -178,6 +178,7 @@ import org.apache.hyracks.algebricks.common.exceptions.AlgebricksException;
 import org.apache.hyracks.algebricks.common.utils.Pair;
 import org.apache.hyracks.algebricks.core.algebra.base.ILogicalOperator;
 import org.apache.hyracks.algebricks.core.algebra.expressions.AbstractFunctionCallExpression.FunctionKind;
+import org.apache.hyracks.algebricks.core.jobgen.impl.JobBuilder;
 import org.apache.hyracks.algebricks.core.jobgen.impl.JobGenContext;
 import org.apache.hyracks.algebricks.core.jobgen.impl.PlanCompiler;
 import org.apache.hyracks.algebricks.data.IAWriterFactory;
@@ -1831,7 +1832,7 @@ public class QueryTranslator extends AbstractLangTranslator implements IStatemen
                             loadStmt.getAdapter(), loadStmt.getProperties(), loadStmt.dataIsAlreadySorted());
             cls.setSourceLocation(stmt.getSourceLocation());
             JobSpecification spec = apiFramework.compileQuery(hcc, metadataProvider, null, 0, null, sessionOutput, cls,
-                    null, null, true, null, null, null);
+                    null, null, true, null, null, null, null, null);
             afterCompile();
             MetadataManager.INSTANCE.commitTransaction(mdTxnCtx);
             bActiveTxn = false;
@@ -1866,30 +1867,30 @@ public class QueryTranslator extends AbstractLangTranslator implements IStatemen
                 metadataProvider.getLocks().unlock();
             }
         };
-        final IStatementCompiler compiler =
-                (List<ILogicalOperator> operators, boolean first, JobGenContext context, PlanCompiler pc,
-                        Map<Mutable<ILogicalOperator>, List<Mutable<ILogicalOperator>>> operatorVisitedToParents) -> {
-                    MetadataTransactionContext mdTxnCtx = MetadataManager.INSTANCE.beginTransaction();
-                    boolean bActiveTxn = true;
-                    metadataProvider.setMetadataTxnContext(mdTxnCtx);
-                    try {
-                        metadataProvider.setWriteTransaction(true);
-                        final JobSpecification jobSpec = rewriteCompileInsertUpsert(hcc, metadataProvider,
-                                stmtInsertUpsert, stmtParams, stmtRewriter);
-                        MetadataManager.INSTANCE.commitTransaction(mdTxnCtx);
-                        bActiveTxn = false;
-                        return jobSpec;
-                    } catch (Exception e) {
-                        if (bActiveTxn) {
-                            abort(e, e, mdTxnCtx);
-                        }
-                        throw e;
-                    }
-                };
+        final IStatementCompiler compiler = (JobSpecification spec, JobBuilder builder,
+                List<ILogicalOperator> operators, boolean first, JobGenContext context, PlanCompiler pc,
+                Map<Mutable<ILogicalOperator>, List<ILogicalOperator>> operatorVisitedToParents) -> {
+            MetadataTransactionContext mdTxnCtx = MetadataManager.INSTANCE.beginTransaction();
+            boolean bActiveTxn = true;
+            metadataProvider.setMetadataTxnContext(mdTxnCtx);
+            try {
+                metadataProvider.setWriteTransaction(true);
+                final JobSpecification jobSpec =
+                        rewriteCompileInsertUpsert(hcc, metadataProvider, stmtInsertUpsert, stmtParams, stmtRewriter);
+                MetadataManager.INSTANCE.commitTransaction(mdTxnCtx);
+                bActiveTxn = false;
+                return jobSpec;
+            } catch (Exception e) {
+                if (bActiveTxn) {
+                    abort(e, e, mdTxnCtx);
+                }
+                throw e;
+            }
+        };
         if (compileOnly) {
             locker.lock();
             try {
-                return compiler.compile(null, true, null, null, null);
+                return compiler.compile(null, null, null, true, null, null, null);
             } finally {
                 locker.unlock();
             }
@@ -1901,7 +1902,7 @@ public class QueryTranslator extends AbstractLangTranslator implements IStatemen
         } else {
             locker.lock();
             try {
-                final JobSpecification jobSpec = compiler.compile(null, true, null, null, null);
+                final JobSpecification jobSpec = compiler.compile(null, null, null, true, null, null, null);
                 if (jobSpec == null) {
                     return jobSpec;
                 }
@@ -1930,7 +1931,7 @@ public class QueryTranslator extends AbstractLangTranslator implements IStatemen
                     stmtDelete.getQuery());
             clfrqs.setSourceLocation(stmt.getSourceLocation());
             JobSpecification jobSpec = rewriteCompileQuery(hcc, metadataProvider, clfrqs.getQuery(), clfrqs, stmtParams,
-                    stmtRewriter, null, true, null, null, null);
+                    stmtRewriter, null, true, null, null, null, null, null);
             afterCompile();
 
             MetadataManager.INSTANCE.commitTransaction(mdTxnCtx);
@@ -1955,8 +1956,8 @@ public class QueryTranslator extends AbstractLangTranslator implements IStatemen
             MetadataProvider metadataProvider, Query query, ICompiledDmlStatement stmt,
             Map<String, IAObject> stmtParams, IStatementRewriter stmtRewriter, List<ILogicalOperator> operators,
             boolean first, JobGenContext context, PlanCompiler pc,
-            Map<Mutable<ILogicalOperator>, List<Mutable<ILogicalOperator>>> operatorVisitedToParents)
-            throws AlgebricksException, ACIDException {
+            Map<Mutable<ILogicalOperator>, List<ILogicalOperator>> operatorVisitedToParents, JobSpecification spec,
+            JobBuilder builder) throws AlgebricksException, ACIDException {
 
         Map<VarIdentifier, IAObject> externalVars = createExternalVariables(stmtParams, stmtRewriter);
 
@@ -1967,7 +1968,7 @@ public class QueryTranslator extends AbstractLangTranslator implements IStatemen
         // Query Compilation (happens under the same ongoing metadata transaction)
         return apiFramework.compileQuery(clusterInfoCollector, metadataProvider, (Query) rewrittenResult.first,
                 rewrittenResult.second, stmt == null ? null : stmt.getDatasetName(), sessionOutput, stmt, externalVars,
-                operators, first, context, pc, operatorVisitedToParents);
+                operators, first, context, pc, operatorVisitedToParents, spec, builder);
     }
 
     public boolean getFinished() {
@@ -1978,7 +1979,15 @@ public class QueryTranslator extends AbstractLangTranslator implements IStatemen
         return apiFramework.getOperators();
     }
 
-    public Map<Mutable<ILogicalOperator>, List<Mutable<ILogicalOperator>>> getParentOperators() {
+    public JobBuilder getBuilder() {
+        return apiFramework.getBuilder();
+    }
+
+    public JobSpecification getSpec() {
+        return apiFramework.getSpec();
+    }
+
+    public Map<Mutable<ILogicalOperator>, List<ILogicalOperator>> getParentOperators() {
         return apiFramework.getParentOperators();
     }
 
@@ -2025,7 +2034,8 @@ public class QueryTranslator extends AbstractLangTranslator implements IStatemen
         // Insert/upsert statement compilation (happens under the same ongoing metadata
         // transaction)
         return apiFramework.compileQuery(clusterInfoCollector, metadataProvider, rewrittenInsertUpsert.getQuery(),
-                rewrittenResult.second, datasetName, sessionOutput, clfrqs, externalVars, null, true, null, null, null);
+                rewrittenResult.second, datasetName, sessionOutput, clfrqs, externalVars, null, true, null, null, null,
+                null, null);
     }
 
     protected void handleCreateFeedStatement(MetadataProvider metadataProvider, Statement stmt) throws Exception {
@@ -2468,9 +2478,9 @@ public class QueryTranslator extends AbstractLangTranslator implements IStatemen
     }
 
     private interface IStatementCompiler {
-        JobSpecification compile(List<ILogicalOperator> operators, boolean first, JobGenContext context,
-                PlanCompiler pc,
-                Map<Mutable<ILogicalOperator>, List<Mutable<ILogicalOperator>>> operatorVisitedToParents)
+        JobSpecification compile(JobSpecification spec, JobBuilder builder, List<ILogicalOperator> operators,
+                boolean first, JobGenContext context, PlanCompiler pc,
+                Map<Mutable<ILogicalOperator>, List<ILogicalOperator>> operatorVisitedToParents)
                 throws AlgebricksException, RemoteException, ACIDException;
     }
 
@@ -2490,27 +2500,27 @@ public class QueryTranslator extends AbstractLangTranslator implements IStatemen
                 ExternalDatasetsRegistry.INSTANCE.releaseAcquiredLocks(metadataProvider);
             }
         };
-        final IStatementCompiler compiler =
-                (List<ILogicalOperator> operators, boolean first, JobGenContext context, PlanCompiler pc,
-                        Map<Mutable<ILogicalOperator>, List<Mutable<ILogicalOperator>>> operatorVisitedToParents) -> {
-                    MetadataTransactionContext mdTxnCtx = MetadataManager.INSTANCE.beginTransaction();
-                    boolean bActiveTxn = true;
-                    metadataProvider.setMetadataTxnContext(mdTxnCtx);
-                    try {
-                        final JobSpecification jobSpec = rewriteCompileQuery(hcc, metadataProvider, query, null,
-                                stmtParams, stmtRewriter, operators, first, context, pc, operatorVisitedToParents);
-                        afterCompile();
-                        MetadataManager.INSTANCE.commitTransaction(mdTxnCtx);
-                        bActiveTxn = false;
-                        return query.isExplain() || !sessionConfig.isExecuteQuery() ? null : jobSpec;
-                    } catch (Exception e) {
-                        LOGGER.log(Level.INFO, e.getMessage(), e);
-                        if (bActiveTxn) {
-                            abort(e, e, mdTxnCtx);
-                        }
-                        throw e;
-                    }
-                };
+        final IStatementCompiler compiler = (JobSpecification spec, JobBuilder builder,
+                List<ILogicalOperator> operators, boolean first, JobGenContext context, PlanCompiler pc,
+                Map<Mutable<ILogicalOperator>, List<ILogicalOperator>> operatorVisitedToParents) -> {
+            MetadataTransactionContext mdTxnCtx = MetadataManager.INSTANCE.beginTransaction();
+            boolean bActiveTxn = true;
+            metadataProvider.setMetadataTxnContext(mdTxnCtx);
+            try {
+                final JobSpecification jobSpec = rewriteCompileQuery(hcc, metadataProvider, query, null, stmtParams,
+                        stmtRewriter, operators, first, context, pc, operatorVisitedToParents, spec, builder);
+                afterCompile();
+                MetadataManager.INSTANCE.commitTransaction(mdTxnCtx);
+                bActiveTxn = false;
+                return query.isExplain() || !sessionConfig.isExecuteQuery() ? null : jobSpec;
+            } catch (Exception e) {
+                LOGGER.log(Level.INFO, e.getMessage(), e);
+                if (bActiveTxn) {
+                    abort(e, e, mdTxnCtx);
+                }
+                throw e;
+            }
+        };
         deliverResult(hcc, resultSet, compiler, metadataProvider, locker, resultDelivery, outMetadata, stats,
                 clientContextId, ctx);
     }
@@ -2624,19 +2634,23 @@ public class QueryTranslator extends AbstractLangTranslator implements IStatemen
         locker.lock();
         try {
             JobSpecification jobSpec = null;
+            JobBuilder builder = null;
             List<ILogicalOperator> operators = new ArrayList<>();
-            Map<Mutable<ILogicalOperator>, List<Mutable<ILogicalOperator>>> operatorVisitedToParents =
-                    new HashMap<Mutable<ILogicalOperator>, List<Mutable<ILogicalOperator>>>();
+            Map<Mutable<ILogicalOperator>, List<ILogicalOperator>> operatorVisitedToParents =
+                    new HashMap<Mutable<ILogicalOperator>, List<ILogicalOperator>>();
             JobGenContext context = null;
+            JobSpecification spec = null;
             PlanCompiler pc = null;
             boolean first = true;
             while (!getFinished()) {
 
-                jobSpec = compiler.compile(operators, first, context, pc, operatorVisitedToParents);
+                jobSpec = compiler.compile(spec, builder, operators, first, context, pc, operatorVisitedToParents);
                 context = getContext();
                 pc = getCompiler();
                 operators = getOperators();
                 operatorVisitedToParents = getParentOperators();
+                builder = getBuilder();
+                spec = getSpec();
                 first = false;
             }
             if (jobSpec == null) {

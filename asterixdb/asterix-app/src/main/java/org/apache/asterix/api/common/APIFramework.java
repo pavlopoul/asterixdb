@@ -100,6 +100,7 @@ import org.apache.hyracks.algebricks.core.algebra.prettyprint.AlgebricksAppendab
 import org.apache.hyracks.algebricks.core.algebra.prettyprint.LogicalOperatorPrettyPrintVisitor;
 import org.apache.hyracks.algebricks.core.algebra.prettyprint.LogicalOperatorPrettyPrintVisitorJson;
 import org.apache.hyracks.algebricks.core.algebra.prettyprint.PlanPrettyPrinter;
+import org.apache.hyracks.algebricks.core.jobgen.impl.JobBuilder;
 import org.apache.hyracks.algebricks.core.jobgen.impl.JobGenContext;
 import org.apache.hyracks.algebricks.core.jobgen.impl.PlanCompiler;
 import org.apache.hyracks.algebricks.core.rewriter.base.AlgebricksOptimizationContext;
@@ -149,10 +150,12 @@ public class APIFramework {
     private final IRuleSetFactory ruleSetFactory;
     private final ExecutionPlans executionPlans;
     public boolean finished = false;
+    public JobSpecification spec;
     public List<ILogicalOperator> operators;
     public JobGenContext context;
     public PlanCompiler pc;
-    public Map<Mutable<ILogicalOperator>, List<Mutable<ILogicalOperator>>> operatorVisitedToParents;
+    public JobBuilder builder;
+    public Map<Mutable<ILogicalOperator>, List<ILogicalOperator>> operatorVisitedToParents;
 
     public APIFramework(ILangCompilationProvider compilationProvider) {
         this.rewriterFactory = compilationProvider.getRewriterFactory();
@@ -202,8 +205,8 @@ public class APIFramework {
             Query query, int varCounter, String outputDatasetName, SessionOutput output,
             ICompiledDmlStatement statement, Map<VarIdentifier, IAObject> externalVars,
             List<ILogicalOperator> operators, boolean first, JobGenContext context, PlanCompiler pc,
-            Map<Mutable<ILogicalOperator>, List<Mutable<ILogicalOperator>>> operatorVisitedToParents)
-            throws AlgebricksException, ACIDException {
+            Map<Mutable<ILogicalOperator>, List<ILogicalOperator>> operatorVisitedToParents, JobSpecification spec1,
+            JobBuilder builder1) throws AlgebricksException, ACIDException {
 
         // establish facts
         final boolean isQuery = query != null;
@@ -297,7 +300,7 @@ public class APIFramework {
 
         JobEventListenerFactory jobEventListenerFactory =
                 new JobEventListenerFactory(txnId, metadataProvider.isWriteTransaction());
-        JobSpecification spec = null;
+        //JobSpecification spec = null;
         if (isLoad) {
             finished = true;
             spec = compiler.createLoadJob(metadataProvider.getApplicationContext(), jobEventListenerFactory);
@@ -312,7 +315,7 @@ public class APIFramework {
             //            }
             //while (!compiler.getFinished(metadataProvider.getApplicationContext())) {
             spec = compiler.createJob(metadataProvider.getApplicationContext(), jobEventListenerFactory, operators,
-                    first, operatorVisitedToParents, context, pc);
+                    first, operatorVisitedToParents, context, pc, spec1, builder1);
             finished = compiler.getFinished(metadataProvider.getApplicationContext(), first, context, pc);
             //operators = compiler.getOperators();
             // }
@@ -320,6 +323,7 @@ public class APIFramework {
             this.pc = compiler.getCompiler();
             this.operators = compiler.getOperators();
             this.operatorVisitedToParents = compiler.getParentOperators();
+            this.builder = compiler.getBuilder();
         }
 
         if (isQuery) {
@@ -347,6 +351,14 @@ public class APIFramework {
         return context;
     }
 
+    public JobBuilder getBuilder() {
+        return builder;
+    }
+
+    public JobSpecification getSpec() {
+        return spec;
+    }
+
     public PlanCompiler getPlanCompiler() {
         return pc;
     }
@@ -355,7 +367,7 @@ public class APIFramework {
         return operators;
     }
 
-    public Map<Mutable<ILogicalOperator>, List<Mutable<ILogicalOperator>>> getParentOperators() {
+    public Map<Mutable<ILogicalOperator>, List<ILogicalOperator>> getParentOperators() {
         return operatorVisitedToParents;
     }
 

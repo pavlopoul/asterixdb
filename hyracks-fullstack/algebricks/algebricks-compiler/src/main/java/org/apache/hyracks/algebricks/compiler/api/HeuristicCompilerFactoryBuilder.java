@@ -35,6 +35,7 @@ import org.apache.hyracks.algebricks.core.algebra.expressions.IMissableTypeCompu
 import org.apache.hyracks.algebricks.core.algebra.metadata.IMetadataProvider;
 import org.apache.hyracks.algebricks.core.algebra.prettyprint.LogicalOperatorPrettyPrintVisitor;
 import org.apache.hyracks.algebricks.core.config.AlgebricksConfig;
+import org.apache.hyracks.algebricks.core.jobgen.impl.JobBuilder;
 import org.apache.hyracks.algebricks.core.jobgen.impl.JobGenContext;
 import org.apache.hyracks.algebricks.core.jobgen.impl.PlanCompiler;
 import org.apache.hyracks.algebricks.core.rewriter.base.AlgebricksOptimizationContext;
@@ -102,8 +103,9 @@ public class HeuristicCompilerFactoryBuilder extends AbstractCompilerFactoryBuil
                     public JobSpecification createJob(Object appContext,
                             IJobletEventListenerFactory jobEventListenerFactory, List<ILogicalOperator> operators,
                             boolean first,
-                            Map<Mutable<ILogicalOperator>, List<Mutable<ILogicalOperator>>> operatorVisitedToParents,
-                            JobGenContext context1, PlanCompiler pc1) throws AlgebricksException {
+                            Map<Mutable<ILogicalOperator>, List<ILogicalOperator>> operatorVisitedToParents,
+                            JobGenContext context1, PlanCompiler pc1, JobSpecification spec, JobBuilder builder)
+                            throws AlgebricksException {
                         AlgebricksConfig.ALGEBRICKS_LOGGER.trace("Starting Job Generation.\n");
                         //                        if (first) {
                         //                            context = new JobGenContext(null, metadata, appContext, serializerDeserializerProvider,
@@ -122,8 +124,14 @@ public class HeuristicCompilerFactoryBuilder extends AbstractCompilerFactoryBuil
 
                         //                        }
                         //pc = new PlanCompiler(context);
-                        return pc.compilePlan(plan, jobEventListenerFactory, operators, first,
+                        return pc.compilePlan(spec, builder, plan, jobEventListenerFactory, operators, first,
                                 operatorVisitedToParents);
+                    }
+
+                    @Override
+                    public JobBuilder getBuilder() throws AlgebricksException {
+                        AlgebricksConfig.ALGEBRICKS_LOGGER.trace("Starting Job Generation.\n");
+                        return pc.getBuilder();
                     }
 
                     @Override
@@ -133,7 +141,7 @@ public class HeuristicCompilerFactoryBuilder extends AbstractCompilerFactoryBuil
                     }
 
                     @Override
-                    public Map<Mutable<ILogicalOperator>, List<Mutable<ILogicalOperator>>> getParentOperators()
+                    public Map<Mutable<ILogicalOperator>, List<ILogicalOperator>> getParentOperators()
                             throws AlgebricksException {
                         AlgebricksConfig.ALGEBRICKS_LOGGER.trace("Starting Job Generation.\n");
                         return pc.getParentOperator();

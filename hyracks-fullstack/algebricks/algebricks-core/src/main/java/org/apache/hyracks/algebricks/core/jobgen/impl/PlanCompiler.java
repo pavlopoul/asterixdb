@@ -197,14 +197,34 @@ public class PlanCompiler {
             IHyracksJobBuilder builder, IOperatorSchema outerPlanSchema) throws AlgebricksException {
         ILogicalOperator op = opRef.getValue();
         for (int j = 0; j < operators.size(); j++) {
-            int n = op.getInputs().size();
+            //            int n = op.getInputs().size();
+            //            IOperatorSchema[] schemas = new IOperatorSchema[n];
+            //            int i = 0;
+            int n = 0;
             IOperatorSchema[] schemas = new IOperatorSchema[n];
             int i = 0;
-            if (j == operators.size() - 1) {
+            if (j == operators.size() - 1 || (operators.get(j + 1).getOperatorTag() == LogicalOperatorTag.EXCHANGE
+                    && j == operators.size() - 3)) {
+                if (operators.get(j + 1).getOperatorTag() == LogicalOperatorTag.EXCHANGE) {
+                    n = op.getInputs().size();
+                    schemas = new IOperatorSchema[n];
+                    i = 0;
+                    if (operators.get(j + 2).hasInputs()) {
 
-                if (op.hasInputs()) {
-                    schemas[i++] = context.getSchema(operators.get(operators.size() - 1).getInputs().get(0).getValue());
+                        schemas[i++] =
+                                context.getSchema(operators.get(operators.size() - 1).getInputs().get(0).getValue());
+                    }
+                    createSchema(operators.get(j + 2), schemas, outerPlanSchema);
+                    operators.remove(operators.size() - 1);
+                    schemas = new IOperatorSchema[n];
+                    schemas[0] = context.getSchema(operators.get(operators.size() - 1).getInputs().get(0).getValue());
+                    //                }
+                    createSchema(operators.get(j + 1), schemas, outerPlanSchema);
+                    operators.remove(operators.size() - 1);
                 }
+                //                if (op.hasInputs()) {
+                schemas = new IOperatorSchema[n];
+                schemas[0] = context.getSchema(operators.get(operators.size() - 1).getInputs().get(0).getValue());
                 IOperatorSchema opSchema = new OperatorSchemaImpl();
                 context.putSchema(operators.get(operators.size() - 1), opSchema);
                 operators.get(operators.size() - 1).getVariablePropagationPolicy().propagateVariables(opSchema,
@@ -233,6 +253,14 @@ public class PlanCompiler {
         if (operators.isEmpty())
             finished = true;
         return op;
+    }
+
+    public void createSchema(ILogicalOperator op, IOperatorSchema[] schemas, IOperatorSchema outerPlanSchema)
+            throws AlgebricksException {
+        IOperatorSchema opSchema = new OperatorSchemaImpl();
+        context.putSchema(op, opSchema);
+        op.getVariablePropagationPolicy().propagateVariables(opSchema, schemas);
+        op.contributeRuntimeOperator(builder, context, opSchema, schemas, outerPlanSchema);
     }
 
     private void reviseEdges(IHyracksJobBuilder builder) {

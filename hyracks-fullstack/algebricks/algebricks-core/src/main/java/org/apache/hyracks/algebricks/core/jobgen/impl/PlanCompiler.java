@@ -31,11 +31,18 @@ import org.apache.hyracks.algebricks.core.algebra.base.ILogicalPlan;
 import org.apache.hyracks.algebricks.core.algebra.base.LogicalOperatorTag;
 import org.apache.hyracks.algebricks.core.algebra.operators.logical.AbstractReplicateOperator;
 import org.apache.hyracks.algebricks.core.algebra.operators.logical.IOperatorSchema;
+import org.apache.hyracks.api.constraints.PartitionConstraintHelper;
+import org.apache.hyracks.api.dataflow.IConnectorDescriptor;
+import org.apache.hyracks.api.dataflow.IOperatorDescriptor;
 import org.apache.hyracks.api.job.IJobletEventListenerFactory;
 import org.apache.hyracks.api.job.IOperatorDescriptorRegistry;
 import org.apache.hyracks.api.job.JobSpecification;
+import org.apache.hyracks.dataflow.std.connectors.OneToOneConnectorDescriptor;
+import org.apache.hyracks.dataflow.std.misc.SinkOperatorDescriptor;
 
 public class PlanCompiler {
+    public static final String[] ASTERIX_IDS =
+            { "asterix-001", "asterix-002", "asterix-003", "asterix-004", "asterix-005", "asterix-006", "asterix-007" };
     private JobGenContext context;
     private JobSpecification spec;
     private JobBuilder builder;
@@ -152,6 +159,13 @@ public class PlanCompiler {
         rootOps.add(compileOpRef(opRef, spec, builder, outerPlanSchema));
         reviseEdges(builder);
         //operatorVisitedToParents.clear();
+        SinkOperatorDescriptor sink = new SinkOperatorDescriptor(spec, 1);
+        PartitionConstraintHelper.addAbsoluteLocationConstraint(spec, sink, ASTERIX_IDS);
+        IConnectorDescriptor conn = new OneToOneConnectorDescriptor(spec);
+        IOperatorDescriptor source = spec.getOperatorMap().values().stream().findFirst().get();
+        spec.connect(conn, source, 0, sink, 0);
+        spec.addRoot(sink);
+        // spec.addRoot(new SinkOperatorDescriptor(spec, 1));
         builder.buildSpec(rootOps);
         spec.setConnectorPolicyAssignmentPolicy(new ConnectorPolicyAssignmentPolicy());
         // Do not do activity cluster planning because it is slow on large clusters

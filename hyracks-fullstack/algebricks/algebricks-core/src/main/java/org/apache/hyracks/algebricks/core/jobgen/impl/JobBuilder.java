@@ -167,10 +167,10 @@ public class JobBuilder implements IHyracksJobBuilder {
     public void buildSpec(List<ILogicalOperator> roots) throws AlgebricksException {
         buildAsterixComponents();
         Map<IConnectorDescriptor, TargetConstraint> tgtConstraints = setupConnectors();
-        for (ILogicalOperator r : roots) {
-            IOperatorDescriptor opDesc = findOpDescForAlgebraicOp(r);
-            jobSpec.addRoot(opDesc);
-        }
+        //        for (ILogicalOperator r : roots) {
+        //            IOperatorDescriptor opDesc = findOpDescForAlgebraicOp(r);
+        //            jobSpec.addRoot(opDesc);
+        //        }
         setAllPartitionConstraints(tgtConstraints);
     }
 

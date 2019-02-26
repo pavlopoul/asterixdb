@@ -35,7 +35,6 @@ import org.apache.hyracks.algebricks.core.algebra.operators.logical.AbstractRepl
 import org.apache.hyracks.algebricks.core.algebra.operators.logical.IOperatorSchema;
 import org.apache.hyracks.api.dataflow.IConnectorDescriptor;
 import org.apache.hyracks.api.dataflow.IOperatorDescriptor;
-import org.apache.hyracks.api.dataflow.OperatorDescriptorId;
 import org.apache.hyracks.api.job.IJobletEventListenerFactory;
 import org.apache.hyracks.api.job.IOperatorDescriptorRegistry;
 import org.apache.hyracks.api.job.JobSpecification;
@@ -173,7 +172,7 @@ public class PlanCompiler {
         IOperatorDescriptor source = spec.getOperatorMap().values().stream().findFirst().get();
         spec.connect(conn, source, 0, sink, 0);
         spec.addRoot(sink);
-        IOperatorDescriptor firstOp = spec.getOperatorMap().get(new OperatorDescriptorId(0));
+
         spec.setConnectorPolicyAssignmentPolicy(new ConnectorPolicyAssignmentPolicy());
         // Do not do activity cluster planning because it is slow on large clusters
         spec.setUseConnectorPolicyForScheduling(false);
@@ -222,6 +221,7 @@ public class PlanCompiler {
             IOperatorSchema outerPlanSchema) throws AlgebricksException {
         // ILogicalOperator op = opRef.getValue();
         int tmpExchCnt = 0;
+        int size = operators.size();
         for (int j = operators.size() - 1; j >= 0; j--) {
             int n = 1;
             IOperatorSchema[] schemas = new IOperatorSchema[n];
@@ -232,7 +232,7 @@ public class PlanCompiler {
                 exchangeCount--;
                 break;
             }
-            if (operators.get(j).hasInputs()) {
+            if (j != size - 1) {
                 schemas[0] = context.getSchema(operators.get(j).getInputs().get(0).getValue());
             }
             createSchema(operators.get(j), schemas, outerPlanSchema);

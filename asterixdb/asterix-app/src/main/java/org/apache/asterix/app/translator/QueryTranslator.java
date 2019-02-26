@@ -72,8 +72,11 @@ import org.apache.asterix.compiler.provider.ILangCompilationProvider;
 import org.apache.asterix.external.indexing.ExternalFile;
 import org.apache.asterix.external.indexing.IndexingConstants;
 import org.apache.asterix.external.operators.FeedIntakeOperatorNodePushable;
+import org.apache.asterix.external.operators.ReaderJobOperatorDescriptor;
 import org.apache.asterix.external.util.ExternalDataConstants;
 import org.apache.asterix.formats.nontagged.TypeTraitProvider;
+import org.apache.asterix.lang.common.base.Expression;
+import org.apache.asterix.lang.common.base.Expression.Kind;
 import org.apache.asterix.lang.common.base.IReturningStatement;
 import org.apache.asterix.lang.common.base.IRewriterFactory;
 import org.apache.asterix.lang.common.base.IStatementRewriter;
@@ -114,6 +117,7 @@ import org.apache.asterix.lang.common.statement.WriteStatement;
 import org.apache.asterix.lang.common.struct.Identifier;
 import org.apache.asterix.lang.common.struct.VarIdentifier;
 import org.apache.asterix.lang.common.util.FunctionUtil;
+import org.apache.asterix.lang.sqlpp.expression.SelectExpression;
 import org.apache.asterix.metadata.IDatasetDetails;
 import org.apache.asterix.metadata.MetadataManager;
 import org.apache.asterix.metadata.MetadataTransactionContext;
@@ -187,6 +191,8 @@ import org.apache.hyracks.algebricks.runtime.serializer.ResultSerializerFactoryP
 import org.apache.hyracks.algebricks.runtime.writers.PrinterBasedWriterFactory;
 import org.apache.hyracks.api.client.IClusterInfoCollector;
 import org.apache.hyracks.api.client.IHyracksClientConnection;
+import org.apache.hyracks.api.dataflow.IOperatorDescriptor;
+import org.apache.hyracks.api.dataflow.OperatorDescriptorId;
 import org.apache.hyracks.api.dataflow.value.ITypeTraits;
 import org.apache.hyracks.api.exceptions.HyracksDataException;
 import org.apache.hyracks.api.exceptions.SourceLocation;
@@ -205,6 +211,7 @@ import org.apache.hyracks.control.common.controllers.CCConfig;
 import org.apache.hyracks.control.common.job.profiling.om.JobProfile;
 import org.apache.hyracks.control.common.job.profiling.om.JobletProfile;
 import org.apache.hyracks.control.common.job.profiling.om.TaskProfile;
+import org.apache.hyracks.dataflow.std.misc.ReplicateOperatorDescriptor;
 import org.apache.hyracks.storage.am.lsm.common.api.ILSMMergePolicyFactory;
 import org.apache.logging.log4j.Level;
 import org.apache.logging.log4j.LogManager;
@@ -878,8 +885,9 @@ public class QueryTranslator extends AbstractLangTranslator implements IStatemen
                     overridesFieldTypes = true;
                 }
                 if (fieldType == null) {
-                    throw new CompilationException(ErrorCode.UNKNOWN_TYPE, sourceLoc, fieldExpr.second == null
-                            ? String.valueOf(fieldExpr.first) : String.valueOf(fieldExpr.second));
+                    throw new CompilationException(ErrorCode.UNKNOWN_TYPE, sourceLoc,
+                            fieldExpr.second == null ? String.valueOf(fieldExpr.first)
+                                    : String.valueOf(fieldExpr.second));
                 }
 
                 // try to add the key & its source to the set of keys, if key couldn't be added,
@@ -2640,6 +2648,9 @@ public class QueryTranslator extends AbstractLangTranslator implements IStatemen
             JobGenContext context = null;
             JobSpecification spec = null;
             PlanCompiler pc = null;
+            IOperatorDescriptor firstOp = null;
+            JobSpecification writer = null;
+            ReaderJobOperatorDescriptor reader = null;
             boolean first = true;
             while (!getFinished()) {
 
@@ -2650,7 +2661,29 @@ public class QueryTranslator extends AbstractLangTranslator implements IStatemen
                 operatorVisitedToParents = getParentOperators();
                 builder = getBuilder();
                 spec = getSpec();
+
+                if (first) {
+                    firstOp = jobSpec.getOperatorMap().get(new OperatorDescriptorId(0));
+                    writer = new JobSpecification(jobSpec.getFrameSize());
+                    reader = new ReaderJobOperatorDescriptor(writer, firstOp.getOutputRecordDescriptors()[0]);
+                }
+
+                else {
+
+                    ReplicateOperatorDescriptor replicate =
+                            new ReplicateOperatorDescriptor(writer, reader.getOutputRecordDescriptors()[0], 1);
+                    writer = new JobSpecification(jobSpec.getFrameSize());
+                    firstOp = jobSpec.getOperatorMap().get(new OperatorDescriptorId(0));
+                    reader = new ReaderJobOperatorDescriptor(writer, firstOp.getOutputRecordDescriptors()[0]);
+
+                }
                 first = false;
+                Query oldQuery = (Query) statements.get(1);
+                Expression exp = oldQuery.getBody();
+                if (exp.getKind() == Kind.SELECT_EXPRESSION) {
+                    SelectExpression select = (SelectExpression) exp;
+                }
+
             }
             if (jobSpec == null) {
                 return;

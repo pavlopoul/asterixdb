@@ -163,7 +163,6 @@ public class PlanCompiler {
         reviseEdges(builder);
         //operatorVisitedToParents.clear();
 
-        // spec.addRoot(new SinkOperatorDescriptor(spec, 1));
         AlgebricksPartitionConstraint apc =
                 builder.buildSpecNew(operators.get(operators.size() - 1).getInputs().get(0).getValue());
         SinkOperatorDescriptor sink = new SinkOperatorDescriptor(spec, 1);
@@ -171,6 +170,7 @@ public class PlanCompiler {
         IConnectorDescriptor conn = new OneToOneConnectorDescriptor(spec);
         IOperatorDescriptor source = spec.getOperatorMap().values().stream().findFirst().get();
         spec.connect(conn, source, 0, sink, 0);
+        spec.getRoots().clear();
         spec.addRoot(sink);
 
         spec.setConnectorPolicyAssignmentPolicy(new ConnectorPolicyAssignmentPolicy());
@@ -226,9 +226,12 @@ public class PlanCompiler {
             int n = 1;
             IOperatorSchema[] schemas = new IOperatorSchema[n];
             if (operators.get(j).getOperatorTag() == LogicalOperatorTag.EXCHANGE) {
-                tmpExchCnt++;
+                if (!(operators.get(j).getInputs().get(0).getValue()
+                        .getOperatorTag() == LogicalOperatorTag.DATASOURCESCAN
+                        || operators.get(j - 1).getOperatorTag() == LogicalOperatorTag.DATASOURCESCAN))
+                    tmpExchCnt++;
             }
-            if (tmpExchCnt == 2) {
+            if (tmpExchCnt == 1) {
                 exchangeCount--;
                 break;
             }

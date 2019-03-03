@@ -124,6 +124,7 @@ import org.apache.asterix.metadata.MetadataTransactionContext;
 import org.apache.asterix.metadata.bootstrap.MetadataBuiltinEntities;
 import org.apache.asterix.metadata.dataset.hints.DatasetHints;
 import org.apache.asterix.metadata.dataset.hints.DatasetHints.DatasetNodegroupCardinalityHint;
+import org.apache.asterix.metadata.declared.DatasetDataSource;
 import org.apache.asterix.metadata.declared.MetadataProvider;
 import org.apache.asterix.metadata.entities.BuiltinTypeMap;
 import org.apache.asterix.metadata.entities.CompactionPolicy;
@@ -137,6 +138,8 @@ import org.apache.asterix.metadata.entities.FeedPolicyEntity;
 import org.apache.asterix.metadata.entities.Function;
 import org.apache.asterix.metadata.entities.Index;
 import org.apache.asterix.metadata.entities.InternalDatasetDetails;
+import org.apache.asterix.metadata.entities.InternalDatasetDetails.FileStructure;
+import org.apache.asterix.metadata.entities.InternalDatasetDetails.PartitioningStrategy;
 import org.apache.asterix.metadata.entities.NodeGroup;
 import org.apache.asterix.metadata.feeds.FeedMetadataUtil;
 import org.apache.asterix.metadata.lock.ExternalDatasetsRegistry;
@@ -147,7 +150,10 @@ import org.apache.asterix.metadata.utils.KeyFieldTypeUtil;
 import org.apache.asterix.metadata.utils.MetadataConstants;
 import org.apache.asterix.metadata.utils.MetadataLockUtil;
 import org.apache.asterix.metadata.utils.MetadataUtil;
+import org.apache.asterix.om.base.AInt32;
+import org.apache.asterix.om.base.ARecord;
 import org.apache.asterix.om.base.IAObject;
+import org.apache.asterix.om.constants.AsterixConstantValue;
 import org.apache.asterix.om.types.ARecordType;
 import org.apache.asterix.om.types.ATypeTag;
 import org.apache.asterix.om.types.IAType;
@@ -180,8 +186,13 @@ import org.apache.commons.lang3.mutable.MutableObject;
 import org.apache.commons.lang3.tuple.Triple;
 import org.apache.hyracks.algebricks.common.exceptions.AlgebricksException;
 import org.apache.hyracks.algebricks.common.utils.Pair;
+import org.apache.hyracks.algebricks.core.algebra.base.ILogicalExpression;
 import org.apache.hyracks.algebricks.core.algebra.base.ILogicalOperator;
 import org.apache.hyracks.algebricks.core.algebra.expressions.AbstractFunctionCallExpression.FunctionKind;
+import org.apache.hyracks.algebricks.core.algebra.expressions.ConstantExpression;
+import org.apache.hyracks.algebricks.core.algebra.expressions.ScalarFunctionCallExpression;
+import org.apache.hyracks.algebricks.core.algebra.operators.logical.AssignOperator;
+import org.apache.hyracks.algebricks.core.algebra.operators.logical.DataSourceScanOperator;
 import org.apache.hyracks.algebricks.core.jobgen.impl.JobBuilder;
 import org.apache.hyracks.algebricks.core.jobgen.impl.JobGenContext;
 import org.apache.hyracks.algebricks.core.jobgen.impl.PlanCompiler;
@@ -193,6 +204,7 @@ import org.apache.hyracks.api.client.IClusterInfoCollector;
 import org.apache.hyracks.api.client.IHyracksClientConnection;
 import org.apache.hyracks.api.dataflow.IOperatorDescriptor;
 import org.apache.hyracks.api.dataflow.OperatorDescriptorId;
+import org.apache.hyracks.api.dataflow.value.ISerializerDeserializer;
 import org.apache.hyracks.api.dataflow.value.ITypeTraits;
 import org.apache.hyracks.api.exceptions.HyracksDataException;
 import org.apache.hyracks.api.exceptions.SourceLocation;
@@ -2651,6 +2663,7 @@ public class QueryTranslator extends AbstractLangTranslator implements IStatemen
             IOperatorDescriptor firstOp = null;
             JobSpecification writer = null;
             ReaderJobOperatorDescriptor reader = null;
+            ISerializerDeserializer<ARecord> arecord = null;
             boolean first = true;
             while (!getFinished()) {
 
@@ -2661,11 +2674,39 @@ public class QueryTranslator extends AbstractLangTranslator implements IStatemen
                 operatorVisitedToParents = getParentOperators();
                 builder = getBuilder();
                 spec = getSpec();
+                DataSourceScanOperator scan =
+                        (DataSourceScanOperator) operators.get(operators.size() - 1).getInputs().get(0).getValue();
+                DatasetDataSource dataSource = (DatasetDataSource) scan.getDataSource();
+                ARecordType recordType = (ARecordType) dataSource.getItemType();
 
+                List<Mutable<ILogicalExpression>> expressions = ((AssignOperator) operators.get(3)).getExpressions();
+                ScalarFunctionCallExpression sfce = (ScalarFunctionCallExpression) expressions.get(0).getValue();
+                ScalarFunctionCallExpression sfce1 =
+                        (ScalarFunctionCallExpression) sfce.getArguments().get(1).getValue();
+                ConstantExpression ce = (ConstantExpression) sfce1.getArguments().get(1).getValue();
+                AsterixConstantValue cs = (AsterixConstantValue) ce.getValue();
+                int aint32 = ((AInt32) cs.getObject()).getIntegerValue();
+                IAType type = recordType.getFieldTypes()[aint32];
+                //DatasetDataSource newDataSource = DatasetDataSource(new DataSourceId("newdata", "newsource"), new)
+                List<List<String>> primKey = new ArrayList<>();
+                List<String> str = new ArrayList<>();
+                str.add(recordType.getFieldNames()[aint32]);
+                primKey.add(str);
+                List<List<String>> primType = new ArrayList<>();
+                List<IAType> strType = new ArrayList<>();
+                strType.add(recordType.getFieldTypes()[aint32]);
+                Dataset newSet = new Dataset("newdata", "newset", "newdata", "newtype", null, null, "newdata.newset",
+                        "prefix", dataSource.getDataset().getCompactionPolicyProperties(),
+                        new InternalDatasetDetails(FileStructure.BTREE, PartitioningStrategy.HASH, new ArrayList<>(),
+                                primKey, new ArrayList<>(), strType, false, new ArrayList<>()),
+                        null, DatasetType.INTERNAL, 1, 0, 0, "none");
+                ARecordType newRcordType =
+                        new ARecordType("newtype", recordType.getFieldNames(), recordType.getFieldTypes(), false);
                 if (first) {
                     firstOp = jobSpec.getOperatorMap().get(new OperatorDescriptorId(0));
                     writer = new JobSpecification(jobSpec.getFrameSize());
                     reader = new ReaderJobOperatorDescriptor(writer, firstOp.getOutputRecordDescriptors()[0]);
+                    arecord = firstOp.getOutputRecordDescriptors()[0].getFields()[1];
                 }
 
                 else {

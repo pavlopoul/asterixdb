@@ -178,8 +178,10 @@ public class JobBuilder implements IHyracksJobBuilder {
 
         buildAsterixComponents();
         Map<IConnectorDescriptor, TargetConstraint> tgtConstraints = setupConnectors();
-        setAllPartitionConstraints(tgtConstraints);
+
         IOperatorDescriptor opDesc = findOpDescForAlgebraicOp(roots);
+        jobSpec.addRoot(opDesc);
+        setAllPartitionConstraints(tgtConstraints);
         AlgebricksPartitionConstraint apc = partitionConstraintMap.get(opDesc);
         return apc;
     }

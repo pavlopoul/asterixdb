@@ -321,25 +321,18 @@ public class APIFramework {
 
         JobEventListenerFactory jobEventListenerFactory =
                 new JobEventListenerFactory(txnId, metadataProvider.isWriteTransaction());
-        //JobSpecification spec = null;
         if (isLoad) {
             finished = true;
             spec = compiler.createLoadJob(metadataProvider.getApplicationContext(), jobEventListenerFactory);
         } else {
-            // finished = compiler.getFinished(metadataProvider.getApplicationContext(), first, context, pc);
 
-            if (first) {
-                operators = compiler.traversePlan(metadataProvider.getApplicationContext(), first, context, pc);
-            }
-            //            if (finished) {
-            //                return null;
-            //            }
-            //while (!compiler.getFinished(metadataProvider.getApplicationContext())) {
+            //if (first) {
+            operators = compiler.traversePlan(metadataProvider.getApplicationContext(), first, context, pc);
+            // operators = compiler.getOperators();
+            // }
             spec = compiler.createJob(metadataProvider.getApplicationContext(), jobEventListenerFactory, operators,
                     first, operatorVisitedToParents, context, pc, spec1, builder1);
             finished = compiler.getFinished(metadataProvider.getApplicationContext(), first, context, pc);
-            //operators = compiler.getOperators();
-            // }
             this.context = compiler.getContext();
             this.pc = compiler.getCompiler();
             this.operators = compiler.getOperators();

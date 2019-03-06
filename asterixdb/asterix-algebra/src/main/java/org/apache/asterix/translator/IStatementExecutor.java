@@ -145,7 +145,7 @@ public interface IStatementExecutor {
             IStatementRewriter statementRewriter, List<ILogicalOperator> operators, boolean first,
             JobGenContext context, PlanCompiler pc,
             Map<Mutable<ILogicalOperator>, List<ILogicalOperator>> operatorVisitedToParents, JobSpecification spec,
-            JobBuilder builder) throws RemoteException, AlgebricksException, ACIDException;
+            JobBuilder builder, Query newQuery) throws RemoteException, AlgebricksException, ACIDException;
 
     /**
      * returns the active dataverse for an entity or a statement

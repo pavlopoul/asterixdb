@@ -54,17 +54,22 @@ import org.apache.asterix.dataflow.data.common.PartialAggregationTypeComputer;
 import org.apache.asterix.external.feed.watch.FeedActivityDetails;
 import org.apache.asterix.formats.base.IDataFormat;
 import org.apache.asterix.jobgen.QueryLogicalExpressionJobGen;
+import org.apache.asterix.lang.common.base.Expression;
 import org.apache.asterix.lang.common.base.IAstPrintVisitorFactory;
 import org.apache.asterix.lang.common.base.IQueryRewriter;
 import org.apache.asterix.lang.common.base.IReturningStatement;
 import org.apache.asterix.lang.common.base.IRewriterFactory;
 import org.apache.asterix.lang.common.base.Statement;
+import org.apache.asterix.lang.common.expression.FieldAccessor;
+import org.apache.asterix.lang.common.expression.VariableExpr;
 import org.apache.asterix.lang.common.rewrites.LangRewritingContext;
 import org.apache.asterix.lang.common.statement.FunctionDecl;
 import org.apache.asterix.lang.common.statement.Query;
 import org.apache.asterix.lang.common.statement.StartFeedStatement;
 import org.apache.asterix.lang.common.struct.VarIdentifier;
 import org.apache.asterix.lang.common.util.FunctionUtil;
+import org.apache.asterix.lang.sqlpp.clause.SelectClause;
+import org.apache.asterix.lang.sqlpp.expression.SelectExpression;
 import org.apache.asterix.lang.sqlpp.rewrites.SqlppQueryRewriter;
 import org.apache.asterix.metadata.declared.MetadataProvider;
 import org.apache.asterix.om.base.IAObject;
@@ -206,7 +211,7 @@ public class APIFramework {
             ICompiledDmlStatement statement, Map<VarIdentifier, IAObject> externalVars,
             List<ILogicalOperator> operators, boolean first, JobGenContext context, PlanCompiler pc,
             Map<Mutable<ILogicalOperator>, List<ILogicalOperator>> operatorVisitedToParents, JobSpecification spec1,
-            JobBuilder builder1) throws AlgebricksException, ACIDException {
+            JobBuilder builder1, Query newQuery) throws AlgebricksException, ACIDException {
 
         // establish facts
         final boolean isQuery = query != null;
@@ -227,6 +232,22 @@ public class APIFramework {
                 translatorFactory.createExpressionToPlanTranslator(metadataProvider, varCounter, externalVars);
 
         ILogicalPlan plan = isLoad ? t.translateLoad(statement) : t.translate(query, outputDatasetName, statement);
+        if (newQuery != null) {
+            Expression exp = newQuery.getBody();
+            SelectExpression select = (SelectExpression) exp;
+            SelectClause selectClause =
+                    select.getSelectSetOperation().getLeftInput().getSelectBlock().getSelectClause();
+            FieldAccessor field =
+                    (FieldAccessor) selectClause.getSelectRegular().getProjections().get(0).getExpression();
+            VariableExpr var = (VariableExpr) field.getExpr();
+            // var.getVar().setId(fromVarId.getId());
+            var.getVar().setId(select.getSelectSetOperation().getLeftInput().getSelectBlock().getFromClause()
+                    .getFromTerms().get(0).getLeftVariable().getVar().getId());
+            ILogicalPlan newplan =
+                    isLoad ? t.translateLoad(statement) : t.translate(newQuery, outputDatasetName, statement);
+            int count = 0;
+            plan = newplan;
+        }
 
         if ((isQuery || isLoad) && !conf.is(SessionConfig.FORMAT_ONLY_PHYSICAL_OPS)
                 && conf.is(SessionConfig.OOB_LOGICAL_PLAN)) {

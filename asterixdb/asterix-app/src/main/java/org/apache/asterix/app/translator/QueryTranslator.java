@@ -163,7 +163,6 @@ import org.apache.asterix.metadata.utils.MetadataConstants;
 import org.apache.asterix.metadata.utils.MetadataLockUtil;
 import org.apache.asterix.metadata.utils.MetadataUtil;
 import org.apache.asterix.om.base.AInt32;
-import org.apache.asterix.om.base.ARecord;
 import org.apache.asterix.om.base.IAObject;
 import org.apache.asterix.om.constants.AsterixConstantValue;
 import org.apache.asterix.om.functions.BuiltinFunctions;
@@ -218,9 +217,11 @@ import org.apache.hyracks.algebricks.runtime.serializer.ResultSerializerFactoryP
 import org.apache.hyracks.algebricks.runtime.writers.PrinterBasedWriterFactory;
 import org.apache.hyracks.api.client.IClusterInfoCollector;
 import org.apache.hyracks.api.client.IHyracksClientConnection;
+import org.apache.hyracks.api.constraints.Constraint;
+import org.apache.hyracks.api.constraints.PartitionConstraintHelper;
+import org.apache.hyracks.api.constraints.expressions.ConstraintExpression;
 import org.apache.hyracks.api.dataflow.IOperatorDescriptor;
 import org.apache.hyracks.api.dataflow.OperatorDescriptorId;
-import org.apache.hyracks.api.dataflow.value.ISerializerDeserializer;
 import org.apache.hyracks.api.dataflow.value.ITypeTraits;
 import org.apache.hyracks.api.dataflow.value.RecordDescriptor;
 import org.apache.hyracks.api.exceptions.HyracksDataException;
@@ -240,6 +241,8 @@ import org.apache.hyracks.control.common.controllers.CCConfig;
 import org.apache.hyracks.control.common.job.profiling.om.JobProfile;
 import org.apache.hyracks.control.common.job.profiling.om.JobletProfile;
 import org.apache.hyracks.control.common.job.profiling.om.TaskProfile;
+import org.apache.hyracks.dataflow.std.connectors.OneToOneConnectorDescriptor;
+import org.apache.hyracks.dataflow.std.misc.ReplicateOperatorDescriptor;
 import org.apache.hyracks.storage.am.lsm.common.api.ILSMMergePolicyFactory;
 import org.apache.logging.log4j.Level;
 import org.apache.logging.log4j.LogManager;
@@ -2693,9 +2696,9 @@ public class QueryTranslator extends AbstractLangTranslator implements IStatemen
             IOperatorDescriptor firstOp = null;
             JobSpecification writer = null;
             ReaderJobOperatorDescriptor reader = null;
-            ISerializerDeserializer<ARecord> arecord = null;
             Query newQuery = null;
             boolean first = true;
+            RecordDescriptor[] rdesc = null;
             while (!getFinished()) {
 
                 jobSpec = compiler.compile(spec, builder, operators, first, context, pc, operatorVisitedToParents,
@@ -2706,9 +2709,6 @@ public class QueryTranslator extends AbstractLangTranslator implements IStatemen
                 operatorVisitedToParents = getParentOperators();
                 builder = getBuilder();
                 spec = getSpec();
-                AlgebricksMetaOperatorDescriptor amod =
-                        (AlgebricksMetaOperatorDescriptor) jobSpec.getOperatorMap().get(new OperatorDescriptorId(1));
-                RecordDescriptor[] rdesc = amod.getPipeline().getRecordDescriptors();
 
                 ILogicalOperator op = operators.get(operators.size() - 1);
                 while (op.getOperatorTag() != LogicalOperatorTag.ASSIGN) {
@@ -2746,7 +2746,32 @@ public class QueryTranslator extends AbstractLangTranslator implements IStatemen
                 IAType newRecordType = new ARecordType(recordTypeName, newFieldNames, newFieldTypes, false);
                 newQuery =
                         makeConnectionQuery(varexpr, recordTypeName, dataSource, newRecordType, mp, primKey, strType);
+                AlgebricksMetaOperatorDescriptor amod = null;
 
+                if (first) {
+                    amod = (AlgebricksMetaOperatorDescriptor) jobSpec.getOperatorMap().get(new OperatorDescriptorId(1));
+                    rdesc = amod.getPipeline().getRecordDescriptors();
+                    writer = jobSpec;
+                    // reader = new ReaderJobOperatorDescriptor(writer, rdesc[rdesc.length - 1]);
+                } else {
+                    firstOp = new ReaderJobOperatorDescriptor(jobSpec, rdesc[rdesc.length - 1]);
+                    ReplicateOperatorDescriptor replicate =
+                            new ReplicateOperatorDescriptor(jobSpec, firstOp.getOutputRecordDescriptors()[0], 1);
+                    jobSpec.connect(new OneToOneConnectorDescriptor(jobSpec), firstOp, 0, replicate, 0);
+                    String[] readerLocations = new String[writer.getUserConstraints().size()];
+                    int count = 0;
+                    for (Constraint constraint : writer.getUserConstraints()) {
+
+                        ConstraintExpression cexpr = constraint.getRValue();
+                        org.apache.hyracks.api.constraints.expressions.ConstantExpression ce1 =
+                                (org.apache.hyracks.api.constraints.expressions.ConstantExpression) cexpr;
+                        readerLocations[count++] = (String) ce1.getValue();
+                    }
+                    PartitionConstraintHelper.addAbsoluteLocationConstraint(writer, reader, readerLocations);
+                    PartitionConstraintHelper.addAbsoluteLocationConstraint(writer, replicate, readerLocations);
+                    writer.connect(new OneToOneConnectorDescriptor(writer), replicate, 0,
+                            jobSpec.getOperatorMap().get(new OperatorDescriptorId(1)), 0);
+                }
                 //                if (first) {
                 //                    firstOp = jobSpec.getOperatorMap().get(new OperatorDescriptorId(0));
                 //                    writer = new JobSpecification(jobSpec.getFrameSize());
@@ -2756,8 +2781,7 @@ public class QueryTranslator extends AbstractLangTranslator implements IStatemen
                 //
                 //                else {
                 //
-                //                    ReplicateOperatorDescriptor replicate =
-                //                            new ReplicateOperatorDescriptor(writer, reader.getOutputRecordDescriptors()[0], 1);
+                //                    
                 //                    writer = new JobSpecification(jobSpec.getFrameSize());
                 //                    firstOp = jobSpec.getOperatorMap().get(new OperatorDescriptorId(0));
                 //                    reader = new ReaderJobOperatorDescriptor(writer, firstOp.getOutputRecordDescriptors()[0]);

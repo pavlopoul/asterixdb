@@ -245,7 +245,6 @@ public class APIFramework {
                     .getFromTerms().get(0).getLeftVariable().getVar().getId());
             ILogicalPlan newplan =
                     isLoad ? t.translateLoad(statement) : t.translate(newQuery, outputDatasetName, statement);
-            int count = 0;
             plan = newplan;
         }
 
@@ -333,11 +332,11 @@ public class APIFramework {
             spec = compiler.createJob(metadataProvider.getApplicationContext(), jobEventListenerFactory, operators,
                     first, operatorVisitedToParents, context, pc, spec1, builder1);
             finished = compiler.getFinished(metadataProvider.getApplicationContext(), first, context, pc);
-            this.context = compiler.getContext();
-            this.pc = compiler.getCompiler();
+            // this.context = compiler.getContext();
+            // this.pc = compiler.getCompiler();
             this.operators = compiler.getOperators();
-            this.operatorVisitedToParents = compiler.getParentOperators();
-            this.builder = compiler.getBuilder();
+            // this.operatorVisitedToParents = compiler.getParentOperators();
+            // this.builder = compiler.getBuilder();
         }
 
         if (isQuery) {

@@ -184,7 +184,6 @@ public class HeuristicCompilerFactoryBuilder extends AbstractCompilerFactoryBuil
                     public List<ILogicalOperator> traversePlan(Object appContext, boolean first, JobGenContext context1,
                             PlanCompiler pc1) throws AlgebricksException {
                         AlgebricksConfig.ALGEBRICKS_LOGGER.trace("Starting Job Generation.\n");
-                        // if (first) {
                         context = new JobGenContext(null, metadata, appContext, serializerDeserializerProvider,
                                 hashFunctionFactoryProvider, hashFunctionFamilyProvider, comparatorFactoryProvider,
                                 typeTraitProvider, binaryBooleanInspectorFactory, binaryIntegerInspectorFactory,
@@ -193,10 +192,6 @@ public class HeuristicCompilerFactoryBuilder extends AbstractCompilerFactoryBuil
                                 partialAggregationTypeComputer, predEvaluatorFactoryProvider,
                                 physicalOptimizationConfig.getFrameSize(), clusterLocations);
                         pc = new PlanCompiler(context);
-                        //                        } else {
-                        //                            context = context1;
-                        //                            pc = pc1;
-                        //                        }
                         return pc.traversePlan(plan);
                     }
 

@@ -2703,6 +2703,24 @@ public class QueryTranslator extends AbstractLangTranslator implements IStatemen
 
                 jobSpec = compiler.compile(spec, builder, operators, first, context, pc, operatorVisitedToParents,
                         newQuery);
+                if (jobSpec == null) {
+                    return;
+                }
+                final JobId jobId = JobUtils.runJob(hcc, jobSpec, jobFlags, false);
+                if (ctx != null && clientContextId != null) {
+                    req = new ClientJobRequest(ctx, clientContextId, jobId);
+                    ctx.put(clientContextId, req); // Adds the running job into the context.
+                }
+                if (jId != null) {
+                    jId.setValue(jobId);
+                }
+                if (ResultDelivery.ASYNC == resultDelivery) {
+                    printer.print(jobId);
+                    hcc.waitForCompletion(jobId);
+                } else {
+                    hcc.waitForCompletion(jobId);
+                    printer.print(jobId);
+                }
                 context = getContext();
                 pc = getCompiler();
                 operators = getOperators();
@@ -2790,24 +2808,24 @@ public class QueryTranslator extends AbstractLangTranslator implements IStatemen
                 first = false;
 
             }
-            if (jobSpec == null) {
-                return;
-            }
-            final JobId jobId = JobUtils.runJob(hcc, jobSpec, jobFlags, false);
-            if (ctx != null && clientContextId != null) {
-                req = new ClientJobRequest(ctx, clientContextId, jobId);
-                ctx.put(clientContextId, req); // Adds the running job into the context.
-            }
-            if (jId != null) {
-                jId.setValue(jobId);
-            }
-            if (ResultDelivery.ASYNC == resultDelivery) {
-                printer.print(jobId);
-                hcc.waitForCompletion(jobId);
-            } else {
-                hcc.waitForCompletion(jobId);
-                printer.print(jobId);
-            }
+            //            if (jobSpec == null) {
+            //                return;
+            //            }
+            //            final JobId jobId = JobUtils.runJob(hcc, jobSpec, jobFlags, false);
+            //            if (ctx != null && clientContextId != null) {
+            //                req = new ClientJobRequest(ctx, clientContextId, jobId);
+            //                ctx.put(clientContextId, req); // Adds the running job into the context.
+            //            }
+            //            if (jId != null) {
+            //                jId.setValue(jobId);
+            //            }
+            //            if (ResultDelivery.ASYNC == resultDelivery) {
+            //                printer.print(jobId);
+            //                hcc.waitForCompletion(jobId);
+            //            } else {
+            //                hcc.waitForCompletion(jobId);
+            //                printer.print(jobId);
+            //            }
         } finally {
             locker.unlock();
             // No matter the job succeeds or fails, removes it into the context.

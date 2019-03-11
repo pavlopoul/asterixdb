@@ -163,15 +163,15 @@ public class PlanCompiler {
         reviseEdges(builder);
         //operatorVisitedToParents.clear();
 
-        AlgebricksPartitionConstraint apc =
+        //AlgebricksPartitionConstraint apc =
                 builder.buildSpecNew(operators.get(operators.size() - 1).getInputs().get(0).getValue());
-        SinkOperatorDescriptor sink = new SinkOperatorDescriptor(spec, 1);
-        AlgebricksPartitionConstraintHelper.setPartitionConstraintInJobSpec(spec, sink, apc);
-        IConnectorDescriptor conn = new OneToOneConnectorDescriptor(spec);
-        IOperatorDescriptor source = spec.getOperatorMap().values().stream().findFirst().get();
-        spec.connect(conn, source, 0, sink, 0);
-        spec.getRoots().clear();
-        spec.addRoot(sink);
+//        SinkOperatorDescriptor sink = new SinkOperatorDescriptor(spec, 1);
+//        AlgebricksPartitionConstraintHelper.setPartitionConstraintInJobSpec(spec, sink, apc);
+//        IConnectorDescriptor conn = new OneToOneConnectorDescriptor(spec);
+//        IOperatorDescriptor source = spec.getOperatorMap().values().stream().findFirst().get();
+//        spec.connect(conn, source, 0, sink, 0);
+//        spec.getRoots().clear();
+//        spec.addRoot(sink);
 
         spec.setConnectorPolicyAssignmentPolicy(new ConnectorPolicyAssignmentPolicy());
         // Do not do activity cluster planning because it is slow on large clusters

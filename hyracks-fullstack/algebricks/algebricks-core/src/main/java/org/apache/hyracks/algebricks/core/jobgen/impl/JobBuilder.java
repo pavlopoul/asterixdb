@@ -329,6 +329,9 @@ public class JobBuilder implements IHyracksJobBuilder {
     }
 
     private void buildAsterixComponents() {
+        //        List<ILogicalOperator> reverseKeys = new ArrayList<ILogicalOperator>(microOps.keySet());
+        //        Collections.reverse(reverseKeys);
+        //        for (ILogicalOperator aop : reverseKeys) {
         for (ILogicalOperator aop : microOps.keySet()) {
             addMicroOpToMetaRuntimeOp(aop);
         }

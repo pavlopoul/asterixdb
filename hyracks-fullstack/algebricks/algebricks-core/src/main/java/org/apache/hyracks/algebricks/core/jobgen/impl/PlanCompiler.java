@@ -231,10 +231,13 @@ public class PlanCompiler {
                         || operators.get(j - 1).getOperatorTag() == LogicalOperatorTag.DATASOURCESCAN))
                     tmpExchCnt++;
             }
-            if (tmpExchCnt == 1) {
-                exchangeCount--;
+            if (operators.get(j).getOperatorTag() == LogicalOperatorTag.DISTRIBUTE_RESULT) {
                 break;
             }
+            //            if (tmpExchCnt == 1) {
+            //                exchangeCount--;
+            //                break;
+            //            }
             if (j != size - 1) {
                 schemas[0] = context.getSchema(operators.get(j).getInputs().get(0).getValue());
             }

@@ -45,6 +45,7 @@ import org.apache.hyracks.api.dataflow.IOperatorDescriptor;
 import org.apache.hyracks.api.dataflow.OperatorDescriptorId;
 import org.apache.hyracks.api.dataflow.value.RecordDescriptor;
 import org.apache.hyracks.api.job.JobSpecification;
+import org.apache.hyracks.dataflow.std.misc.SinkOperatorDescriptor;
 
 public class JobBuilder implements IHyracksJobBuilder {
 
@@ -62,8 +63,7 @@ public class JobBuilder implements IHyracksJobBuilder {
     private final Map<ILogicalOperator, AlgebricksPartitionConstraint> pcForMicroOps = new HashMap<>();
 
     private final Map<ILogicalOperator, Integer> algebraicOpBelongingToMetaAsterixOp = new HashMap<>();
-    private final Map<Integer, List<Pair<IPushRuntimeFactory, RecordDescriptor>>> metaAsterixOpSkeletons =
-            new HashMap<>();
+    private final Map<Integer, List<Pair<IPushRuntimeFactory, RecordDescriptor>>> metaAsterixOpSkeletons = new HashMap<>();
     private final Map<Integer, AlgebricksMetaOperatorDescriptor> metaAsterixOps = new HashMap<>();
     private final Map<IOperatorDescriptor, AlgebricksPartitionConstraint> partitionConstraintMap = new HashMap<>();
 
@@ -233,8 +233,8 @@ public class JobBuilder implements IHyracksJobBuilder {
         if (opInputs != null) {
             for (IConnectorDescriptor conn : opInputs) {
                 ConnectorDescriptorId cid = conn.getConnectorId();
-                org.apache.commons.lang3.tuple.Pair<org.apache.commons.lang3.tuple.Pair<IOperatorDescriptor, Integer>, org.apache.commons.lang3.tuple.Pair<IOperatorDescriptor, Integer>> p =
-                        jobSpec.getConnectorOperatorMap().get(cid);
+                org.apache.commons.lang3.tuple.Pair<org.apache.commons.lang3.tuple.Pair<IOperatorDescriptor, Integer>, org.apache.commons.lang3.tuple.Pair<IOperatorDescriptor, Integer>> p = jobSpec
+                        .getConnectorOperatorMap().get(cid);
                 IOperatorDescriptor src = p.getLeft().getLeft();
                 TargetConstraint constraint = tgtConstraints.get(conn);
                 if (constraint != null) {
@@ -257,15 +257,15 @@ public class JobBuilder implements IHyracksJobBuilder {
 
     private void setPartitionConstraintsBottomup(OperatorDescriptorId opId,
             Map<IConnectorDescriptor, TargetConstraint> tgtConstraints, IOperatorDescriptor parentOp, boolean finalPass)
-            throws AlgebricksException {
+                    throws AlgebricksException {
         List<IConnectorDescriptor> opInputs = jobSpec.getOperatorInputMap().get(opId);
         AlgebricksPartitionConstraint opConstraint = null;
         IOperatorDescriptor opDesc = jobSpec.getOperatorMap().get(opId);
         if (opInputs != null) {
             for (IConnectorDescriptor conn : opInputs) {
                 ConnectorDescriptorId cid = conn.getConnectorId();
-                org.apache.commons.lang3.tuple.Pair<org.apache.commons.lang3.tuple.Pair<IOperatorDescriptor, Integer>, org.apache.commons.lang3.tuple.Pair<IOperatorDescriptor, Integer>> p =
-                        jobSpec.getConnectorOperatorMap().get(cid);
+                org.apache.commons.lang3.tuple.Pair<org.apache.commons.lang3.tuple.Pair<IOperatorDescriptor, Integer>, org.apache.commons.lang3.tuple.Pair<IOperatorDescriptor, Integer>> p = jobSpec
+                        .getConnectorOperatorMap().get(cid);
                 IOperatorDescriptor src = p.getLeft().getLeft();
                 // Pre-order DFS
                 setPartitionConstraintsBottomup(src.getOperatorId(), tgtConstraints, opDesc, finalPass);
@@ -301,13 +301,26 @@ public class JobBuilder implements IHyracksJobBuilder {
         Map<IConnectorDescriptor, TargetConstraint> tgtConstraints = new HashMap<>();
         for (ILogicalOperator exchg : connectors.keySet()) {
             ILogicalOperator inOp = inEdges.get(exchg).get(0);
-            ILogicalOperator outOp = outEdges.get(exchg).get(0);
+            //            ILogicalOperator outOp = outEdges.get(exchg).get(0);
             IOperatorDescriptor inOpDesc = findOpDescForAlgebraicOp(inOp);
-            IOperatorDescriptor outOpDesc = findOpDescForAlgebraicOp(outOp);
+            ILogicalOperator outOp = null;
+            IOperatorDescriptor outOpDesc = null;
+            if (outEdges.get(exchg) != null) {
+                outOp = outEdges.get(exchg).get(0);
+                outOpDesc = findOpDescForAlgebraicOp(outOp);
+            } else {
+                //IOperatorDescriptor outOpDesc = findOpDescForAlgebraicOp(outOp);
+                outOpDesc = new SinkOperatorDescriptor(jobSpec, 1);
+            }
             Pair<IConnectorDescriptor, TargetConstraint> connPair = connectors.get(exchg);
             IConnectorDescriptor conn = connPair.first;
             int producerPort = outEdges.get(inOp).indexOf(exchg);
-            int consumerPort = inEdges.get(outOp).indexOf(exchg);
+            int consumerPort = 0;
+            if (outOp == null) {
+                consumerPort = producerPort;
+            } else {
+                consumerPort = inEdges.get(outOp).indexOf(exchg);
+            }
             jobSpec.connect(conn, inOpDesc, producerPort, outOpDesc, consumerPort);
             if (connPair.second != null) {
                 tgtConstraints.put(conn, connPair.second);

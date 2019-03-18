@@ -24,8 +24,6 @@ import java.util.List;
 import java.util.Map;
 
 import org.apache.commons.lang3.mutable.Mutable;
-import org.apache.hyracks.algebricks.common.constraints.AlgebricksPartitionConstraint;
-import org.apache.hyracks.algebricks.common.constraints.AlgebricksPartitionConstraintHelper;
 import org.apache.hyracks.algebricks.common.exceptions.AlgebricksException;
 import org.apache.hyracks.algebricks.core.algebra.base.IHyracksJobBuilder;
 import org.apache.hyracks.algebricks.core.algebra.base.ILogicalOperator;
@@ -33,13 +31,9 @@ import org.apache.hyracks.algebricks.core.algebra.base.ILogicalPlan;
 import org.apache.hyracks.algebricks.core.algebra.base.LogicalOperatorTag;
 import org.apache.hyracks.algebricks.core.algebra.operators.logical.AbstractReplicateOperator;
 import org.apache.hyracks.algebricks.core.algebra.operators.logical.IOperatorSchema;
-import org.apache.hyracks.api.dataflow.IConnectorDescriptor;
-import org.apache.hyracks.api.dataflow.IOperatorDescriptor;
 import org.apache.hyracks.api.job.IJobletEventListenerFactory;
 import org.apache.hyracks.api.job.IOperatorDescriptorRegistry;
 import org.apache.hyracks.api.job.JobSpecification;
-import org.apache.hyracks.dataflow.std.connectors.OneToOneConnectorDescriptor;
-import org.apache.hyracks.dataflow.std.misc.SinkOperatorDescriptor;
 
 public class PlanCompiler {
     public static final String[] ASTERIX_IDS =
@@ -159,13 +153,17 @@ public class PlanCompiler {
         //compileOpRef(opRef, spec, builder, outerPlanSchema);
         rootOps.add(opRef.getValue());
 
-        compileOpRef(spec, builder, outerPlanSchema);
-        reviseEdges(builder);
+        compileOpRef(spec, builder, outerPlanSchema, first);
+        //reviseEdges(builder);
         //operatorVisitedToParents.clear();
 
         //AlgebricksPartitionConstraint apc =
-       // builder.buildSpec(rootOps);
-        builder.buildSpecNew(operators.get(operators.size() - 1).getInputs().get(0).getValue());
+        // builder.buildSpec(rootOps);
+        if (first) {
+            builder.buildSpecNew(operators.get(operators.size() - 1).getInputs().get(0).getValue());
+        } else {
+            builder.buildSpec(rootOps);
+        }
         //        SinkOperatorDescriptor sink = new SinkOperatorDescriptor(spec, 1);
         //        AlgebricksPartitionConstraintHelper.setPartitionConstraintInJobSpec(spec, sink, apc);
         //        IConnectorDescriptor conn = new OneToOneConnectorDescriptor(spec);
@@ -219,7 +217,7 @@ public class PlanCompiler {
     }
 
     private void compileOpRef(IOperatorDescriptorRegistry spec, IHyracksJobBuilder builder,
-            IOperatorSchema outerPlanSchema) throws AlgebricksException {
+            IOperatorSchema outerPlanSchema, boolean first) throws AlgebricksException {
         // ILogicalOperator op = opRef.getValue();
         int tmpExchCnt = 0;
         int size = operators.size();
@@ -232,8 +230,10 @@ public class PlanCompiler {
                         || operators.get(j - 1).getOperatorTag() == LogicalOperatorTag.DATASOURCESCAN))
                     tmpExchCnt++;
             }
-            if (operators.get(j).getOperatorTag() == LogicalOperatorTag.DISTRIBUTE_RESULT) {
-                break;
+            if (first) {
+                if (operators.get(j).getOperatorTag() == LogicalOperatorTag.DISTRIBUTE_RESULT) {
+                    break;
+                }
             }
             //            if (tmpExchCnt == 1) {
             //                exchangeCount--;

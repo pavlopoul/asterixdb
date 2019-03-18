@@ -34,6 +34,7 @@ import java.util.Iterator;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Map.Entry;
 import java.util.Objects;
 import java.util.Properties;
 import java.util.Set;
@@ -219,7 +220,11 @@ import org.apache.hyracks.api.client.IClusterInfoCollector;
 import org.apache.hyracks.api.client.IHyracksClientConnection;
 import org.apache.hyracks.api.constraints.Constraint;
 import org.apache.hyracks.api.constraints.PartitionConstraintHelper;
-import org.apache.hyracks.api.constraints.expressions.ConstraintExpression;
+import org.apache.hyracks.api.constraints.expressions.ConstraintExpression.ExpressionTag;
+import org.apache.hyracks.api.constraints.expressions.LValueConstraintExpression;
+import org.apache.hyracks.api.constraints.expressions.PartitionCountExpression;
+import org.apache.hyracks.api.constraints.expressions.PartitionLocationExpression;
+import org.apache.hyracks.api.dataflow.ConnectorDescriptorId;
 import org.apache.hyracks.api.dataflow.IOperatorDescriptor;
 import org.apache.hyracks.api.dataflow.OperatorDescriptorId;
 import org.apache.hyracks.api.dataflow.value.ITypeTraits;
@@ -916,8 +921,9 @@ public class QueryTranslator extends AbstractLangTranslator implements IStatemen
                     overridesFieldTypes = true;
                 }
                 if (fieldType == null) {
-                    throw new CompilationException(ErrorCode.UNKNOWN_TYPE, sourceLoc, fieldExpr.second == null
-                            ? String.valueOf(fieldExpr.first) : String.valueOf(fieldExpr.second));
+                    throw new CompilationException(ErrorCode.UNKNOWN_TYPE, sourceLoc,
+                            fieldExpr.second == null ? String.valueOf(fieldExpr.first)
+                                    : String.valueOf(fieldExpr.second));
                 }
 
                 // try to add the key & its source to the set of keys, if key couldn't be added,
@@ -2682,7 +2688,7 @@ public class QueryTranslator extends AbstractLangTranslator implements IStatemen
             IStatementCompiler compiler, IMetadataLocker locker, ResultDelivery resultDelivery, IResultPrinter printer,
             String clientContextId, IStatementExecutorContext ctx, MetadataProvider mp) throws Exception {
         ClientJobRequest req = null;
-        locker.lock();
+        //        locker.lock();
         //        try {
         JobSpecification jobSpec = null;
         JobBuilder builder = null;
@@ -2699,33 +2705,12 @@ public class QueryTranslator extends AbstractLangTranslator implements IStatemen
         boolean first = true;
         RecordDescriptor[] rdesc = null;
         while (!getFinished()) {
-            try {
-                jobSpec = compiler.compile(spec, builder, operators, first, context, pc, operatorVisitedToParents,
-                        newQuery);
-                if (jobSpec == null) {
-                    return;
-                }
-                final JobId jobId = JobUtils.runJob(hcc, jobSpec, jobFlags, false);
-                if (ctx != null && clientContextId != null) {
-                    req = new ClientJobRequest(ctx, clientContextId, jobId);
-                    ctx.put(clientContextId, req); // Adds the running job into the context.
-                }
-                if (jId != null) {
-                    jId.setValue(jobId);
-                }
-                if (ResultDelivery.ASYNC == resultDelivery) {
-                    printer.print(jobId);
-                    hcc.waitForCompletion(jobId);
-                } else {
-                    hcc.waitForCompletion(jobId);
-                    printer.print(jobId);
-                }
-            } finally {
-                locker.unlock();
-                // No matter the job succeeds or fails, removes it into the context.
-                if (req != null) {
-                    req.complete();
-                }
+            //            try {
+            locker.lock();
+            jobSpec =
+                    compiler.compile(spec, builder, operators, first, context, pc, operatorVisitedToParents, newQuery);
+            if (jobSpec == null) {
+                return;
             }
             context = getContext();
             pc = getCompiler();
@@ -2733,65 +2718,94 @@ public class QueryTranslator extends AbstractLangTranslator implements IStatemen
             operatorVisitedToParents = getParentOperators();
             builder = getBuilder();
             spec = getSpec();
-
-            ILogicalOperator op = operators.get(operators.size() - 1);
-            while (op.getOperatorTag() != LogicalOperatorTag.ASSIGN) {
-                op = op.getInputs().get(0).getValue();
-            }
-            List<Mutable<ILogicalExpression>> expressions = ((AssignOperator) op).getExpressions();
-            while (op.getOperatorTag() != LogicalOperatorTag.DATASOURCESCAN) {
-                op = op.getInputs().get(0).getValue();
-            }
-            DataSourceScanOperator scan = (DataSourceScanOperator) op;
-            DatasetDataSource dataSource = (DatasetDataSource) scan.getDataSource();
-            ARecordType recordType = (ARecordType) dataSource.getItemType();
-
-            ScalarFunctionCallExpression sfce = (ScalarFunctionCallExpression) expressions.get(0).getValue();
-            ScalarFunctionCallExpression sfce1 = (ScalarFunctionCallExpression) sfce.getArguments().get(1).getValue();
-            ConstantExpression ce = (ConstantExpression) sfce1.getArguments().get(1).getValue();
-            AsterixConstantValue cs = (AsterixConstantValue) ce.getValue();
-            int aint32 = ((AInt32) cs.getObject()).getIntegerValue();
-            IAType type = recordType.getFieldTypes()[aint32];
-            List<List<String>> primKey = new ArrayList<>();
-            List<String> str = new ArrayList<>();
-            str.add(recordType.getFieldNames()[aint32]);
-            primKey.add(str);
-            List<IAType> strType = new ArrayList<>();
-            strType.add(recordType.getFieldTypes()[aint32]);
-
-            String[] newFieldNames = new String[1];
-            newFieldNames[0] = recordType.getFieldNames()[aint32];
-            IAType[] newFieldTypes = new IAType[1];
-            newFieldTypes[0] = type;
-            VariableReferenceExpression varexpr = (VariableReferenceExpression) sfce1.getArguments().get(0).getValue();
-            String recordTypeName = varexpr.getVariableReference().toString().substring(2);
-            IAType newRecordType = new ARecordType(recordTypeName, newFieldNames, newFieldTypes, false);
-            newQuery = makeConnectionQuery(varexpr, recordTypeName, dataSource, newRecordType, mp, primKey, strType);
-            AlgebricksMetaOperatorDescriptor amod = null;
-
             if (first) {
-                amod = (AlgebricksMetaOperatorDescriptor) jobSpec.getOperatorMap().get(new OperatorDescriptorId(1));
+                ILogicalOperator op = operators.get(operators.size() - 1);
+                while (op.getOperatorTag() != LogicalOperatorTag.ASSIGN) {
+                    op = op.getInputs().get(0).getValue();
+                }
+                List<Mutable<ILogicalExpression>> expressions = ((AssignOperator) op).getExpressions();
+                while (op.getOperatorTag() != LogicalOperatorTag.DATASOURCESCAN) {
+                    op = op.getInputs().get(0).getValue();
+                }
+
+                DataSourceScanOperator scan = (DataSourceScanOperator) op;
+                DatasetDataSource dataSource = (DatasetDataSource) scan.getDataSource();
+                ARecordType recordType = (ARecordType) dataSource.getItemType();
+
+                ScalarFunctionCallExpression sfce = (ScalarFunctionCallExpression) expressions.get(0).getValue();
+                ScalarFunctionCallExpression sfce1 =
+                        (ScalarFunctionCallExpression) sfce.getArguments().get(1).getValue();
+                ConstantExpression ce = (ConstantExpression) sfce1.getArguments().get(1).getValue();
+                AsterixConstantValue cs = (AsterixConstantValue) ce.getValue();
+                int aint32 = ((AInt32) cs.getObject()).getIntegerValue();
+                IAType type = recordType.getFieldTypes()[aint32];
+                List<List<String>> primKey = new ArrayList<>();
+                List<String> str = new ArrayList<>();
+                str.add(recordType.getFieldNames()[aint32]);
+                primKey.add(str);
+                List<IAType> strType = new ArrayList<>();
+                strType.add(recordType.getFieldTypes()[aint32]);
+
+                String[] newFieldNames = new String[1];
+                newFieldNames[0] = recordType.getFieldNames()[aint32];
+                IAType[] newFieldTypes = new IAType[1];
+                newFieldTypes[0] = type;
+                VariableReferenceExpression varexpr =
+                        (VariableReferenceExpression) sfce1.getArguments().get(0).getValue();
+                String recordTypeName = varexpr.getVariableReference().toString().substring(2);
+                IAType newRecordType = new ARecordType(recordTypeName, newFieldNames, newFieldTypes, false);
+                newQuery =
+                        makeConnectionQuery(varexpr, recordTypeName, dataSource, newRecordType, mp, primKey, strType);
+                AlgebricksMetaOperatorDescriptor amod = null;
+
+                //            if (first) {
+                amod = (AlgebricksMetaOperatorDescriptor) jobSpec.getOperatorMap().get(new OperatorDescriptorId(2));
                 rdesc = amod.getPipeline().getRecordDescriptors();
                 writer = jobSpec;
+
                 // reader = new ReaderJobOperatorDescriptor(writer, rdesc[rdesc.length - 1]);
             } else {
                 firstOp = new ReaderJobOperatorDescriptor(jobSpec, rdesc[rdesc.length - 1]);
                 ReplicateOperatorDescriptor replicate =
                         new ReplicateOperatorDescriptor(jobSpec, firstOp.getOutputRecordDescriptors()[0], 1);
+                String[] readerLocations =
+                        mp.getApplicationContext().getClusterStateManager().getClusterLocations().getLocations();
+                PartitionConstraintHelper.addAbsoluteLocationConstraint(jobSpec, firstOp, readerLocations);
+                PartitionConstraintHelper.addAbsoluteLocationConstraint(jobSpec, replicate, readerLocations);
                 jobSpec.connect(new OneToOneConnectorDescriptor(jobSpec), firstOp, 0, replicate, 0);
-                String[] readerLocations = new String[writer.getUserConstraints().size()];
-                int count = 0;
-                for (Constraint constraint : writer.getUserConstraints()) {
+                jobSpec.connect(new OneToOneConnectorDescriptor(jobSpec), replicate, 0,
+                        jobSpec.getOperatorMap().get(new OperatorDescriptorId(0)), 0);
 
-                    ConstraintExpression cexpr = constraint.getRValue();
-                    org.apache.hyracks.api.constraints.expressions.ConstantExpression ce1 =
-                            (org.apache.hyracks.api.constraints.expressions.ConstantExpression) cexpr;
-                    readerLocations[count++] = (String) ce1.getValue();
+                OperatorDescriptorId id = null;
+
+                for (Entry<OperatorDescriptorId, IOperatorDescriptor> entry : jobSpec.getOperatorMap().entrySet()) {
+                    if (entry.getValue() instanceof AlgebricksMetaOperatorDescriptor) {
+                        AlgebricksMetaOperatorDescriptor amod = (AlgebricksMetaOperatorDescriptor) entry.getValue();
+                        if (amod.getOutputRecordDescriptors()[0].getFields().length == 0) {
+                            id = entry.getKey();
+                        }
+                    }
                 }
-                PartitionConstraintHelper.addAbsoluteLocationConstraint(writer, reader, readerLocations);
-                PartitionConstraintHelper.addAbsoluteLocationConstraint(writer, replicate, readerLocations);
-                writer.connect(new OneToOneConnectorDescriptor(writer), replicate, 0,
-                        jobSpec.getOperatorMap().get(new OperatorDescriptorId(1)), 0);
+                jobSpec.getConnectorMap().remove(new ConnectorDescriptorId(0));
+                jobSpec.getConnectorOperatorMap().remove(new ConnectorDescriptorId(0));
+                jobSpec.getOperatorMap().remove(id);
+
+                for (Constraint constraint : writer.getUserConstraints()) {
+                    LValueConstraintExpression lexpr = constraint.getLValue();
+                    if (lexpr.getTag() == ExpressionTag.PARTITION_COUNT) {
+                        PartitionCountExpression pce = (PartitionCountExpression) lexpr;
+                        if (pce.getOperatorDescriptorId() == id) {
+                            writer.getUserConstraints().remove(constraint);
+                        }
+
+                    } else {
+                        PartitionLocationExpression ple = (PartitionLocationExpression) lexpr;
+                        if (ple.getOperatorDescriptorId() == id) {
+                            writer.getUserConstraints().remove(constraint);
+                        }
+                    }
+                }
+
             }
             //                if (first) {
             //                    firstOp = jobSpec.getOperatorMap().get(new OperatorDescriptorId(0));
@@ -2810,32 +2824,34 @@ public class QueryTranslator extends AbstractLangTranslator implements IStatemen
             //                }
             first = false;
 
+            //        }
+            //            if (jobSpec == null) {
+            //                return;
+            //            }
+            final JobId jobId = JobUtils.runJob(hcc, jobSpec, jobFlags, false);
+            if (ctx != null && clientContextId != null) {
+                req = new ClientJobRequest(ctx, clientContextId, jobId);
+                ctx.put(clientContextId, req); // Adds the running job into the context.
+            }
+            if (jId != null) {
+                jId.setValue(jobId);
+            }
+            if (ResultDelivery.ASYNC == resultDelivery) {
+                printer.print(jobId);
+                hcc.waitForCompletion(jobId);
+            } else {
+                hcc.waitForCompletion(jobId);
+                // printer.print(jobId);
+            }
+            //            } 
+            //            finally {
+            //                locker.unlock();
+            //                // No matter the job succeeds or fails, removes it into the context.
+            //                if (req != null) {
+            //                    req.complete();
+            //                }
+            //            }
         }
-        //            if (jobSpec == null) {
-        //                return;
-        //            }
-        //            final JobId jobId = JobUtils.runJob(hcc, jobSpec, jobFlags, false);
-        //            if (ctx != null && clientContextId != null) {
-        //                req = new ClientJobRequest(ctx, clientContextId, jobId);
-        //                ctx.put(clientContextId, req); // Adds the running job into the context.
-        //            }
-        //            if (jId != null) {
-        //                jId.setValue(jobId);
-        //            }
-        //            if (ResultDelivery.ASYNC == resultDelivery) {
-        //                printer.print(jobId);
-        //                hcc.waitForCompletion(jobId);
-        //            } else {
-        //                hcc.waitForCompletion(jobId);
-        //                printer.print(jobId);
-        //            }
-        //        } finally {
-        //            locker.unlock();
-        //            // No matter the job succeeds or fails, removes it into the context.
-        //            if (req != null) {
-        //                req.complete();
-        //            }
-        //        }
     }
 
     private Query makeConnectionQuery(VariableReferenceExpression varexpr, String recordTypeName,
@@ -2849,8 +2865,6 @@ public class QueryTranslator extends AbstractLangTranslator implements IStatemen
                 new InternalDatasetDetails(FileStructure.BTREE, PartitioningStrategy.HASH, new ArrayList<>(), primKey,
                         new ArrayList<>(), strType, false, new ArrayList<>()),
                 new HashMap<>(), DatasetType.INTERNAL, 1, 0, 0, "none");
-        //        DatasetDataSource newDataSource = new DatasetDataSource(new DataSourceId("newdata", recordTypeName), newSet,
-        //                newRecordType, null, (byte) 0, newSet.getDatasetDetails(), dataSource.getDomain());
         List<Expression> exprList = addArgs(newSet.getDataverseName() + "." + newSet.getDatasetName());
         CallExpr datasrouceCallFunction = new CallExpr(new FunctionSignature(BuiltinFunctions.DATASET), exprList);
         FromTerm fromterm = new FromTerm(datasrouceCallFunction, fromTermLeftExpr, null, null);

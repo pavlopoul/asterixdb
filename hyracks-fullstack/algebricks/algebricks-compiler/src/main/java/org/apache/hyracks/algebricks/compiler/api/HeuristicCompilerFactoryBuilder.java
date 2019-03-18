@@ -117,10 +117,10 @@ public class HeuristicCompilerFactoryBuilder extends AbstractCompilerFactoryBuil
                         //                                    physicalOptimizationConfig.getFrameSize(), clusterLocations);
                         //                            pc = new PlanCompiler(context);
                         //                        } else {
-                        if (!first) {
-                            context = context1;
-                            pc = pc1;
-                        }
+                        //                        if (!first) {
+                        //                            context = context1;
+                        //                            pc = pc1;
+                        //                        }
 
                         //                        }
                         //pc = new PlanCompiler(context);

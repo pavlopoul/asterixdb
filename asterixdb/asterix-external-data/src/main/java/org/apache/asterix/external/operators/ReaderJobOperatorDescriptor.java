@@ -18,15 +18,22 @@
  */
 package org.apache.asterix.external.operators;
 
+import org.apache.hyracks.api.comm.VSizeFrame;
 import org.apache.hyracks.api.context.IHyracksTaskContext;
+import org.apache.hyracks.api.dataflow.ActivityId;
+import org.apache.hyracks.api.dataflow.IActivityGraphBuilder;
 import org.apache.hyracks.api.dataflow.IOperatorNodePushable;
+import org.apache.hyracks.api.dataflow.TaskId;
 import org.apache.hyracks.api.dataflow.value.IRecordDescriptorProvider;
 import org.apache.hyracks.api.dataflow.value.RecordDescriptor;
 import org.apache.hyracks.api.exceptions.HyracksDataException;
 import org.apache.hyracks.api.job.IOperatorDescriptorRegistry;
-import org.apache.hyracks.dataflow.std.base.AbstractSingleActivityOperatorDescriptor;
+import org.apache.hyracks.dataflow.std.base.AbstractActivityNode;
+import org.apache.hyracks.dataflow.std.base.AbstractOperatorDescriptor;
+import org.apache.hyracks.dataflow.std.base.AbstractUnaryOutputSourceOperatorNodePushable;
+import org.apache.hyracks.dataflow.std.misc.MaterializerTaskState;
 
-public class ReaderJobOperatorDescriptor extends AbstractSingleActivityOperatorDescriptor {
+public class ReaderJobOperatorDescriptor extends AbstractOperatorDescriptor {
     private static final long serialVersionUID = 1L;
 
     public ReaderJobOperatorDescriptor(IOperatorDescriptorRegistry spec, RecordDescriptor rDesc) {
@@ -35,11 +42,53 @@ public class ReaderJobOperatorDescriptor extends AbstractSingleActivityOperatorD
     }
 
     @Override
-    public IOperatorNodePushable createPushRuntime(IHyracksTaskContext ctx,
-            IRecordDescriptorProvider recordDescProvider, int partition, int nPartitions) throws HyracksDataException {
-        return new ReaderJobOperatorNodePushable(ctx, this) {
+    public void contributeActivities(IActivityGraphBuilder builder) {
+        ReaderActivityNode ra = new ReaderActivityNode(new ActivityId(odId, 1));
+        builder.addActivity(this, ra);
+        builder.addTargetEdge(0, ra, 0);
+    }
 
-        };
+    private final class ReaderActivityNode extends AbstractActivityNode {
+        private static final long serialVersionUID = 1L;
+
+        public ReaderActivityNode(ActivityId id) {
+            super(id);
+        }
+
+        @Override
+        public IOperatorNodePushable createPushRuntime(final IHyracksTaskContext ctx,
+                IRecordDescriptorProvider recordDescProvider, final int partition, int nPartitions) {
+            return new AbstractUnaryOutputSourceOperatorNodePushable() {
+                @Override
+                public void initialize() throws HyracksDataException {
+                    MaterializerTaskState state = (MaterializerTaskState) ctx
+                            .getStateObject(new TaskId(new ActivityId(getOperatorId(), 0), partition));
+                    state.writeOut(writer, new VSizeFrame(ctx), false);
+                }
+
+                @Override
+                public void deinitialize() throws HyracksDataException {
+                }
+            };
+        }
     }
 
 }
+
+//AbstractSingleActivityOperatorDescriptor {
+//    private static final long serialVersionUID = 1L;
+//
+//    public ReaderJobOperatorDescriptor(IOperatorDescriptorRegistry spec, RecordDescriptor rDesc) {
+//        super(spec, 0, 1);
+//        this.outRecDescs[0] = rDesc;
+//    }
+//
+//    @Override
+//    public IOperatorNodePushable createPushRuntime(IHyracksTaskContext ctx,
+//            IRecordDescriptorProvider recordDescProvider, int partition, int nPartitions) throws HyracksDataException {
+//        return new ReaderJobOperatorNodePushable(ctx, this) {
+//
+//        };
+//    }
+//
+//}

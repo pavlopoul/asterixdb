@@ -25,7 +25,7 @@ import org.apache.hyracks.dataflow.common.io.RunFileWriter;
 import org.apache.hyracks.dataflow.std.base.AbstractUnaryInputSinkOperatorNodePushable;
 
 public class IncrementalSinkOperatorNodePushable extends AbstractUnaryInputSinkOperatorNodePushable {
-    
+
     @Override
     public void open() throws HyracksDataException {
         // Does nothing.

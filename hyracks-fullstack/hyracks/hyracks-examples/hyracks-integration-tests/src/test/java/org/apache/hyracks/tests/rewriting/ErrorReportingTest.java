@@ -30,6 +30,7 @@ import org.apache.hyracks.api.dataflow.value.IRecordDescriptorProvider;
 import org.apache.hyracks.api.dataflow.value.RecordDescriptor;
 import org.apache.hyracks.api.exceptions.HyracksDataException;
 import org.apache.hyracks.api.job.IOperatorDescriptorRegistry;
+import org.apache.hyracks.api.job.IOperatorEnvironment;
 import org.apache.hyracks.api.job.JobSpecification;
 import org.apache.hyracks.dataflow.std.base.AbstractActivityNode;
 import org.apache.hyracks.dataflow.std.base.AbstractOperatorDescriptor;
@@ -91,7 +92,8 @@ class TestSourceOperatorDescriptor extends AbstractSingleActivityOperatorDescrip
 
     @Override
     public IOperatorNodePushable createPushRuntime(final IHyracksTaskContext ctx,
-            IRecordDescriptorProvider recordDescProvider, int partition, int nPartitions) throws HyracksDataException {
+            IRecordDescriptorProvider recordDescProvider, int partition, int nPartitions, IOperatorEnvironment pastEnv)
+            throws HyracksDataException {
         return new AbstractUnaryOutputSourceOperatorNodePushable() {
             private ByteBuffer frame = ctx.allocateFrame();
 
@@ -137,8 +139,8 @@ class ExceptionRaisingOperatorDescriptor extends AbstractOperatorDescriptor {
 
         @Override
         public IOperatorNodePushable createPushRuntime(IHyracksTaskContext ctx,
-                IRecordDescriptorProvider recordDescProvider, int partition, int nPartitions)
-                throws HyracksDataException {
+                IRecordDescriptorProvider recordDescProvider, int partition, int nPartitions,
+                IOperatorEnvironment pastEnv) throws HyracksDataException {
             return new IOperatorNodePushable() {
 
                 @Override

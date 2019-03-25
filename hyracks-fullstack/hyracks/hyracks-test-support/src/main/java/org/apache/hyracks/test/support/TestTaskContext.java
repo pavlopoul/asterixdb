@@ -175,4 +175,10 @@ public class TestTaskContext implements IHyracksTaskContext {
     public IStatsCollector getStatsCollector() {
         return statsCollector;
     }
+
+    @Override
+    public Set<Object> getStateObjectKeys() {
+        // TODO Auto-generated method stub
+        return null;
+    }
 }

@@ -477,4 +477,10 @@ public class Task implements IHyracksTaskContext, ICounterContext, Runnable {
         return "{ \"class\" : \"" + getClass().getSimpleName() + "\", \"node\" : \"" + ncs.getId() + "\" \"jobId\" : \""
                 + joblet.getJobId() + "\", \"taskId\" : \"" + taskAttemptId + "\" }";
     }
+
+    @Override
+    public Set<Object> getStateObjectKeys() {
+        // TODO Auto-generated method stub
+        return null;
+    }
 }

@@ -122,6 +122,10 @@ public class JobManager implements IJobManager {
         }
     }
 
+    public void addPast(JobRun jobRun) {
+        activeRunMap.put(jobRun.getJobId(), jobRun);
+    }
+
     @Override
     public void cancel(JobId jobId, IResultCallback<Void> callback) throws HyracksException {
         // Cancels a running job.

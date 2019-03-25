@@ -22,6 +22,7 @@ import java.net.InetAddress;
 import java.net.InetSocketAddress;
 import java.net.UnknownHostException;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -53,6 +54,7 @@ import org.apache.hyracks.api.job.ActivityCluster;
 import org.apache.hyracks.api.job.ActivityClusterGraph;
 import org.apache.hyracks.api.job.DeployedJobSpecId;
 import org.apache.hyracks.api.job.IJobletEventListenerFactory;
+import org.apache.hyracks.api.job.IOperatorEnvironment;
 import org.apache.hyracks.api.job.JobFlag;
 import org.apache.hyracks.api.job.JobId;
 import org.apache.hyracks.api.partitions.PartitionId;
@@ -76,6 +78,8 @@ import org.apache.logging.log4j.Logger;
 
 public class StartTasksWork extends AbstractWork {
     private static final Logger LOGGER = LogManager.getLogger();
+
+    private Task pastTask;
 
     private final NodeControllerService ncs;
 
@@ -153,7 +157,13 @@ public class StartTasksWork extends AbstractWork {
                 task = null;
                 task = new Task(joblet, flags, taId, han.getClass().getName(), ncs.getExecutor(), ncs,
                         createInputChannels(td, inputs));
-                IOperatorNodePushable operator = han.createPushRuntime(task, rdp, partition, td.getPartitionCount());
+                IOperatorEnvironment env = null;
+                if (jobId.getId() != 1) {
+                    env = ncs.getPastJobletMap().get(new JobId(jobId.getId() - 1)).getEnvironment();
+                }
+                IOperatorNodePushable operator =
+                        han.createPushRuntime(task, rdp, partition, td.getPartitionCount(), env);
+                pastTask = task;
                 List<IPartitionCollector> collectors = new ArrayList<>();
                 if (inputs != null) {
                     for (int i = 0; i < inputs.size(); ++i) {
@@ -203,6 +213,12 @@ public class StartTasksWork extends AbstractWork {
     private Joblet getOrCreateLocalJoblet(DeploymentId deploymentId, INCServiceContext appCtx, byte[] acgBytes)
             throws HyracksException {
         Map<JobId, Joblet> jobletMap = ncs.getJobletMap();
+        Map<JobId, Joblet> pastJobletMap = ncs.getPastJobletMap();
+        if (pastJobletMap == null) {
+            ncs.setPastJobletMap(new HashMap<>());
+
+        }
+        pastJobletMap = ncs.getPastJobletMap();
         Joblet ji = jobletMap.get(jobId);
         if (ji == null) {
             ActivityClusterGraph acg = (deployedJobSpecId != null) ? ncs.getActivityClusterGraph(deployedJobSpecId)
@@ -217,6 +233,7 @@ public class StartTasksWork extends AbstractWork {
             }
             ji = new Joblet(ncs, deploymentId, jobId, appCtx, acg, listenerFactory, jobStartTime);
             jobletMap.put(jobId, ji);
+            pastJobletMap.put(jobId, ji);
         }
         return ji;
     }

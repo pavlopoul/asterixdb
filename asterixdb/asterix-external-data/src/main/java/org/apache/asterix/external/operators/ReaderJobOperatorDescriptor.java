@@ -18,6 +18,8 @@
  */
 package org.apache.asterix.external.operators;
 
+import java.util.Set;
+
 import org.apache.hyracks.api.comm.VSizeFrame;
 import org.apache.hyracks.api.context.IHyracksTaskContext;
 import org.apache.hyracks.api.dataflow.ActivityId;
@@ -28,17 +30,22 @@ import org.apache.hyracks.api.dataflow.value.IRecordDescriptorProvider;
 import org.apache.hyracks.api.dataflow.value.RecordDescriptor;
 import org.apache.hyracks.api.exceptions.HyracksDataException;
 import org.apache.hyracks.api.job.IOperatorDescriptorRegistry;
+import org.apache.hyracks.api.job.IOperatorEnvironment;
 import org.apache.hyracks.dataflow.std.base.AbstractActivityNode;
 import org.apache.hyracks.dataflow.std.base.AbstractOperatorDescriptor;
 import org.apache.hyracks.dataflow.std.base.AbstractUnaryOutputSourceOperatorNodePushable;
+import org.apache.hyracks.dataflow.std.misc.IncrementalSinkOperatorDescriptor;
 import org.apache.hyracks.dataflow.std.misc.MaterializerTaskState;
 
 public class ReaderJobOperatorDescriptor extends AbstractOperatorDescriptor {
     private static final long serialVersionUID = 1L;
+    private IncrementalSinkOperatorDescriptor sink;
 
-    public ReaderJobOperatorDescriptor(IOperatorDescriptorRegistry spec, RecordDescriptor rDesc) {
+    public ReaderJobOperatorDescriptor(IOperatorDescriptorRegistry spec, IncrementalSinkOperatorDescriptor sink,
+            RecordDescriptor rDesc) {
         super(spec, 0, 1);
         this.outRecDescs[0] = rDesc;
+        this.sink = sink;
     }
 
     @Override
@@ -57,13 +64,23 @@ public class ReaderJobOperatorDescriptor extends AbstractOperatorDescriptor {
 
         @Override
         public IOperatorNodePushable createPushRuntime(final IHyracksTaskContext ctx,
-                IRecordDescriptorProvider recordDescProvider, final int partition, int nPartitions) {
+                IRecordDescriptorProvider recordDescProvider, final int partition, int nPartitions,
+                IOperatorEnvironment pastEnv) {
             return new AbstractUnaryOutputSourceOperatorNodePushable() {
                 @Override
                 public void initialize() throws HyracksDataException {
-                    MaterializerTaskState state = (MaterializerTaskState) ctx
-                            .getStateObject(new TaskId(new ActivityId(getOperatorId(), 0), partition));
-                    state.writeOut(writer, new VSizeFrame(ctx), false);
+                    Set<Object> set = pastEnv.getStateObjectKeys();
+                    TaskId tId = null;
+                    for (Object ob : set) {
+                        tId = (TaskId) ob;
+                        if (tId.getPartition() == partition) {
+                            MaterializerTaskState state = (MaterializerTaskState) pastEnv.getStateObject(tId);
+                            state.writeOut(writer, new VSizeFrame(ctx), false);
+                        }
+                    }
+                    // TaskId tId = (TaskId) set.iterator().next();
+
+                    //state.writeOut(writer, new VSizeFrame(ctx), false);
                 }
 
                 @Override

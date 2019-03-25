@@ -18,7 +18,6 @@
  */
 package org.apache.hyracks.control.nc.io;
 
-import org.apache.commons.io.FileUtils;
 import org.apache.hyracks.api.exceptions.HyracksDataException;
 import org.apache.hyracks.api.io.FileReference;
 import org.apache.hyracks.api.io.IIOManager;
@@ -42,7 +41,7 @@ public final class WorkspaceFileFactory implements IWorkspaceFileFactory {
             @Override
             public void deallocate() {
                 // Delete the created managed file.
-                FileUtils.deleteQuietly(fRef.getFile());
+                // FileUtils.deleteQuietly(fRef.getFile());
             }
         });
         return fRef;

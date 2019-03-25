@@ -18,10 +18,14 @@
  */
 package org.apache.hyracks.api.job;
 
+import java.util.Set;
+
 import org.apache.hyracks.api.dataflow.state.IStateObject;
 
 public interface IOperatorEnvironment {
     public void setStateObject(IStateObject taskState);
 
     public IStateObject getStateObject(Object id);
+
+    public Set<Object> getStateObjectKeys();
 }

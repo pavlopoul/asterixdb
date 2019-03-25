@@ -337,9 +337,17 @@ public class IOManager implements IIOManager {
         IODeviceHandle dev = workspaces.get(workspaceIndex);
         workspaceIndex = (workspaceIndex + 1) % workspaces.size();
         String waPath = dev.getWorkspace();
-        File waf;
+        //        File waf;
+        //        try {
+        //            waf = File.createTempFile(prefix, WORKSPACE_FILE_SUFFIX, new File(dev.getMount(), waPath));
+        //        } catch (IOException e) {
+        //            throw HyracksDataException.create(e);
+        //        }
+        File waf = new File(dev.getMount(), waPath);
+        waf = new File(waf, prefix + WORKSPACE_FILE_SUFFIX);
+        // waf = new File(dev.getMount(), waPath + prefix + WORKSPACE_FILE_SUFFIX);
         try {
-            waf = File.createTempFile(prefix, WORKSPACE_FILE_SUFFIX, new File(dev.getMount(), waPath));
+            waf.createNewFile();
         } catch (IOException e) {
             throw HyracksDataException.create(e);
         }

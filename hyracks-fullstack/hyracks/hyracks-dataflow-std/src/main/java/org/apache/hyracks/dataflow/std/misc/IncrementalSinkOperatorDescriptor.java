@@ -28,6 +28,7 @@ import org.apache.hyracks.api.dataflow.TaskId;
 import org.apache.hyracks.api.dataflow.value.IRecordDescriptorProvider;
 import org.apache.hyracks.api.exceptions.HyracksDataException;
 import org.apache.hyracks.api.job.IOperatorDescriptorRegistry;
+import org.apache.hyracks.api.job.IOperatorEnvironment;
 import org.apache.hyracks.api.job.JobId;
 import org.apache.hyracks.dataflow.std.base.AbstractActivityNode;
 import org.apache.hyracks.dataflow.std.base.AbstractOperatorDescriptor;
@@ -65,8 +66,8 @@ public class IncrementalSinkOperatorDescriptor extends AbstractOperatorDescripto
 
         @Override
         public IOperatorNodePushable createPushRuntime(IHyracksTaskContext ctx,
-                IRecordDescriptorProvider recordDescProvider, int partition, int nPartitions)
-                throws HyracksDataException {
+                IRecordDescriptorProvider recordDescProvider, int partition, int nPartitions,
+                IOperatorEnvironment pastEnv) throws HyracksDataException {
             return new AbstractUnaryInputSinkOperatorNodePushable() {
                 private MaterializerTaskState state;
 
@@ -93,12 +94,9 @@ public class IncrementalSinkOperatorDescriptor extends AbstractOperatorDescripto
                 @Override
                 public void close() throws HyracksDataException {
                     state.close();
+
                     ctx.setStateObject(state);
 
-                }
-
-                public MaterializerTaskState getState() {
-                    return state;
                 }
 
             };
@@ -106,42 +104,5 @@ public class IncrementalSinkOperatorDescriptor extends AbstractOperatorDescripto
         }
 
     }
-
-    //    @Override
-    //    public IOperatorNodePushable createPushRuntime(IHyracksTaskContext ctx,
-    //            IRecordDescriptorProvider recordDescProvider, int partition, int nPartitions) {
-    //        final RecordDescriptor outRecordDesc = recordDescProvider.getInputRecordDescriptor(getActivityId(), 0);
-    //        final FrameTupleAccessor frameTupleAccessor = new FrameTupleAccessor(outRecordDesc);
-    //        return new AbstractUnaryInputSinkOperatorNodePushable() {
-    //            private RunFileWriter runFileWriter;
-    //
-    //            @Override
-    //            public void open() throws HyracksDataException {
-    //                FileReference file = ctx.getJobletContext()
-    //                        .createManagedWorkspaceFile(this.getClass().getSimpleName() + this.toString());
-    //                runFileWriter = new RunFileWriter(file, ctx.getIoManager());
-    //                runFileWriter.open();
-    //            }
-    //
-    //            @Override
-    //            public void nextFrame(ByteBuffer buffer) throws HyracksDataException {
-    //                frameTupleAccessor.reset(buffer);
-    //                runFileWriter.nextFrame(buffer);
-    //
-    //            }
-    //
-    //            @Override
-    //            public void fail() throws HyracksDataException {
-    //                // TODO Auto-generated method stub
-    //
-    //            }
-    //
-    //            @Override
-    //            public void close() throws HyracksDataException {
-    //                runFileWriter.close();
-    //            }
-    //
-    //        };
-    //    }
 
 }

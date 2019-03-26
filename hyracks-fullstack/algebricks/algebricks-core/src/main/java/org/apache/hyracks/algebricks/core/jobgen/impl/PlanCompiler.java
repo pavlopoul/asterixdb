@@ -219,17 +219,17 @@ public class PlanCompiler {
     private void compileOpRef(IOperatorDescriptorRegistry spec, IHyracksJobBuilder builder,
             IOperatorSchema outerPlanSchema, boolean first) throws AlgebricksException {
         // ILogicalOperator op = opRef.getValue();
-        int tmpExchCnt = 0;
+        //        int tmpExchCnt = 0;
         int size = operators.size();
         for (int j = operators.size() - 1; j >= 0; j--) {
             int n = 1;
             IOperatorSchema[] schemas = new IOperatorSchema[n];
-            if (operators.get(j).getOperatorTag() == LogicalOperatorTag.EXCHANGE) {
-                if (!(operators.get(j).getInputs().get(0).getValue()
-                        .getOperatorTag() == LogicalOperatorTag.DATASOURCESCAN
-                        || operators.get(j - 1).getOperatorTag() == LogicalOperatorTag.DATASOURCESCAN))
-                    tmpExchCnt++;
-            }
+            //            if (operators.get(j).getOperatorTag() == LogicalOperatorTag.EXCHANGE) {
+            //                if (!(operators.get(j).getInputs().get(0).getValue()
+            //                        .getOperatorTag() == LogicalOperatorTag.DATASOURCESCAN
+            //                        || operators.get(j - 1).getOperatorTag() == LogicalOperatorTag.DATASOURCESCAN))
+            //                    tmpExchCnt++;
+            //            }
             if (first) {
                 if (operators.get(j).getOperatorTag() == LogicalOperatorTag.DISTRIBUTE_RESULT) {
                     break;

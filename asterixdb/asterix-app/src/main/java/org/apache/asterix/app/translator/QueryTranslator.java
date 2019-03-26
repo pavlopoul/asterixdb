@@ -2758,8 +2758,16 @@ public class QueryTranslator extends AbstractLangTranslator implements IStatemen
                 newQuery =
                         makeConnectionQuery(varexpr, recordTypeName, dataSource, newRecordType, mp, primKey, strType);
                 AlgebricksMetaOperatorDescriptor amod = null;
-
-                amod = (AlgebricksMetaOperatorDescriptor) jobSpec.getOperatorMap().get(new OperatorDescriptorId(2));
+                OperatorDescriptorId odId = null;
+                for (Entry<OperatorDescriptorId, IOperatorDescriptor> entry : jobSpec.getOperatorMap().entrySet()) {
+                    if (entry.getValue() instanceof AlgebricksMetaOperatorDescriptor) {
+                        AlgebricksMetaOperatorDescriptor tempAmod = (AlgebricksMetaOperatorDescriptor) entry.getValue();
+                        if (tempAmod.getOutputRecordDescriptors()[0].getFields().length != 0) {
+                            odId = entry.getKey();
+                        }
+                    }
+                }
+                amod = (AlgebricksMetaOperatorDescriptor) jobSpec.getOperatorMap().get(odId);
                 rdesc = amod.getPipeline().getRecordDescriptors();
                 writer = jobSpec;
 
@@ -2847,10 +2855,10 @@ public class QueryTranslator extends AbstractLangTranslator implements IStatemen
                 hcc.waitForCompletion(jobId);
                 if (!first) {
                     printer.print(jobId);
-                    locker.unlock();
-                    if (req != null) {
-                        req.complete();
-                    }
+                    //                    locker.unlock();
+                    //                    if (req != null) {
+                    //                        req.complete();
+                    //                    }
                 }
             }
             first = false;

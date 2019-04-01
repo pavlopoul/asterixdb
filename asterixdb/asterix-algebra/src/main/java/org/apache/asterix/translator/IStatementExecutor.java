@@ -32,13 +32,9 @@ import org.apache.asterix.metadata.declared.MetadataProvider;
 import org.apache.asterix.om.base.IAObject;
 import org.apache.asterix.om.types.ARecordType;
 import org.apache.asterix.translator.CompiledStatements.ICompiledDmlStatement;
-import org.apache.commons.lang3.mutable.Mutable;
 import org.apache.commons.lang3.tuple.Triple;
 import org.apache.hyracks.algebricks.common.exceptions.AlgebricksException;
 import org.apache.hyracks.algebricks.core.algebra.base.ILogicalOperator;
-import org.apache.hyracks.algebricks.core.jobgen.impl.JobBuilder;
-import org.apache.hyracks.algebricks.core.jobgen.impl.JobGenContext;
-import org.apache.hyracks.algebricks.core.jobgen.impl.PlanCompiler;
 import org.apache.hyracks.api.client.IClusterInfoCollector;
 import org.apache.hyracks.api.client.IHyracksClientConnection;
 import org.apache.hyracks.api.job.JobId;
@@ -143,9 +139,9 @@ public interface IStatementExecutor {
     JobSpecification rewriteCompileQuery(IClusterInfoCollector clusterInfoCollector, MetadataProvider metadataProvider,
             Query query, ICompiledDmlStatement dmlStatement, Map<String, IAObject> statementParameters,
             IStatementRewriter statementRewriter, List<ILogicalOperator> operators, boolean first,
-            JobGenContext context, PlanCompiler pc,
+            /*JobGenContext context, PlanCompiler pc,
             Map<Mutable<ILogicalOperator>, List<ILogicalOperator>> operatorVisitedToParents, JobSpecification spec,
-            JobBuilder builder, Query newQuery) throws RemoteException, AlgebricksException, ACIDException;
+            JobBuilder builder,*/ Query newQuery) throws RemoteException, AlgebricksException, ACIDException;
 
     /**
      * returns the active dataverse for an entity or a statement

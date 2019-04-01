@@ -209,9 +209,7 @@ public class APIFramework {
     public JobSpecification compileQuery(IClusterInfoCollector clusterInfoCollector, MetadataProvider metadataProvider,
             Query query, int varCounter, String outputDatasetName, SessionOutput output,
             ICompiledDmlStatement statement, Map<VarIdentifier, IAObject> externalVars,
-            List<ILogicalOperator> operators, boolean first, JobGenContext context, PlanCompiler pc,
-            Map<Mutable<ILogicalOperator>, List<ILogicalOperator>> operatorVisitedToParents, JobSpecification spec1,
-            JobBuilder builder1, Query newQuery) throws AlgebricksException, ACIDException {
+            List<ILogicalOperator> operators, boolean first, Query newQuery) throws AlgebricksException, ACIDException {
 
         // establish facts
         final boolean isQuery = query != null;
@@ -240,7 +238,6 @@ public class APIFramework {
             FieldAccessor field =
                     (FieldAccessor) selectClause.getSelectRegular().getProjections().get(0).getExpression();
             VariableExpr var = (VariableExpr) field.getExpr();
-            // var.getVar().setId(fromVarId.getId());
             var.getVar().setId(select.getSelectSetOperation().getLeftInput().getSelectBlock().getFromClause()
                     .getFromTerms().get(0).getLeftVariable().getVar().getId());
             ILogicalPlan newplan =
@@ -325,18 +322,11 @@ public class APIFramework {
             spec = compiler.createLoadJob(metadataProvider.getApplicationContext(), jobEventListenerFactory);
         } else {
 
-            //if (first) {
             operators = compiler.traversePlan(metadataProvider.getApplicationContext(), first, context, pc);
-            // operators = compiler.getOperators();
-            // }
             spec = compiler.createJob(metadataProvider.getApplicationContext(), jobEventListenerFactory, operators,
-                    first, operatorVisitedToParents, context, pc, spec1, builder1);
+                    first);
             finished = compiler.getFinished(metadataProvider.getApplicationContext(), first, context, pc);
-            // this.context = compiler.getContext();
-            // this.pc = compiler.getCompiler();
             this.operators = compiler.getOperators();
-            // this.operatorVisitedToParents = compiler.getParentOperators();
-            // this.builder = compiler.getBuilder();
         }
 
         if (isQuery) {
@@ -360,28 +350,8 @@ public class APIFramework {
         return finished;
     }
 
-    public JobGenContext getContext() {
-        return context;
-    }
-
-    public JobBuilder getBuilder() {
-        return builder;
-    }
-
-    public JobSpecification getSpec() {
-        return spec;
-    }
-
-    public PlanCompiler getPlanCompiler() {
-        return pc;
-    }
-
     public List<ILogicalOperator> getOperators() {
         return operators;
-    }
-
-    public Map<Mutable<ILogicalOperator>, List<ILogicalOperator>> getParentOperators() {
-        return operatorVisitedToParents;
     }
 
     private void printPlanAsResult(MetadataProvider metadataProvider, SessionOutput output) throws AlgebricksException {

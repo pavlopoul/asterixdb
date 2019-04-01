@@ -22,6 +22,7 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Map.Entry;
 
 import org.apache.commons.lang3.ArrayUtils;
 import org.apache.hyracks.algebricks.common.constraints.AlgebricksAbsolutePartitionConstraint;
@@ -46,7 +47,6 @@ import org.apache.hyracks.api.dataflow.OperatorDescriptorId;
 import org.apache.hyracks.api.dataflow.value.RecordDescriptor;
 import org.apache.hyracks.api.job.JobSpecification;
 import org.apache.hyracks.dataflow.std.misc.IncrementalSinkOperatorDescriptor;
-import org.apache.hyracks.dataflow.std.misc.SinkOperatorDescriptor;
 
 public class JobBuilder implements IHyracksJobBuilder {
 
@@ -176,15 +176,19 @@ public class JobBuilder implements IHyracksJobBuilder {
         setAllPartitionConstraints(tgtConstraints);
     }
 
-    public void buildSpecNew(ILogicalOperator roots) throws AlgebricksException {
+    public void buildSpecNew() throws AlgebricksException {
 
         buildAsterixComponents();
         Map<IConnectorDescriptor, TargetConstraint> tgtConstraints = setupConnectors();
 
-        //IOperatorDescriptor opDesc = findOpDescForAlgebraicOp(roots);
-        jobSpec.addRoot(jobSpec.getOperatorMap().get(new OperatorDescriptorId(jobSpec.getOperatorMap().size() - 1)));
+        OperatorDescriptorId id = null;
+        for (Entry<OperatorDescriptorId, IOperatorDescriptor> entry : jobSpec.getOperatorMap().entrySet()) {
+            if (entry.getValue() instanceof IncrementalSinkOperatorDescriptor) {
+                id = entry.getKey();
+            }
+        }
+        jobSpec.addRoot(jobSpec.getOperatorMap().get(id));
         setAllPartitionConstraints(tgtConstraints);
-        //AlgebricksPartitionConstraint apc = partitionConstraintMap.get(opDesc);
         return;
     }
 
@@ -303,7 +307,6 @@ public class JobBuilder implements IHyracksJobBuilder {
         Map<IConnectorDescriptor, TargetConstraint> tgtConstraints = new HashMap<>();
         for (ILogicalOperator exchg : connectors.keySet()) {
             ILogicalOperator inOp = inEdges.get(exchg).get(0);
-            //            ILogicalOperator outOp = outEdges.get(exchg).get(0);
             IOperatorDescriptor inOpDesc = findOpDescForAlgebraicOp(inOp);
             ILogicalOperator outOp = null;
             IOperatorDescriptor outOpDesc = null;
@@ -311,7 +314,6 @@ public class JobBuilder implements IHyracksJobBuilder {
                 outOp = outEdges.get(exchg).get(0);
                 outOpDesc = findOpDescForAlgebraicOp(outOp);
             } else {
-                //IOperatorDescriptor outOpDesc = findOpDescForAlgebraicOp(outOp);
                 outOpDesc = new IncrementalSinkOperatorDescriptor(jobSpec);
             }
             Pair<IConnectorDescriptor, TargetConstraint> connPair = connectors.get(exchg);
@@ -344,9 +346,6 @@ public class JobBuilder implements IHyracksJobBuilder {
     }
 
     private void buildAsterixComponents() {
-        //        List<ILogicalOperator> reverseKeys = new ArrayList<ILogicalOperator>(microOps.keySet());
-        //        Collections.reverse(reverseKeys);
-        //        for (ILogicalOperator aop : reverseKeys) {
         for (ILogicalOperator aop : microOps.keySet()) {
             addMicroOpToMetaRuntimeOp(aop);
         }

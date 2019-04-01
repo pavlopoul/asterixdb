@@ -34,18 +34,14 @@ import org.apache.hyracks.api.job.IOperatorEnvironment;
 import org.apache.hyracks.dataflow.std.base.AbstractActivityNode;
 import org.apache.hyracks.dataflow.std.base.AbstractOperatorDescriptor;
 import org.apache.hyracks.dataflow.std.base.AbstractUnaryOutputSourceOperatorNodePushable;
-import org.apache.hyracks.dataflow.std.misc.IncrementalSinkOperatorDescriptor;
 import org.apache.hyracks.dataflow.std.misc.MaterializerTaskState;
 
 public class ReaderJobOperatorDescriptor extends AbstractOperatorDescriptor {
     private static final long serialVersionUID = 1L;
-    private IncrementalSinkOperatorDescriptor sink;
 
-    public ReaderJobOperatorDescriptor(IOperatorDescriptorRegistry spec, IncrementalSinkOperatorDescriptor sink,
-            RecordDescriptor rDesc) {
+    public ReaderJobOperatorDescriptor(IOperatorDescriptorRegistry spec, RecordDescriptor rDesc) {
         super(spec, 0, 1);
         this.outRecDescs[0] = rDesc;
-        this.sink = sink;
     }
 
     @Override
@@ -74,13 +70,12 @@ public class ReaderJobOperatorDescriptor extends AbstractOperatorDescriptor {
                     for (Object ob : set) {
                         tId = (TaskId) ob;
                         if (tId.getPartition() == partition) {
-                            MaterializerTaskState state = (MaterializerTaskState) pastEnv.getStateObject(tId);
-                            state.writeOut(writer, new VSizeFrame(ctx), false);
+                            if (pastEnv.getStateObject(tId) instanceof MaterializerTaskState) {
+                                MaterializerTaskState state = (MaterializerTaskState) pastEnv.getStateObject(tId);
+                                state.writeOut(writer, new VSizeFrame(ctx), false);
+                            }
                         }
                     }
-                    // TaskId tId = (TaskId) set.iterator().next();
-
-                    //state.writeOut(writer, new VSizeFrame(ctx), false);
                 }
 
                 @Override
@@ -91,21 +86,3 @@ public class ReaderJobOperatorDescriptor extends AbstractOperatorDescriptor {
     }
 
 }
-
-//AbstractSingleActivityOperatorDescriptor {
-//    private static final long serialVersionUID = 1L;
-//
-//    public ReaderJobOperatorDescriptor(IOperatorDescriptorRegistry spec, RecordDescriptor rDesc) {
-//        super(spec, 0, 1);
-//        this.outRecDescs[0] = rDesc;
-//    }
-//
-//    @Override
-//    public IOperatorNodePushable createPushRuntime(IHyracksTaskContext ctx,
-//            IRecordDescriptorProvider recordDescProvider, int partition, int nPartitions) throws HyracksDataException {
-//        return new ReaderJobOperatorNodePushable(ctx, this) {
-//
-//        };
-//    }
-//
-//}

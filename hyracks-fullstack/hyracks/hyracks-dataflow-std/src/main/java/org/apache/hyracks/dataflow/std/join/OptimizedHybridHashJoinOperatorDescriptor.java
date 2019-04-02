@@ -464,6 +464,8 @@ public class OptimizedHybridHashJoinOperatorDescriptor extends AbstractOperatorD
                             logProbeComplete();
                         } finally {
                             writer.close();
+                            state.hybridHJ.clearBuildTempFiles();
+                            state.hybridHJ.clearProbeTempFiles();
                         }
                     }
                 }

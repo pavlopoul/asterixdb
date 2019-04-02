@@ -224,12 +224,7 @@ import org.apache.hyracks.algebricks.runtime.serializer.ResultSerializerFactoryP
 import org.apache.hyracks.algebricks.runtime.writers.PrinterBasedWriterFactory;
 import org.apache.hyracks.api.client.IClusterInfoCollector;
 import org.apache.hyracks.api.client.IHyracksClientConnection;
-import org.apache.hyracks.api.constraints.Constraint;
 import org.apache.hyracks.api.constraints.PartitionConstraintHelper;
-import org.apache.hyracks.api.constraints.expressions.ConstraintExpression.ExpressionTag;
-import org.apache.hyracks.api.constraints.expressions.LValueConstraintExpression;
-import org.apache.hyracks.api.constraints.expressions.PartitionCountExpression;
-import org.apache.hyracks.api.constraints.expressions.PartitionLocationExpression;
 import org.apache.hyracks.api.dataflow.ConnectorDescriptorId;
 import org.apache.hyracks.api.dataflow.IOperatorDescriptor;
 import org.apache.hyracks.api.dataflow.OperatorDescriptorId;
@@ -931,8 +926,9 @@ public class QueryTranslator extends AbstractLangTranslator implements IStatemen
                     overridesFieldTypes = true;
                 }
                 if (fieldType == null) {
-                    throw new CompilationException(ErrorCode.UNKNOWN_TYPE, sourceLoc, fieldExpr.second == null
-                            ? String.valueOf(fieldExpr.first) : String.valueOf(fieldExpr.second));
+                    throw new CompilationException(ErrorCode.UNKNOWN_TYPE, sourceLoc,
+                            fieldExpr.second == null ? String.valueOf(fieldExpr.first)
+                                    : String.valueOf(fieldExpr.second));
                 }
 
                 // try to add the key & its source to the set of keys, if key couldn't be added,
@@ -2779,9 +2775,13 @@ public class QueryTranslator extends AbstractLangTranslator implements IStatemen
                 newQuery =
                         makeConnectionQuery(varexpr, recordTypeName, dataSource1, newRecordType, mp, primKey, strType);
                 OperatorDescriptorId odId = null;
+                OperatorDescriptorId id = null;
                 for (Entry<OperatorDescriptorId, IOperatorDescriptor> entry : jobSpec.getOperatorMap().entrySet()) {
                     if (entry.getValue() instanceof OptimizedHybridHashJoinOperatorDescriptor) {
                         odId = entry.getKey();
+                    }
+                    if (entry.getValue() instanceof IncrementalSinkOperatorDescriptor) {
+                        id = entry.getKey();
                     }
                 }
                 IScalarEvaluatorFactory[] evalFactories = new IScalarEvaluatorFactory[1];
@@ -2792,13 +2792,9 @@ public class QueryTranslator extends AbstractLangTranslator implements IStatemen
                 ITypeTraits[] typeTraits = new ITypeTraits[rdesc[0].getFieldCount() + 1];
                 for (int k = 0; k < fields.length - 1; k++) {
                     fields[k] = rdesc[0].getFields()[k];
-                }
-                ISerializerDeserializer serde =
-                        SerializerDeserializerProvider.INSTANCE.getSerializerDeserializer(recType);
-                fields[fields.length - 1] = serde;
-                for (int k = 0; k < fields.length - 1; k++) {
                     typeTraits[k] = rdesc[0].getTypeTraits()[k];
                 }
+                fields[fields.length - 1] = SerializerDeserializerProvider.INSTANCE.getSerializerDeserializer(recType);
                 typeTraits[fields.length - 1] = typeTraits[0];
                 int[] outColumns = new int[1];
                 outColumns[0] = evars.size();
@@ -2837,12 +2833,6 @@ public class QueryTranslator extends AbstractLangTranslator implements IStatemen
                 String[] readerLocations =
                         mp.getApplicationContext().getClusterStateManager().getClusterLocations().getLocations();
                 PartitionConstraintHelper.addAbsoluteLocationConstraint(jobSpec, amod, readerLocations);
-                OperatorDescriptorId id = null;
-                for (Entry<OperatorDescriptorId, IOperatorDescriptor> entry : jobSpec.getOperatorMap().entrySet()) {
-                    if (entry.getValue() instanceof IncrementalSinkOperatorDescriptor) {
-                        id = entry.getKey();
-                    }
-                }
 
                 for (Entry<ConnectorDescriptorId, org.apache.commons.lang3.tuple.Pair<org.apache.commons.lang3.tuple.Pair<IOperatorDescriptor, Integer>, org.apache.commons.lang3.tuple.Pair<IOperatorDescriptor, Integer>>> entry : jobSpec
                         .getConnectorOperatorMap().entrySet()) {
@@ -2861,12 +2851,20 @@ public class QueryTranslator extends AbstractLangTranslator implements IStatemen
             } else {
                 OperatorDescriptorId aod = null;
 
+                OperatorDescriptorId id = null;
+                OperatorDescriptorId rid = null;
+
                 for (Entry<OperatorDescriptorId, IOperatorDescriptor> entry : jobSpec.getOperatorMap().entrySet()) {
                     if (entry.getValue() instanceof AlgebricksMetaOperatorDescriptor) {
                         AlgebricksMetaOperatorDescriptor amod = (AlgebricksMetaOperatorDescriptor) entry.getValue();
                         if (amod.getOutputRecordDescriptors()[0].getFields().length != 0) {
                             aod = entry.getKey();
+                        } else {
+                            id = entry.getKey();
                         }
+                    }
+                    if (entry.getValue() instanceof BTreeSearchOperatorDescriptor) {
+                        rid = entry.getKey();
                     }
                 }
                 firstOp = new ReaderJobOperatorDescriptor(jobSpec, internalRecordDescriptors[2]);
@@ -2880,20 +2878,6 @@ public class QueryTranslator extends AbstractLangTranslator implements IStatemen
                 jobSpec.connect(new OneToOneConnectorDescriptor(jobSpec), replicate, 0,
                         jobSpec.getOperatorMap().get(aod), 0);
 
-                OperatorDescriptorId id = null;
-                OperatorDescriptorId rid = null;
-
-                for (Entry<OperatorDescriptorId, IOperatorDescriptor> entry : jobSpec.getOperatorMap().entrySet()) {
-                    if (entry.getValue() instanceof BTreeSearchOperatorDescriptor) {
-                        rid = entry.getKey();
-                    }
-                    if (entry.getValue() instanceof AlgebricksMetaOperatorDescriptor) {
-                        AlgebricksMetaOperatorDescriptor amod = (AlgebricksMetaOperatorDescriptor) entry.getValue();
-                        if (amod.getOutputRecordDescriptors()[0].getFields().length == 0) {
-                            id = entry.getKey();
-                        }
-                    }
-                }
                 jobSpec.getConnectorMap().remove(new ConnectorDescriptorId(0));
                 jobSpec.getConnectorOperatorMap().remove(new ConnectorDescriptorId(0));
                 jobSpec.getConnectorMap().remove(new ConnectorDescriptorId(1));
@@ -2901,21 +2885,21 @@ public class QueryTranslator extends AbstractLangTranslator implements IStatemen
                 jobSpec.getOperatorMap().remove(id);
                 jobSpec.getOperatorMap().remove(rid);
 
-                for (Constraint constraint : writer.getUserConstraints()) {
-                    LValueConstraintExpression lexpr = constraint.getLValue();
-                    if (lexpr.getTag() == ExpressionTag.PARTITION_COUNT) {
-                        PartitionCountExpression pce = (PartitionCountExpression) lexpr;
-                        if (pce.getOperatorDescriptorId() == id) {
-                            writer.getUserConstraints().remove(constraint);
-                        }
-
-                    } else {
-                        PartitionLocationExpression ple = (PartitionLocationExpression) lexpr;
-                        if (ple.getOperatorDescriptorId() == id) {
-                            writer.getUserConstraints().remove(constraint);
-                        }
-                    }
-                }
+                //                for (Constraint constraint : writer.getUserConstraints()) {
+                //                    LValueConstraintExpression lexpr = constraint.getLValue();
+                //                    if (lexpr.getTag() == ExpressionTag.PARTITION_COUNT) {
+                //                        PartitionCountExpression pce = (PartitionCountExpression) lexpr;
+                //                        if (pce.getOperatorDescriptorId() == id) {
+                //                            writer.getUserConstraints().remove(constraint);
+                //                        }
+                //
+                //                    } else {
+                //                        PartitionLocationExpression ple = (PartitionLocationExpression) lexpr;
+                //                        if (ple.getOperatorDescriptorId() == id) {
+                //                            writer.getUserConstraints().remove(constraint);
+                //                        }
+                //                    }
+                //                }
 
             }
             final JobId jobId = JobUtils.runJob(hcc, jobSpec, jobFlags, false);
@@ -2963,6 +2947,10 @@ public class QueryTranslator extends AbstractLangTranslator implements IStatemen
         Dataverse newDataverse = new Dataverse("newdata", "", 0);
         Datatype newDatatype = new Datatype("newdata", recordTypeName, newRecordType, false);
         final MetadataTransactionContext writeTxn = MetadataManager.INSTANCE.beginTransaction();
+        if (MetadataManager.INSTANCE.getDataverse(writeTxn, newDataverse.getDataverseName()) != null) {
+            MetadataManager.INSTANCE.dropDataverse(writeTxn, newDataverse.getDataverseName());
+            MetadataManager.INSTANCE.dropNodegroup(writeTxn, newSet.getNodeGroupName(), true);
+        }
         MetadataManager.INSTANCE.addDataverse(writeTxn, newDataverse);
         MetadataManager.INSTANCE.addDataset(writeTxn, newSet);
         MetadataManager.INSTANCE.addDatatype(writeTxn, newDatatype);

@@ -34,6 +34,7 @@ import org.apache.hyracks.algebricks.common.exceptions.AlgebricksException;
 import org.apache.hyracks.algebricks.common.utils.Pair;
 import org.apache.hyracks.algebricks.core.algebra.base.IHyracksJobBuilder;
 import org.apache.hyracks.algebricks.core.algebra.base.ILogicalOperator;
+import org.apache.hyracks.algebricks.core.algebra.base.LogicalOperatorTag;
 import org.apache.hyracks.algebricks.core.algebra.operators.logical.AbstractLogicalOperator;
 import org.apache.hyracks.algebricks.core.algebra.operators.logical.AbstractLogicalOperator.ExecutionMode;
 import org.apache.hyracks.algebricks.core.algebra.util.OperatorManipulationUtil;
@@ -314,6 +315,9 @@ public class JobBuilder implements IHyracksJobBuilder {
                 outOp = outEdges.get(exchg).get(0);
                 outOpDesc = findOpDescForAlgebraicOp(outOp);
             } else {
+                if (inOp.getOperatorTag() != LogicalOperatorTag.INNERJOIN) {
+                    continue;
+                }
                 outOpDesc = new IncrementalSinkOperatorDescriptor(jobSpec);
             }
             Pair<IConnectorDescriptor, TargetConstraint> connPair = connectors.get(exchg);

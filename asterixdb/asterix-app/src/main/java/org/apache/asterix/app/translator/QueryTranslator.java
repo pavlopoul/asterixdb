@@ -23,7 +23,6 @@ import java.io.FileInputStream;
 import java.io.InputStream;
 import java.rmi.RemoteException;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.Date;
@@ -84,9 +83,12 @@ import org.apache.asterix.lang.common.base.IReturningStatement;
 import org.apache.asterix.lang.common.base.IRewriterFactory;
 import org.apache.asterix.lang.common.base.IStatementRewriter;
 import org.apache.asterix.lang.common.base.Statement;
+import org.apache.asterix.lang.common.clause.WhereClause;
 import org.apache.asterix.lang.common.expression.CallExpr;
+import org.apache.asterix.lang.common.expression.FieldAccessor;
 import org.apache.asterix.lang.common.expression.IndexedTypeExpression;
 import org.apache.asterix.lang.common.expression.LiteralExpr;
+import org.apache.asterix.lang.common.expression.OperatorExpr;
 import org.apache.asterix.lang.common.expression.VariableExpr;
 import org.apache.asterix.lang.common.literal.IntegerLiteral;
 import org.apache.asterix.lang.common.literal.StringLiteral;
@@ -226,6 +228,7 @@ import org.apache.hyracks.api.client.IClusterInfoCollector;
 import org.apache.hyracks.api.client.IHyracksClientConnection;
 import org.apache.hyracks.api.constraints.PartitionConstraintHelper;
 import org.apache.hyracks.api.dataflow.ConnectorDescriptorId;
+import org.apache.hyracks.api.dataflow.IConnectorDescriptor;
 import org.apache.hyracks.api.dataflow.IOperatorDescriptor;
 import org.apache.hyracks.api.dataflow.OperatorDescriptorId;
 import org.apache.hyracks.api.dataflow.value.ISerializerDeserializer;
@@ -926,8 +929,9 @@ public class QueryTranslator extends AbstractLangTranslator implements IStatemen
                     overridesFieldTypes = true;
                 }
                 if (fieldType == null) {
-                    throw new CompilationException(ErrorCode.UNKNOWN_TYPE, sourceLoc, fieldExpr.second == null
-                            ? String.valueOf(fieldExpr.first) : String.valueOf(fieldExpr.second));
+                    throw new CompilationException(ErrorCode.UNKNOWN_TYPE, sourceLoc,
+                            fieldExpr.second == null ? String.valueOf(fieldExpr.first)
+                                    : String.valueOf(fieldExpr.second));
                 }
 
                 // try to add the key & its source to the set of keys, if key couldn't be added,
@@ -2771,6 +2775,35 @@ public class QueryTranslator extends AbstractLangTranslator implements IStatemen
                 List<IAType> strType = new ArrayList<>();
                 strType.add(types[2]);
                 IAType newRecordType = new ARecordType(recordTypeName, fieldNames, types, false);
+                for (Entry<OperatorDescriptorId, List<IConnectorDescriptor>> entry : jobSpec.getOperatorInputMap()
+                        .entrySet()) {
+                    if (jobSpec.getOperatorMap().get(entry.getKey()) instanceof AlgebricksMetaOperatorDescriptor) {
+                        if (!jobSpec.getOperatorOutputMap().containsKey(entry.getKey())) {
+                            List<IConnectorDescriptor> toBeRemoved = entry.getValue();
+                            for (IConnectorDescriptor conn : toBeRemoved) {
+                                OperatorDescriptorId id = jobSpec.getConnectorOperatorMap().get(conn.getConnectorId())
+                                        .getKey().getKey().getOperatorId();
+                                IConnectorDescriptor conn2 = jobSpec.getOperatorInputMap().get(id).get(0);
+                                OperatorDescriptorId id2 = jobSpec.getConnectorOperatorMap().get(conn2.getConnectorId())
+                                        .getKey().getKey().getOperatorId();
+                                jobSpec.getConnectorMap().remove(conn2.getConnectorId());
+                                jobSpec.getConnectorOperatorMap().remove(conn2.getConnectorId());
+                                jobSpec.getConnectorMap().remove(conn.getConnectorId());
+                                jobSpec.getConnectorOperatorMap().remove(conn.getConnectorId());
+                                jobSpec.getOperatorMap().remove(entry.getKey());
+                                jobSpec.getOperatorMap().remove(id);
+                                jobSpec.getOperatorMap().remove(id2);
+                            }
+                        }
+                    }
+                }
+                ConnectorDescriptorId connId = null;
+                for (Entry<ConnectorDescriptorId, IConnectorDescriptor> entry : jobSpec.getConnectorMap().entrySet()) {
+                    if (!jobSpec.getConnectorOperatorMap().containsKey(entry.getKey())) {
+                        connId = entry.getKey();
+                    }
+                }
+                jobSpec.getConnectorMap().remove(connId);
                 newQuery =
                         makeConnectionQuery(varexpr, recordTypeName, dataSource1, newRecordType, mp, primKey, strType);
                 OperatorDescriptorId odId = null;
@@ -2940,9 +2973,23 @@ public class QueryTranslator extends AbstractLangTranslator implements IStatemen
         List<Expression> exprList = addArgs(newSet.getDataverseName() + "." + newSet.getDatasetName());
         CallExpr datasrouceCallFunction = new CallExpr(new FunctionSignature(BuiltinFunctions.DATASET), exprList);
         FromTerm fromterm = new FromTerm(datasrouceCallFunction, fromTermLeftExpr, null, null);
-        FromClause fromClause = new FromClause(Arrays.asList(fromterm));
         Query oldQuery = (Query) statements.get(1);
         Expression exp = oldQuery.getBody();
+        List<FromTerm> fromTermOld = null;
+        List<FromTerm> fromTermNew = new ArrayList<>();
+        if (exp.getKind() == Kind.SELECT_EXPRESSION) {
+            SelectExpression select = (SelectExpression) exp;
+            FromClause fromold = select.getSelectSetOperation().getLeftInput().getSelectBlock().getFromClause();
+            fromTermOld = fromold.getFromTerms();
+        }
+        //        fromTermOld.remove(0);
+        //        fromTermOld.remove(0);
+        //        fromTermOld.add(0, fromterm);
+        for (int i = 2; i < fromTermOld.size(); i++) {
+            fromTermNew.add(fromTermOld.get(i));
+        }
+        fromTermNew.add(0, fromterm);
+        FromClause fromClause = new FromClause(fromTermNew);
         Dataverse newDataverse = new Dataverse("newdata", "", 0);
         Datatype newDatatype = new Datatype("newdata", recordTypeName, newRecordType, false);
         final MetadataTransactionContext writeTxn = MetadataManager.INSTANCE.beginTransaction();
@@ -2962,7 +3009,29 @@ public class QueryTranslator extends AbstractLangTranslator implements IStatemen
             SelectExpression select = (SelectExpression) exp;
             SelectClause selectClause =
                     select.getSelectSetOperation().getLeftInput().getSelectBlock().getSelectClause();
-            SelectBlock selectBlock = new SelectBlock(selectClause, fromClause, null, null, null, null, null);
+            WhereClause whereClause = select.getSelectSetOperation().getLeftInput().getSelectBlock().getWhereClause();
+            OperatorExpr whereExpr = (OperatorExpr) whereClause.getWhereExpr();
+            OperatorExpr newWhereExpr = new OperatorExpr();
+            for (int i = 1; i < whereExpr.getExprList().size(); i++) {
+                newWhereExpr.addOperand(whereExpr.getExprList().get(i));
+                if (whereExpr.getExprList().size() > 2) {
+                    newWhereExpr.addOperator(whereExpr.getOpList().get(i));
+                }
+            }
+            //            whereExpr.getExprList().remove(0);
+            //            whereExpr.getOpList().remove(0);
+            OperatorExpr oldOp = (OperatorExpr) whereExpr.getExprList().get(1);
+            FieldAccessor field = (FieldAccessor) oldOp.getExprList().get(0);
+            FieldAccessor newField = new FieldAccessor(fromTermLeftExpr, field.getIdent());
+            OperatorExpr newOp = new OperatorExpr();
+            for (int i = 1; i < oldOp.getExprList().size(); i++) {
+                newOp.addOperand(oldOp.getExprList().get(i));
+            }
+            // newOp.getExprList().remove(0);
+            newOp.getExprList().add(0, newField);
+            //newWhereExpr
+            WhereClause newwhere = new WhereClause(newWhereExpr);
+            SelectBlock selectBlock = new SelectBlock(selectClause, fromClause, null, newwhere, null, null, null);
             SelectSetOperation selectSetOperation =
                     new SelectSetOperation(new SetOperationInput(selectBlock, null), null);
             SelectExpression body = new SelectExpression(null, selectSetOperation, null, null, true);

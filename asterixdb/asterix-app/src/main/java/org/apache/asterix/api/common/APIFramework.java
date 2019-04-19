@@ -228,9 +228,10 @@ public class APIFramework {
         metadataProvider.setTxnId(txnId);
         ILangExpressionToPlanTranslator t =
                 translatorFactory.createExpressionToPlanTranslator(metadataProvider, varCounter, externalVars);
-
-        ILogicalPlan plan = isLoad ? t.translateLoad(statement) : t.translate(query, outputDatasetName, statement);
-        if (newQuery != null) {
+        ILogicalPlan plan = null;
+        if (newQuery == null) {
+            plan = isLoad ? t.translateLoad(statement) : t.translate(query, outputDatasetName, statement);
+        } else {
             Expression exp = newQuery.getBody();
             SelectExpression select = (SelectExpression) exp;
             SelectClause selectClause =

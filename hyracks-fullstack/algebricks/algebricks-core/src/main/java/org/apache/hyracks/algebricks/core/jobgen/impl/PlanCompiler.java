@@ -132,7 +132,7 @@ public class PlanCompiler {
         rootOps.add(opRef.getValue());
 
         compileOpRef(spec, builder, outerPlanSchema, first);
-        if (first) {
+        if (!notJoinInPlan()) {
             builder.buildSpecNew();
         } else {
             builder.buildSpec(rootOps);
@@ -156,8 +156,9 @@ public class PlanCompiler {
     }
 
     public List<ILogicalOperator> traversePlan(Mutable<ILogicalOperator> root, boolean rootFlag) {
-        if (rootFlag)
+        if (rootFlag) {
             operators.add(root.getValue());
+        }
         ILogicalOperator op = root.getValue();
         for (Mutable<ILogicalOperator> opChild : op.getInputs()) {
             operators.add(opChild.getValue());
@@ -173,7 +174,7 @@ public class PlanCompiler {
             int n = operators.get(j).getInputs().size();
             int i = 0;
             IOperatorSchema[] schemas = new IOperatorSchema[n];
-            if (first) {
+            if (!notJoinInPlan()) {
                 if (operators.get(j).hasInputs()) {
                     if (operators.get(j).getInputs().get(0).getValue().getOperatorTag() == LogicalOperatorTag.EXCHANGE
                             && operators.get(j).getInputs().get(0).getValue().getInputs().get(0).getValue()
@@ -189,10 +190,25 @@ public class PlanCompiler {
             createSchema(operators.get(j), schemas, outerPlanSchema, builder);
 
         }
-        if (!first)
+        if (notJoinInPlan()) {
             finished = true;
+        }
         return;
 
+    }
+
+    private boolean notJoinInPlan() {
+        int joins = 0;
+        for (ILogicalOperator op : operators) {
+            if (op.getOperatorTag() == LogicalOperatorTag.INNERJOIN) {
+                joins++;
+                //return false;
+            }
+        }
+        if (joins > 1) {
+            return false;
+        }
+        return true;
     }
 
     public void createSchema(ILogicalOperator op, IOperatorSchema[] schemas, IOperatorSchema outerPlanSchema,

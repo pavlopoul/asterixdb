@@ -52,7 +52,7 @@ public class KeyFieldTypeUtil {
      */
     public static List<IAType> getPartitoningKeyTypes(Dataset dataset, ARecordType recordType,
             ARecordType metaRecordType) throws AlgebricksException {
-        if (dataset.getDatasetType() != DatasetType.INTERNAL) {
+        if (dataset.getDatasetType() != DatasetType.INTERNAL && dataset.getDatasetType() != DatasetType.READER) {
             return null;
         }
         InternalDatasetDetails datasetDetails = (InternalDatasetDetails) dataset.getDatasetDetails();

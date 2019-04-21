@@ -98,7 +98,7 @@ public class DatasetRewriter implements IFunctionToDataSourceRewriter, IResultTy
         }
         DataSourceId asid = new DataSourceId(dataverseName, datasetName);
         List<LogicalVariable> variables = new ArrayList<>();
-        if (dataset.getDatasetType() == DatasetType.INTERNAL) {
+        if (dataset.getDatasetType() == DatasetType.INTERNAL || dataset.getDatasetType() == DatasetType.READER) {
             int numPrimaryKeys = dataset.getPrimaryKeys().size();
             for (int i = 0; i < numPrimaryKeys; i++) {
                 variables.add(context.newVar());

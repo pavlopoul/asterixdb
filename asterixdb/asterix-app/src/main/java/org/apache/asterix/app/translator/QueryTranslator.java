@@ -254,8 +254,6 @@ import org.apache.hyracks.control.common.job.profiling.om.TaskProfile;
 import org.apache.hyracks.dataflow.std.connectors.OneToOneConnectorDescriptor;
 import org.apache.hyracks.dataflow.std.join.OptimizedHybridHashJoinOperatorDescriptor;
 import org.apache.hyracks.dataflow.std.misc.IncrementalSinkOperatorDescriptor;
-import org.apache.hyracks.dataflow.std.misc.ReplicateOperatorDescriptor;
-import org.apache.hyracks.storage.am.btree.dataflow.BTreeSearchOperatorDescriptor;
 import org.apache.hyracks.storage.am.lsm.common.api.ILSMMergePolicyFactory;
 import org.apache.logging.log4j.Level;
 import org.apache.logging.log4j.LogManager;
@@ -997,7 +995,7 @@ public class QueryTranslator extends AbstractLangTranslator implements IStatemen
         boolean filesIndexReplicated = false;
         try {
             index.setPendingOp(MetadataUtil.PENDING_ADD_OP);
-            if (ds.getDatasetType() == DatasetType.INTERNAL) {
+            if (ds.getDatasetType() == DatasetType.INTERNAL || ds.getDatasetType() == DatasetType.READER) {
                 validateDatasetState(metadataProvider, ds, sourceLoc);
             } else {
                 // External dataset
@@ -2672,8 +2670,6 @@ public class QueryTranslator extends AbstractLangTranslator implements IStatemen
         ClientJobRequest req = null;
         JobSpecification jobSpec = null;
         List<ILogicalOperator> operators = new ArrayList<>();
-        IOperatorDescriptor firstOp = null;
-        JobSpecification writer = null;
         Query newQuery = null;
         boolean first = true;
         RecordDescriptor[] rdesc = null;
@@ -2879,60 +2875,21 @@ public class QueryTranslator extends AbstractLangTranslator implements IStatemen
                         0);
                 jobSpec.connect(new OneToOneConnectorDescriptor(jobSpec), amod, 0, jobSpec.getOperatorMap().get(id), 0);
 
-                writer = jobSpec;
             } else {
-                OperatorDescriptorId aod = null;
-
-                OperatorDescriptorId id = null;
                 OperatorDescriptorId rid = null;
+                ConnectorDescriptorId cId = null;
 
-                for (Entry<OperatorDescriptorId, IOperatorDescriptor> entry : jobSpec.getOperatorMap().entrySet()) {
-                    if (entry.getValue() instanceof AlgebricksMetaOperatorDescriptor) {
-                        AlgebricksMetaOperatorDescriptor amod = (AlgebricksMetaOperatorDescriptor) entry.getValue();
-                        if (amod.getOutputRecordDescriptors()[0].getFields().length != 0) {
-                            aod = entry.getKey();
-                        } else {
-                            id = entry.getKey();
-                        }
-                    }
-                    if (entry.getValue() instanceof BTreeSearchOperatorDescriptor) {
-                        rid = entry.getKey();
+                for (Entry<ConnectorDescriptorId, org.apache.commons.lang3.tuple.Pair<org.apache.commons.lang3.tuple.Pair<IOperatorDescriptor, Integer>, org.apache.commons.lang3.tuple.Pair<IOperatorDescriptor, Integer>>> entry : jobSpec
+                        .getConnectorOperatorMap().entrySet()) {
+                    if (entry.getValue().getRight().getKey() instanceof ReaderJobOperatorDescriptor) {
+                        rid = entry.getValue().getLeft().getKey().getOperatorId();
+                        cId = entry.getKey();
                     }
                 }
-                firstOp = new ReaderJobOperatorDescriptor(jobSpec, internalRecordDescriptors[2]);
-                ReplicateOperatorDescriptor replicate =
-                        new ReplicateOperatorDescriptor(jobSpec, firstOp.getOutputRecordDescriptors()[0], 1);
-                String[] readerLocations =
-                        mp.getApplicationContext().getClusterStateManager().getClusterLocations().getLocations();
-                PartitionConstraintHelper.addAbsoluteLocationConstraint(jobSpec, firstOp, readerLocations);
-                PartitionConstraintHelper.addAbsoluteLocationConstraint(jobSpec, replicate, readerLocations);
-                jobSpec.connect(new OneToOneConnectorDescriptor(jobSpec), firstOp, 0, replicate, 0);
-                jobSpec.connect(new OneToOneConnectorDescriptor(jobSpec), replicate, 0,
-                        jobSpec.getOperatorMap().get(aod), 0);
 
-                jobSpec.getConnectorMap().remove(new ConnectorDescriptorId(0));
-                jobSpec.getConnectorOperatorMap().remove(new ConnectorDescriptorId(0));
-                jobSpec.getConnectorMap().remove(new ConnectorDescriptorId(1));
-                jobSpec.getConnectorOperatorMap().remove(new ConnectorDescriptorId(1));
-                jobSpec.getOperatorMap().remove(id);
+                jobSpec.getConnectorOperatorMap().remove(cId);
+                jobSpec.getConnectorMap().remove(cId);
                 jobSpec.getOperatorMap().remove(rid);
-
-                //                for (Constraint constraint : writer.getUserConstraints()) {
-                //                    LValueConstraintExpression lexpr = constraint.getLValue();
-                //                    if (lexpr.getTag() == ExpressionTag.PARTITION_COUNT) {
-                //                        PartitionCountExpression pce = (PartitionCountExpression) lexpr;
-                //                        if (pce.getOperatorDescriptorId() == id) {
-                //                            writer.getUserConstraints().remove(constraint);
-                //                        }
-                //
-                //                    } else {
-                //                        PartitionLocationExpression ple = (PartitionLocationExpression) lexpr;
-                //                        if (ple.getOperatorDescriptorId() == id) {
-                //                            writer.getUserConstraints().remove(constraint);
-                //                        }
-                //                    }
-                //                }
-
             }
             final JobId jobId = JobUtils.runJob(hcc, jobSpec, jobFlags, false);
             if (ctx != null && clientContextId != null) {
@@ -2969,7 +2926,7 @@ public class QueryTranslator extends AbstractLangTranslator implements IStatemen
                 "newdata." + recordTypeName, "prefix", dataSource.getDataset().getCompactionPolicyProperties(),
                 new InternalDatasetDetails(FileStructure.BTREE, PartitioningStrategy.HASH, new ArrayList<>(), primKey,
                         new ArrayList<>(), strType, false, new ArrayList<>()),
-                new HashMap<>(), DatasetType.INTERNAL, 1, 0, 0, "none");
+                new HashMap<>(), DatasetType.READER, 1, 0, 0, "none");
         List<Expression> exprList = addArgs(newSet.getDataverseName() + "." + newSet.getDatasetName());
         CallExpr datasrouceCallFunction = new CallExpr(new FunctionSignature(BuiltinFunctions.DATASET), exprList);
         FromTerm fromterm = new FromTerm(datasrouceCallFunction, fromTermLeftExpr, null, null);
@@ -2982,9 +2939,6 @@ public class QueryTranslator extends AbstractLangTranslator implements IStatemen
             FromClause fromold = select.getSelectSetOperation().getLeftInput().getSelectBlock().getFromClause();
             fromTermOld = fromold.getFromTerms();
         }
-        //        fromTermOld.remove(0);
-        //        fromTermOld.remove(0);
-        //        fromTermOld.add(0, fromterm);
         for (int i = 2; i < fromTermOld.size(); i++) {
             fromTermNew.add(fromTermOld.get(i));
         }
@@ -3018,18 +2972,16 @@ public class QueryTranslator extends AbstractLangTranslator implements IStatemen
                     newWhereExpr.addOperator(whereExpr.getOpList().get(i));
                 }
             }
-            //            whereExpr.getExprList().remove(0);
-            //            whereExpr.getOpList().remove(0);
             OperatorExpr oldOp = (OperatorExpr) whereExpr.getExprList().get(1);
             FieldAccessor field = (FieldAccessor) oldOp.getExprList().get(0);
             FieldAccessor newField = new FieldAccessor(fromTermLeftExpr, field.getIdent());
-            OperatorExpr newOp = new OperatorExpr();
-            for (int i = 1; i < oldOp.getExprList().size(); i++) {
-                newOp.addOperand(oldOp.getExprList().get(i));
+            if (newWhereExpr.getOpList().size() > 0) {
+                ((OperatorExpr) newWhereExpr.getExprList().get(0)).getExprList().set(0, newField);
+            } else {
+                newWhereExpr.getExprList().add(oldOp.getExprList().get(1));
+                newWhereExpr.getExprList().set(0, newField);
+                newWhereExpr.addOperator(oldOp.getOpList().get(0));
             }
-            // newOp.getExprList().remove(0);
-            newOp.getExprList().add(0, newField);
-            //newWhereExpr
             WhereClause newwhere = new WhereClause(newWhereExpr);
             SelectBlock selectBlock = new SelectBlock(selectClause, fromClause, null, newwhere, null, null, null);
             SelectSetOperation selectSetOperation =

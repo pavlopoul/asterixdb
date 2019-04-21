@@ -129,8 +129,10 @@ import org.apache.asterix.lang.common.struct.VarIdentifier;
 import org.apache.asterix.lang.common.util.FunctionUtil;
 import org.apache.asterix.lang.sqlpp.clause.FromClause;
 import org.apache.asterix.lang.sqlpp.clause.FromTerm;
+import org.apache.asterix.lang.sqlpp.clause.Projection;
 import org.apache.asterix.lang.sqlpp.clause.SelectBlock;
 import org.apache.asterix.lang.sqlpp.clause.SelectClause;
+import org.apache.asterix.lang.sqlpp.clause.SelectRegular;
 import org.apache.asterix.lang.sqlpp.clause.SelectSetOperation;
 import org.apache.asterix.lang.sqlpp.expression.SelectExpression;
 import org.apache.asterix.lang.sqlpp.struct.SetOperationInput;
@@ -2675,6 +2677,7 @@ public class QueryTranslator extends AbstractLangTranslator implements IStatemen
         RecordDescriptor[] rdesc = null;
         DatasetDataSource dataSource1 = null;
         List<LogicalVariable> evars = null;
+        List<String> datasources = new ArrayList<>();
         RecordDescriptor[] internalRecordDescriptors = new RecordDescriptor[3];
         while (!getFinished()) {
             locker.lock();
@@ -2691,12 +2694,14 @@ public class QueryTranslator extends AbstractLangTranslator implements IStatemen
                 VariableReferenceExpression varexpr = null;
                 int i = 0;
                 for (ILogicalOperator op : operators) {
-
                     if (op.getOperatorTag() == LogicalOperatorTag.INNERJOIN) {
                         vars = op.getSchema();
                         evars = vars;
                         types = new IAType[vars.size()];
                         fieldNames = new String[vars.size()];
+                        if (!datasources.isEmpty()) {
+                            datasources.clear();
+                        }
                     }
                     if (op.getOperatorTag() == LogicalOperatorTag.ASSIGN) {
                         if (vars != null)
@@ -2730,7 +2735,7 @@ public class QueryTranslator extends AbstractLangTranslator implements IStatemen
                                             (ScalarFunctionCallExpression) expressions.get(0).getValue();
                                     varexpr = (VariableReferenceExpression) sfce1.getArguments().get(0).getValue();
                                     recordTypeName = varexpr.getVariableReference().toString().substring(2);
-
+                                    datasources.add(recordTypeName);
                                 }
                                 break;
                             }
@@ -2740,11 +2745,14 @@ public class QueryTranslator extends AbstractLangTranslator implements IStatemen
                             for (LogicalVariable var : vars) {
                                 if (var == ((DataSourceScanOperator) op).getVariables().get(0)) {
                                     DataSourceScanOperator scan = (DataSourceScanOperator) op;
+
                                     IAType type = (IAType) scan.getDataSource().getSchemaTypes()[0];
                                     types[i] = type;
                                     DatasetDataSource datasource = (DatasetDataSource) scan.getDataSource();
                                     ARecordType rType = (ARecordType) datasource.getItemType();
                                     fieldNames[i] = rType.getFieldNames()[0];
+                                    datasources.add(scan.getVariables().get(scan.getVariables().size() - 1).toString()
+                                            .substring(2));
                                     i++;
                                 }
                             }
@@ -2800,8 +2808,8 @@ public class QueryTranslator extends AbstractLangTranslator implements IStatemen
                     }
                 }
                 jobSpec.getConnectorMap().remove(connId);
-                newQuery =
-                        makeConnectionQuery(varexpr, recordTypeName, dataSource1, newRecordType, mp, primKey, strType);
+                newQuery = makeConnectionQuery(varexpr, recordTypeName, dataSource1, newRecordType, mp, primKey,
+                        strType, datasources);
                 OperatorDescriptorId odId = null;
                 OperatorDescriptorId id = null;
                 for (Entry<OperatorDescriptorId, IOperatorDescriptor> entry : jobSpec.getOperatorMap().entrySet()) {
@@ -2918,7 +2926,7 @@ public class QueryTranslator extends AbstractLangTranslator implements IStatemen
 
     private Query makeConnectionQuery(VariableReferenceExpression varexpr, String recordTypeName,
             DatasetDataSource dataSource, IAType newRecordType, MetadataProvider mp, List<List<String>> primKey,
-            List<IAType> strType) throws AlgebricksException, ACIDException, RemoteException {
+            List<IAType> strType, List<String> datasources) throws AlgebricksException, ACIDException, RemoteException {
         Query newQuery = null;
         VarIdentifier fromVarId = new VarIdentifier(varexpr.getVariableReference().toString().substring(1));
         VariableExpr fromTermLeftExpr = new VariableExpr(fromVarId);
@@ -2934,13 +2942,38 @@ public class QueryTranslator extends AbstractLangTranslator implements IStatemen
         Expression exp = oldQuery.getBody();
         List<FromTerm> fromTermOld = null;
         List<FromTerm> fromTermNew = new ArrayList<>();
+        SelectClause oldselect = null;
+        SelectClause newselect = null;
         if (exp.getKind() == Kind.SELECT_EXPRESSION) {
             SelectExpression select = (SelectExpression) exp;
+            oldselect = select.getSelectSetOperation().getLeftInput().getSelectBlock().getSelectClause();
+            newselect = oldselect;
             FromClause fromold = select.getSelectSetOperation().getLeftInput().getSelectBlock().getFromClause();
             fromTermOld = fromold.getFromTerms();
         }
-        for (int i = 2; i < fromTermOld.size(); i++) {
-            fromTermNew.add(fromTermOld.get(i));
+        VariableExpr oldselexp =
+                (VariableExpr) ((FieldAccessor) oldselect.getSelectRegular().getProjections().get(0).getExpression())
+                        .getExpr();
+        List<Projection> newprojection = new ArrayList<>();
+        for (String datasource : datasources) {
+            if (oldselexp.getVar().getValue().substring(1).equals(datasource)) {
+                newprojection
+                        .add(new Projection(
+                                new FieldAccessor(fromTermLeftExpr,
+                                        ((FieldAccessor) oldselect.getSelectRegular().getProjections().get(0)
+                                                .getExpression()).getIdent()),
+                                oldselect.getSelectRegular().getProjections().get(0).getName(), false, false));
+
+            }
+        }
+        if (!newprojection.isEmpty()) {
+            newselect = new SelectClause(null, new SelectRegular(newprojection), false);
+        }
+        for (FromTerm oldterm : fromTermOld) {
+            if (!oldterm.getLeftVariable().toString().substring(1).equals(datasources.get(0))
+                    && !oldterm.getLeftVariable().toString().substring(1).equals(datasources.get(1))) {
+                fromTermNew.add(oldterm);
+            }
         }
         fromTermNew.add(0, fromterm);
         FromClause fromClause = new FromClause(fromTermNew);
@@ -2961,29 +2994,60 @@ public class QueryTranslator extends AbstractLangTranslator implements IStatemen
                                 .getNodeNames()));
         if (exp.getKind() == Kind.SELECT_EXPRESSION) {
             SelectExpression select = (SelectExpression) exp;
-            SelectClause selectClause =
-                    select.getSelectSetOperation().getLeftInput().getSelectBlock().getSelectClause();
             WhereClause whereClause = select.getSelectSetOperation().getLeftInput().getSelectBlock().getWhereClause();
             OperatorExpr whereExpr = (OperatorExpr) whereClause.getWhereExpr();
             OperatorExpr newWhereExpr = new OperatorExpr();
-            for (int i = 1; i < whereExpr.getExprList().size(); i++) {
-                newWhereExpr.addOperand(whereExpr.getExprList().get(i));
-                if (whereExpr.getExprList().size() > 2) {
-                    newWhereExpr.addOperator(whereExpr.getOpList().get(i));
+            for (Expression e : whereExpr.getExprList()) {
+                OperatorExpr oE = (OperatorExpr) e;
+                FieldAccessor fE1 = (FieldAccessor) oE.getExprList().get(0);
+                FieldAccessor fE2 = (FieldAccessor) oE.getExprList().get(1);
+                if (fE1.getExpr().toString().substring(1).equals(datasources.get(0))
+                        || fE1.getExpr().toString().substring(1).equals(datasources.get(1))) {
+                    if (fE2.getExpr().toString().substring(1).equals(datasources.get(0))
+                            || fE2.getExpr().toString().substring(1).equals(datasources.get(1))) {
+                        continue;
+                    }
+                }
+                newWhereExpr.addOperand(e);
+            }
+            for (int i = 1; i < whereExpr.getOpList().size(); i++) {
+                newWhereExpr.addOperator(whereExpr.getOpList().get(i));
+            }
+            if (newWhereExpr.getOpList().size() == 0) {
+                OperatorExpr oE = (OperatorExpr) newWhereExpr.getExprList().get(0);
+                FieldAccessor fE1 = (FieldAccessor) oE.getExprList().get(0);
+                FieldAccessor fE2 = (FieldAccessor) oE.getExprList().get(1);
+                if (fE1.getExpr().toString().substring(1).equals(datasources.get(0))
+                        || fE1.getExpr().toString().substring(1).equals(datasources.get(1))) {
+                    fE1 = new FieldAccessor(fromTermLeftExpr, fE1.getIdent());
+                } else {
+                    fE2 = new FieldAccessor(fromTermLeftExpr, fE2.getIdent());
+                }
+
+                newWhereExpr.addOperator(oE.getOpList().get(0));
+                newWhereExpr.getExprList().add(fE2);
+                newWhereExpr.getExprList().set(0, fE1);
+            } else {
+                for (Expression e : newWhereExpr.getExprList()) {
+                    OperatorExpr oE = (OperatorExpr) e;
+                    FieldAccessor fE1 = (FieldAccessor) oE.getExprList().get(0);
+                    FieldAccessor fE2 = (FieldAccessor) oE.getExprList().get(1);
+                    if (fE1.getExpr().toString().substring(1).equals(datasources.get(0))
+                            || fE1.getExpr().toString().substring(1).equals(datasources.get(1))) {
+                        fE1 = new FieldAccessor(fromTermLeftExpr, fE1.getIdent());
+                        oE.getExprList().set(0, fE1);
+                    } else if (fE2.getExpr().toString().substring(1).equals(datasources.get(0))
+                            || fE2.getExpr().toString().substring(1).equals(datasources.get(1))) {
+                        fE2 = new FieldAccessor(fromTermLeftExpr, fE2.getIdent());
+                        oE.getExprList().set(1, fE2);
+                    } else {
+                        continue;
+                    }
+
                 }
             }
-            OperatorExpr oldOp = (OperatorExpr) whereExpr.getExprList().get(1);
-            FieldAccessor field = (FieldAccessor) oldOp.getExprList().get(0);
-            FieldAccessor newField = new FieldAccessor(fromTermLeftExpr, field.getIdent());
-            if (newWhereExpr.getOpList().size() > 0) {
-                ((OperatorExpr) newWhereExpr.getExprList().get(0)).getExprList().set(0, newField);
-            } else {
-                newWhereExpr.getExprList().add(oldOp.getExprList().get(1));
-                newWhereExpr.getExprList().set(0, newField);
-                newWhereExpr.addOperator(oldOp.getOpList().get(0));
-            }
             WhereClause newwhere = new WhereClause(newWhereExpr);
-            SelectBlock selectBlock = new SelectBlock(selectClause, fromClause, null, newwhere, null, null, null);
+            SelectBlock selectBlock = new SelectBlock(newselect, fromClause, null, newwhere, null, null, null);
             SelectSetOperation selectSetOperation =
                     new SelectSetOperation(new SetOperationInput(selectBlock, null), null);
             SelectExpression body = new SelectExpression(null, selectSetOperation, null, null, true);

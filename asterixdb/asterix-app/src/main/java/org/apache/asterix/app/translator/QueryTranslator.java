@@ -2774,10 +2774,10 @@ public class QueryTranslator extends AbstractLangTranslator implements IStatemen
                 ClosedRecordConstructorEvalFactory crc = new ClosedRecordConstructorEvalFactory(args, recType);
                 List<List<String>> primKey = new ArrayList<>();
                 List<String> str = new ArrayList<>();
-                str.add(fieldNames[2]);
+                str.add(fieldNames[1]);
                 primKey.add(str);
                 List<IAType> strType = new ArrayList<>();
-                strType.add(types[2]);
+                strType.add(types[1]);
                 IAType newRecordType = new ARecordType(recordTypeName, fieldNames, types, false);
                 for (Entry<OperatorDescriptorId, List<IConnectorDescriptor>> entry : jobSpec.getOperatorInputMap()
                         .entrySet()) {
@@ -2981,6 +2981,8 @@ public class QueryTranslator extends AbstractLangTranslator implements IStatemen
         Datatype newDatatype = new Datatype("newdata", recordTypeName, newRecordType, false);
         final MetadataTransactionContext writeTxn = MetadataManager.INSTANCE.beginTransaction();
         if (MetadataManager.INSTANCE.getDataverse(writeTxn, newDataverse.getDataverseName()) != null) {
+            MetadataManager.INSTANCE.dropDataset(writeTxn, newDataverse.getDataverseName(), newSet.getDatasetName());
+            MetadataManager.INSTANCE.dropDatatype(writeTxn, newDataverse.getDataverseName(), newSet.getItemTypeName());
             MetadataManager.INSTANCE.dropDataverse(writeTxn, newDataverse.getDataverseName());
             MetadataManager.INSTANCE.dropNodegroup(writeTxn, newSet.getNodeGroupName(), true);
         }

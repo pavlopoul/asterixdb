@@ -282,6 +282,7 @@ public class QueryTranslator extends AbstractLangTranslator implements IStatemen
     protected final ExecutorService executorService;
     protected final EnumSet<JobFlag> jobFlags = EnumSet.noneOf(JobFlag.class);
     protected final IMetadataLockManager lockManager;
+    protected int queries;
 
     public QueryTranslator(ICcApplicationContext appCtx, List<Statement> statements, SessionOutput output,
             ILangCompilationProvider compilationProvider, ExecutorService executorService) {
@@ -295,6 +296,7 @@ public class QueryTranslator extends AbstractLangTranslator implements IStatemen
         apiFramework = new APIFramework(compilationProvider);
         rewriterFactory = compilationProvider.getRewriterFactory();
         activeDataverse = MetadataBuiltinEntities.DEFAULT_DATAVERSE;
+        queries = 0;
         this.executorService = executorService;
         if (appCtx.getServiceContext().getAppConfig().getBoolean(CCConfig.Option.ENFORCE_FRAME_WRITER_PROTOCOL)) {
             this.jobFlags.add(JobFlag.ENFORCE_CONTRACT);
@@ -2789,7 +2791,9 @@ public class QueryTranslator extends AbstractLangTranslator implements IStatemen
                 primKey.add(str);
                 List<IAType> strType = new ArrayList<>();
                 strType.add(types[1]);
-                IAType newRecordType = new ARecordType(recordTypeName, fieldNames, types, false);
+                queries++;
+                IAType newRecordType =
+                        new ARecordType(recordTypeName + String.valueOf(queries), fieldNames, types, false);
                 for (Entry<OperatorDescriptorId, List<IConnectorDescriptor>> entry : jobSpec.getOperatorInputMap()
                         .entrySet()) {
                     if (jobSpec.getOperatorMap().get(entry.getKey()) instanceof AlgebricksMetaOperatorDescriptor) {
@@ -2819,8 +2823,8 @@ public class QueryTranslator extends AbstractLangTranslator implements IStatemen
                     }
                 }
                 jobSpec.getConnectorMap().remove(connId);
-                newQuery = makeConnectionQuery(varexpr, recordTypeName, dataSource1, newRecordType, mp, primKey,
-                        strType, datasources);
+                newQuery = makeConnectionQuery(varexpr, recordTypeName + String.valueOf(queries), dataSource1,
+                        newRecordType, mp, primKey, strType, datasources);
                 OperatorDescriptorId odId = null;
                 OperatorDescriptorId id = null;
                 for (Entry<OperatorDescriptorId, IOperatorDescriptor> entry : jobSpec.getOperatorMap().entrySet()) {
@@ -2893,22 +2897,9 @@ public class QueryTranslator extends AbstractLangTranslator implements IStatemen
                 jobSpec.connect(new OneToOneConnectorDescriptor(jobSpec), jobSpec.getOperatorMap().get(odId), 0, amod,
                         0);
                 jobSpec.connect(new OneToOneConnectorDescriptor(jobSpec), amod, 0, jobSpec.getOperatorMap().get(id), 0);
-
+                removeFromConnectors(0, jobSpec, jobSpec.getConnectorOperatorMap());
             } else {
-                OperatorDescriptorId rid = null;
-                ConnectorDescriptorId cId = null;
-
-                for (Entry<ConnectorDescriptorId, org.apache.commons.lang3.tuple.Pair<org.apache.commons.lang3.tuple.Pair<IOperatorDescriptor, Integer>, org.apache.commons.lang3.tuple.Pair<IOperatorDescriptor, Integer>>> entry : jobSpec
-                        .getConnectorOperatorMap().entrySet()) {
-                    if (entry.getValue().getRight().getKey() instanceof ReaderJobOperatorDescriptor) {
-                        rid = entry.getValue().getLeft().getKey().getOperatorId();
-                        cId = entry.getKey();
-                    }
-                }
-
-                jobSpec.getConnectorOperatorMap().remove(cId);
-                jobSpec.getConnectorMap().remove(cId);
-                jobSpec.getOperatorMap().remove(rid);
+                removeFromConnectors(0, jobSpec, jobSpec.getConnectorOperatorMap());
             }
             final JobId jobId = JobUtils.runJob(hcc, jobSpec, jobFlags, false);
             if (ctx != null && clientContextId != null) {
@@ -2930,6 +2921,38 @@ public class QueryTranslator extends AbstractLangTranslator implements IStatemen
                         req.complete();
                     }
                 }
+            }
+        }
+    }
+
+    private void removeFromConnectors(int readers, JobSpecification jobSpec,
+            Map<ConnectorDescriptorId, org.apache.commons.lang3.tuple.Pair<org.apache.commons.lang3.tuple.Pair<IOperatorDescriptor, Integer>, org.apache.commons.lang3.tuple.Pair<IOperatorDescriptor, Integer>>> connectors) {
+        OperatorDescriptorId rid = null;
+        OperatorDescriptorId rid2 = null;
+        ConnectorDescriptorId cId = null;
+        ConnectorDescriptorId cId2 = null;
+        for (Entry<ConnectorDescriptorId, org.apache.commons.lang3.tuple.Pair<org.apache.commons.lang3.tuple.Pair<IOperatorDescriptor, Integer>, org.apache.commons.lang3.tuple.Pair<IOperatorDescriptor, Integer>>> entry : connectors
+                .entrySet()) {
+            if (entry.getValue().getRight().getKey() instanceof ReaderJobOperatorDescriptor) {
+                readers++;
+                if (readers == 1) {
+                    rid = entry.getValue().getLeft().getKey().getOperatorId();
+                    cId = entry.getKey();
+                } else {
+                    rid2 = entry.getValue().getLeft().getKey().getOperatorId();
+                    cId2 = entry.getKey();
+                }
+
+            }
+        }
+        if (rid != null) {
+            jobSpec.getConnectorOperatorMap().remove(cId);
+            jobSpec.getConnectorMap().remove(cId);
+            jobSpec.getOperatorMap().remove(rid);
+            if (rid2 != null) {
+                jobSpec.getConnectorOperatorMap().remove(cId2);
+                jobSpec.getConnectorMap().remove(cId2);
+                jobSpec.getOperatorMap().remove(rid2);
             }
         }
     }
@@ -2991,20 +3014,22 @@ public class QueryTranslator extends AbstractLangTranslator implements IStatemen
         Datatype newDatatype = new Datatype("newdata", recordTypeName, newRecordType, false);
         final MetadataTransactionContext writeTxn = MetadataManager.INSTANCE.beginTransaction();
         mp.setMetadataTxnContext(writeTxn);
-        if (MetadataManager.INSTANCE.getDataverse(writeTxn, newDataverse.getDataverseName()) != null) {
-            MetadataManager.INSTANCE.dropDataset(writeTxn, newDataverse.getDataverseName(), newSet.getDatasetName());
-            MetadataManager.INSTANCE.dropDatatype(writeTxn, newDataverse.getDataverseName(), newSet.getItemTypeName());
+        if (MetadataManager.INSTANCE.getDataset(writeTxn, "newdata", newSet.getDatasetName()) != null) {
+            MetadataManager.INSTANCE.dropFromCache(writeTxn, newDataverse);
             MetadataManager.INSTANCE.dropDataverse(writeTxn, newDataverse.getDataverseName());
             MetadataManager.INSTANCE.dropNodegroup(writeTxn, newSet.getNodeGroupName(), true);
         }
-        MetadataManager.INSTANCE.addDataverse(writeTxn, newDataverse);
+        if (MetadataManager.INSTANCE.getDataverse(writeTxn, newDataverse.getDataverseName()) == null) {
+            MetadataManager.INSTANCE.addDataverse(writeTxn, newDataverse);
+        }
         MetadataManager.INSTANCE.addDataset(writeTxn, newSet);
         MetadataManager.INSTANCE.addDatatype(writeTxn, newDatatype);
-        MetadataManager.INSTANCE.addNodegroup(writeTxn,
-                new NodeGroup(newSet.getNodeGroupName(),
-                        MetadataManager.INSTANCE
-                                .getNodegroup(mp.getMetadataTxnContext(), dataSource.getDataset().getNodeGroupName())
-                                .getNodeNames()));
+        if (MetadataManager.INSTANCE.getNodegroup(writeTxn, newSet.getNodeGroupName()) == null) {
+            MetadataManager.INSTANCE.addNodegroup(writeTxn,
+                    new NodeGroup(newSet.getNodeGroupName(), MetadataManager.INSTANCE
+                            .getNodegroup(mp.getMetadataTxnContext(), dataSource.getDataset().getNodeGroupName())
+                            .getNodeNames()));
+        }
         if (exp.getKind() == Kind.SELECT_EXPRESSION) {
             SelectExpression select = (SelectExpression) exp;
             WhereClause whereClause = select.getSelectSetOperation().getLeftInput().getSelectBlock().getWhereClause();

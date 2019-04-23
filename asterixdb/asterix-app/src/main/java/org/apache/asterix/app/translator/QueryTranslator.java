@@ -2816,15 +2816,17 @@ public class QueryTranslator extends AbstractLangTranslator implements IStatemen
                         }
                     }
                 }
-                ConnectorDescriptorId connId = null;
+                List<ConnectorDescriptorId> connId = new ArrayList<>();
                 for (Entry<ConnectorDescriptorId, IConnectorDescriptor> entry : jobSpec.getConnectorMap().entrySet()) {
                     if (!jobSpec.getConnectorOperatorMap().containsKey(entry.getKey())) {
-                        connId = entry.getKey();
+                        connId.add(entry.getKey());
                     }
                 }
-                jobSpec.getConnectorMap().remove(connId);
+                for (ConnectorDescriptorId cid : connId) {
+                    jobSpec.getConnectorMap().remove(cid);
+                }
                 newQuery = makeConnectionQuery(varexpr, recordTypeName + String.valueOf(queries), dataSource1,
-                        newRecordType, mp, primKey, strType, datasources);
+                        newRecordType, mp, primKey, strType, datasources, newQuery);
                 OperatorDescriptorId odId = null;
                 OperatorDescriptorId id = null;
                 for (Entry<OperatorDescriptorId, IOperatorDescriptor> entry : jobSpec.getOperatorMap().entrySet()) {
@@ -2959,8 +2961,9 @@ public class QueryTranslator extends AbstractLangTranslator implements IStatemen
 
     private Query makeConnectionQuery(VariableReferenceExpression varexpr, String recordTypeName,
             DatasetDataSource dataSource, IAType newRecordType, MetadataProvider mp, List<List<String>> primKey,
-            List<IAType> strType, List<String> datasources) throws AlgebricksException, ACIDException, RemoteException {
-        Query newQuery = null;
+            List<IAType> strType, List<String> datasources, Query newQuery)
+            throws AlgebricksException, ACIDException, RemoteException {
+        //        Query newQuery = null;
         VarIdentifier fromVarId = new VarIdentifier(varexpr.getVariableReference().toString().substring(1));
         VariableExpr fromTermLeftExpr = new VariableExpr(fromVarId);
         Dataset newSet = new Dataset("newdata", recordTypeName, "newdata", recordTypeName, null, null,
@@ -2971,7 +2974,12 @@ public class QueryTranslator extends AbstractLangTranslator implements IStatemen
         List<Expression> exprList = addArgs(newSet.getDataverseName() + "." + newSet.getDatasetName());
         CallExpr datasrouceCallFunction = new CallExpr(new FunctionSignature(BuiltinFunctions.DATASET), exprList);
         FromTerm fromterm = new FromTerm(datasrouceCallFunction, fromTermLeftExpr, null, null);
-        Query oldQuery = (Query) statements.get(1);
+        Query oldQuery = null;
+        if (newQuery == null) {
+            oldQuery = (Query) statements.get(1);
+        } else {
+            oldQuery = newQuery;
+        }
         Expression exp = oldQuery.getBody();
         List<FromTerm> fromTermOld = null;
         List<FromTerm> fromTermNew = new ArrayList<>();

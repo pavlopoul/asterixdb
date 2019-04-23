@@ -227,17 +227,6 @@ public class APIFramework {
         if (newQuery == null) {
             plan = isLoad ? t.translateLoad(statement) : t.translate(query, outputDatasetName, statement);
         } else {
-            //            Expression exp = newQuery.getBody();
-            //            SelectExpression select = (SelectExpression) exp;
-            //            SelectClause selectClause =
-            //                    select.getSelectSetOperation().getLeftInput().getSelectBlock().getSelectClause();
-            //            FieldAccessor field =
-            //                    (FieldAccessor) selectClause.getSelectRegular().getProjections().get(0).getExpression();
-            //            VariableExpr var = (VariableExpr) field.getExpr();
-            //            if (var.getVar().getId() == 0) {
-            //                var.getVar().setId(select.getSelectSetOperation().getLeftInput().getSelectBlock().getFromClause()
-            //                        .getFromTerms().get(0).getLeftVariable().getVar().getId());
-            //            }
             ILogicalPlan newplan =
                     isLoad ? t.translateLoad(statement) : t.translate(newQuery, outputDatasetName, statement);
             plan = newplan;

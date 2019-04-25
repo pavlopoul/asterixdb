@@ -68,8 +68,10 @@ public class StatisticsUtil {
                             (AIntegerSerializerDeserializer) SerializerDeserializerProvider.INSTANCE
                                     .getNonTaggedSerializerDeserializer(statisticsType);
                     int statisticsFieldIdx = recordType.getFieldIndex(unorderedStatisticsFields[i]);
-                    result.add(getFieldExtractor(serDe, recordType, statisticsFieldIdx, unorderedStatisticsFields[i],
-                            typeTraitProvider.getTypeTrait(statisticsType)));
+                    //                    result.add(getFieldExtractor(serDe, recordType, statisticsFieldIdx, unorderedStatisticsFields[i],
+                    //                            typeTraitProvider.getTypeTrait(statisticsType)));
+                    result.add(new FieldExtractor(serDe, 0, unorderedStatisticsFields[i],
+                            typeTraitProvider.getTypeTrait(statisticsType), statisticsType.getTypeTag()));
                 }
             }
         }

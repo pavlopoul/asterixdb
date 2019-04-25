@@ -68,10 +68,8 @@ public class StatisticsUtil {
                             (AIntegerSerializerDeserializer) SerializerDeserializerProvider.INSTANCE
                                     .getNonTaggedSerializerDeserializer(statisticsType);
                     int statisticsFieldIdx = recordType.getFieldIndex(unorderedStatisticsFields[i]);
-                    //                    result.add(getFieldExtractor(serDe, recordType, statisticsFieldIdx, unorderedStatisticsFields[i],
-                    //                            typeTraitProvider.getTypeTrait(statisticsType)));
-                    result.add(new FieldExtractor(serDe, 0, unorderedStatisticsFields[i],
-                            typeTraitProvider.getTypeTrait(statisticsType), statisticsType.getTypeTag()));
+                    result.add(getFieldExtractor(serDe, recordType, statisticsFieldIdx, unorderedStatisticsFields[i],
+                            typeTraitProvider.getTypeTrait(statisticsType)));
                 }
             }
         }
@@ -84,8 +82,6 @@ public class StatisticsUtil {
         final int hyracksFieldIdx = 1;
         return new IFieldExtractor() {
             private static final long serialVersionUID = 1L;
-
-            private final ARecordPointable recPointable = ARecordPointable.FACTORY.createPointable();
 
             @Override
             public String getFieldName() {
@@ -104,6 +100,7 @@ public class StatisticsUtil {
 
             @Override
             public Long extractFieldValue(ITupleReference tuple) throws HyracksDataException {
+                final ARecordPointable recPointable = ARecordPointable.FACTORY.createPointable();
                 if (tuple.getFieldCount() < hyracksFieldIdx) {
                     throw new HyracksDataException(
                             "Cannot extract field " + hyracksFieldIdx + " from incoming hyracks tuple");

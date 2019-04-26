@@ -18,6 +18,7 @@
  */
 package org.apache.asterix.statistics.common;
 
+import java.io.File;
 import java.io.Serializable;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
@@ -109,10 +110,10 @@ public class StatisticsManager implements IStatisticsManager {
     private List<String> parsePathComponents(String componentPath) throws HyracksDataException {
         //TODO: Find a more elegant way of getting dataverse/dataset/timestamp from stats rather then parsing filepaths
         String numPattern = "\\d";
-        //   String numPattern = "(\\d)";
-        String namePattern = "([^\\\\]+)";
-        String dirPattern = namePattern + "\\\\";
-        String indexDatasetPattern = namePattern + "\\\\" + numPattern + "\\\\" + namePattern + "\\\\";
+        String namePattern = "([^" + File.separator + "]+)";
+        String dirPattern = namePattern + File.separator;
+        String indexDatasetPattern =
+                namePattern + File.separator + numPattern + File.separator + namePattern + File.separator;
         // Disk component name format: T2_T1_s. T2 & T1 are the same for flush component.
         // For merged component T2 is the max timestamp of the latest component, T1 - min timestamp of the earliest.
         String timestampPattern = "(\\d{4}-\\d{2}-\\d{2}-\\d{2}-\\d{2}-\\d{2}-\\d{3})";
@@ -142,6 +143,39 @@ public class StatisticsManager implements IStatisticsManager {
             results.add(m.group(i));
         }
         return results;
+        //        String numPattern = "\\d";
+        //        String namePattern = "([^\\\\]+)";
+        //        String dirPattern = namePattern + "\\\\";
+        //        String indexDatasetPattern = namePattern + "\\\\" + numPattern + "\\\\" + namePattern + "\\\\";
+        //        // Disk component name format: T2_T1_s. T2 & T1 are the same for flush component.
+        //        // For merged component T2 is the max timestamp of the latest component, T1 - min timestamp of the earliest.
+        //        String timestampPattern = "(\\d{4}-\\d{2}-\\d{2}-\\d{2}-\\d{2}-\\d{2}-\\d{3})";
+        //
+        //        StringBuilder regexpStringBuilder = new StringBuilder();
+        //        //non-greedy pattern for storage directory name
+        //        regexpStringBuilder.append(dirPattern).append("+?");
+        //        //partition name
+        //        regexpStringBuilder.append(dirPattern);
+        //        //dataverse name
+        //        regexpStringBuilder.append(dirPattern);
+        //        //dataset & index names
+        //        regexpStringBuilder.append(indexDatasetPattern);
+        //        //component name
+        //        regexpStringBuilder.append(timestampPattern).append(AbstractLSMIndexFileManager.DELIMITER)
+        //                .append(timestampPattern).append(AbstractLSMIndexFileManager.DELIMITER)
+        //                .append(AbstractLSMIndexFileManager.BTREE_SUFFIX);
+        //
+        //        Pattern p = Pattern.compile(regexpStringBuilder.toString());
+        //        Matcher m = p.matcher(componentPath);
+        //        if (!m.matches()) {
+        //            throw new HyracksDataException("Cannot parse out component's path");
+        //        }
+        //
+        //        List<String> results = new ArrayList<>();
+        //        for (int i = 1; i <= m.groupCount(); i++) {
+        //            results.add(m.group(i));
+        //        }
+        //        return results;
     }
 
     private void sendFlushSynopsisStatistics(Collection<StatisticsEntry> flushComponentSynopses,
@@ -151,13 +185,15 @@ public class StatisticsManager implements IStatisticsManager {
             if (flushComponentSynopsis != null) {
                 List<String> parsedComponentsPath =
                         parsePathComponents(((BTree) newComponent.getIndex()).getFileReference().getRelativePath());
-                ICcAddressedMessage msg = new ReportFlushComponentStatisticsMessage(flushComponentSynopsis,
-                        ncContext.getNodeId(), parsedComponentsPath.get(1),
-                        new ComponentStatisticsId(
-                                LocalDateTime.parse(parsedComponentsPath.get(7), AbstractLSMIndexFileManager.FORMATTER),
-                                LocalDateTime.parse(parsedComponentsPath.get(6),
-                                        AbstractLSMIndexFileManager.FORMATTER)),
-                        isAntimatter);
+                ICcAddressedMessage msg =
+                        new ReportFlushComponentStatisticsMessage(flushComponentSynopsis, ncContext.getNodeId(),
+                                parsedComponentsPath.get(1),
+                                new ComponentStatisticsId(
+                                        LocalDateTime.parse(parsedComponentsPath.get(6),
+                                                AbstractLSMIndexFileManager.FORMATTER),
+                                        LocalDateTime.parse(parsedComponentsPath.get(5),
+                                                AbstractLSMIndexFileManager.FORMATTER)),
+                                isAntimatter);
                 sendMessage(msg);
             }
         }

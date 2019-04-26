@@ -109,6 +109,7 @@ public class StatisticsManager implements IStatisticsManager {
     private List<String> parsePathComponents(String componentPath) throws HyracksDataException {
         //TODO: Find a more elegant way of getting dataverse/dataset/timestamp from stats rather then parsing filepaths
         String numPattern = "\\d";
+        //   String numPattern = "(\\d)";
         String namePattern = "([^\\\\]+)";
         String dirPattern = namePattern + "\\\\";
         String indexDatasetPattern = namePattern + "\\\\" + numPattern + "\\\\" + namePattern + "\\\\";
@@ -150,15 +151,13 @@ public class StatisticsManager implements IStatisticsManager {
             if (flushComponentSynopsis != null) {
                 List<String> parsedComponentsPath =
                         parsePathComponents(((BTree) newComponent.getIndex()).getFileReference().getRelativePath());
-                ICcAddressedMessage msg =
-                        new ReportFlushComponentStatisticsMessage(flushComponentSynopsis, ncContext.getNodeId(),
-                                parsedComponentsPath.get(1),
-                                new ComponentStatisticsId(
-                                        LocalDateTime.parse(parsedComponentsPath.get(7),
-                                                AbstractLSMIndexFileManager.FORMATTER),
-                                        LocalDateTime.parse(parsedComponentsPath.get(6),
-                                                AbstractLSMIndexFileManager.FORMATTER)),
-                                isAntimatter);
+                ICcAddressedMessage msg = new ReportFlushComponentStatisticsMessage(flushComponentSynopsis,
+                        ncContext.getNodeId(), parsedComponentsPath.get(1),
+                        new ComponentStatisticsId(
+                                LocalDateTime.parse(parsedComponentsPath.get(7), AbstractLSMIndexFileManager.FORMATTER),
+                                LocalDateTime.parse(parsedComponentsPath.get(6),
+                                        AbstractLSMIndexFileManager.FORMATTER)),
+                        isAntimatter);
                 sendMessage(msg);
             }
         }

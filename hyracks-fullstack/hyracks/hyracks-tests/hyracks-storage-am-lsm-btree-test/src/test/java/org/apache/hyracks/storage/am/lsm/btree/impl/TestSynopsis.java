@@ -19,6 +19,7 @@
 package org.apache.hyracks.storage.am.lsm.btree.impl;
 
 import java.util.Collection;
+import java.util.Map;
 import java.util.TreeSet;
 
 import org.apache.hyracks.api.exceptions.HyracksDataException;
@@ -62,5 +63,23 @@ public class TestSynopsis implements ISynopsis<TestSynopsisElement> {
         if (mergeSynopsis != null) {
             elements.addAll(mergeSynopsis.getElements());
         }
+    }
+
+    @Override
+    public double joinQuery(ISynopsis synopsis, boolean primIndex) {
+        // TODO Auto-generated method stub
+        return 0;
+    }
+
+    @Override
+    public Map<Long, Integer> getMap() {
+        // TODO Auto-generated method stub
+        return null;
+    }
+
+    @Override
+    public long uniqueQuery(boolean primIndex) {
+        // TODO Auto-generated method stub
+        return 0;
     }
 }

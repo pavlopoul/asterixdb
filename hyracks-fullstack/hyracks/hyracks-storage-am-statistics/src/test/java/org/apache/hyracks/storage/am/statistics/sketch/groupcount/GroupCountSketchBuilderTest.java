@@ -22,7 +22,6 @@ import java.util.PriorityQueue;
 
 import org.apache.hyracks.api.exceptions.HyracksDataException;
 import org.apache.hyracks.storage.am.lsm.common.impls.ComponentStatistics;
-import org.apache.hyracks.storage.am.statistics.sketch.groupcount.GroupCountSketchBuilder;
 import org.apache.hyracks.storage.am.statistics.wavelet.WaveletCoefficient;
 import org.apache.hyracks.storage.am.statistics.wavelet.WaveletSynopsis;
 import org.junit.Before;
@@ -59,7 +58,7 @@ public class GroupCountSketchBuilderTest {
     @Before
     public void init() throws HyracksDataException {
         synopsis = new WaveletSynopsis(domainStart, domainEnd, maxLevel, synopsisSize,
-                new PriorityQueue<>(WaveletCoefficient.VALUE_COMPARATOR), normalize, false);
+                new PriorityQueue<>(WaveletCoefficient.VALUE_COMPARATOR), normalize, false, null);
         builder = new GroupCountSketchBuilder(synopsis, "", "", "", "", false, null, new ComponentStatistics(-1L, -1L),
                 fanout, FAILURE_PROBABILITY, ACCURACY, ENERGY_ACCURACY, inputSize, System.currentTimeMillis());
     }

@@ -80,7 +80,7 @@ public abstract class WaveletTest {
         @Override
         public WaveletSynopsis createSynopsis(DomainConstants domain, int threshold, boolean normalize) {
             return new WaveletSynopsis(domain.domainStart, domain.domainEnd, domain.maxLevel, threshold,
-                    new PriorityQueue<>(WaveletCoefficient.VALUE_COMPARATOR), normalize, false);
+                    new PriorityQueue<>(WaveletCoefficient.VALUE_COMPARATOR), normalize, false, null);
         }
 
         @Override

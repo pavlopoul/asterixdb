@@ -31,7 +31,7 @@ public class UniformHistogramBucket extends HistogramBucket {
     private long uniqueElementsNum;
 
     public UniformHistogramBucket(long border, double value, long uniqueElementsNum) {
-        super(border, value);
+        super(border, value, uniqueElementsNum);
         this.uniqueElementsNum = uniqueElementsNum;
     }
 

@@ -32,7 +32,7 @@ public class ContinuousHistogramSynopsis extends EquiHeightHistogramSynopsis<His
 
     public ContinuousHistogramSynopsis(long domainStart, long domainEnd, int maxLevel, long elementsNum, int bucketsNum,
             List<HistogramBucket> buckets) {
-        super(domainStart, domainEnd, maxLevel, elementsNum, bucketsNum, buckets);
+        super(domainStart, domainEnd, maxLevel, elementsNum, bucketsNum, buckets, null);
     }
 
     @Override
@@ -42,7 +42,7 @@ public class ContinuousHistogramSynopsis extends EquiHeightHistogramSynopsis<His
 
     public void appendToBucket(int bucketId, int bucketNum, long tuplePos, double frequency) {
         if (bucketId >= getBuckets().size()) {
-            getBuckets().add(new HistogramBucket(0l, frequency));
+            getBuckets().add(new HistogramBucket(0l, frequency, 0l));
         } else {
             getBuckets().get(bucketId).appendToValue(frequency);
         }

@@ -22,6 +22,7 @@ package org.apache.hyracks.storage.am.lsm.common.api;
 
 import java.io.Serializable;
 import java.util.Collection;
+import java.util.Map;
 
 import org.apache.hyracks.api.exceptions.HyracksDataException;
 
@@ -66,10 +67,16 @@ public interface ISynopsis<T extends ISynopsisElement> extends Serializable {
 
     Collection<T> getElements();
 
+    Map<Long, Integer> getMap();
+
     void merge(ISynopsis<T> mergeSynopsis) throws HyracksDataException;
 
     double pointQuery(long position);
 
     double rangeQuery(long startPosition, long endPosition);
+
+    double joinQuery(ISynopsis synopsis, boolean primIndex);
+
+    long uniqueQuery(boolean primIndex);
 
 }

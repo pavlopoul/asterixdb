@@ -18,17 +18,20 @@
  */
 package org.apache.hyracks.storage.am.statistics.historgram;
 
+import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.Comparator;
 import java.util.List;
+import java.util.Map;
 
+import org.apache.hyracks.storage.am.lsm.common.api.ISynopsis;
 import org.apache.hyracks.storage.am.statistics.common.AbstractSynopsis;
 
 public abstract class HistogramSynopsis<T extends HistogramBucket> extends AbstractSynopsis<T> {
     public HistogramSynopsis(long domainStart, long domainEnd, int maxLevel, int bucketsNum,
-            Collection<T> synopsisElements) {
-        super(domainStart, domainEnd, maxLevel, bucketsNum, synopsisElements);
+            Collection<T> synopsisElements, Map<Long, Integer> uniqueMap) {
+        super(domainStart, domainEnd, maxLevel, bucketsNum, synopsisElements, uniqueMap);
     }
 
     //implicit cast to operate with buckets as a list
@@ -46,7 +49,7 @@ public abstract class HistogramSynopsis<T extends HistogramBucket> extends Abstr
     }
 
     protected int getPointBucket(long position) {
-        int idx = Collections.binarySearch(getBuckets(), new HistogramBucket(position, 0.0),
+        int idx = Collections.binarySearch(getBuckets(), new HistogramBucket(position, 0.0, 0),
                 Comparator.comparingLong(HistogramBucket::getKey));
         if (idx < 0) {
             idx = -idx - 1;
@@ -64,6 +67,9 @@ public abstract class HistogramSynopsis<T extends HistogramBucket> extends Abstr
     public double rangeQuery(long startPosition, long endPosition) {
         int startBucket = getPointBucket(startPosition);
         int endBucket = getPointBucket(endPosition);
+        if (endBucket == getBuckets().size()) {
+            endBucket = endBucket - 1;
+        }
         long endBucketLeftBorder = getBucketStartPosition(endBucket);
         double value = 0.0;
         if (startBucket == endBucket) {
@@ -79,6 +85,80 @@ public abstract class HistogramSynopsis<T extends HistogramBucket> extends Abstr
             }
         }
         return value;
+    }
+
+    @Override
+    public double joinQuery(ISynopsis synopsis, boolean primIndex) {
+        HistogramSynopsis<T> histogram = (HistogramSynopsis<T>) synopsis;
+        double leftEstimate = 0.0;
+        double rightEstimate = 0.0;
+        double estimate = 0.0;
+        List<long[]> leftBuckets = new ArrayList<>();
+        List<long[]> rightBuckets = new ArrayList<>();
+        for (int i = 0; i < getBuckets().size(); i++) {
+            if (getBuckets().get(i).getValue() != 0.0) {
+                leftEstimate += getBuckets().get(i).getValue();
+                //                long startPosition = getBucketStartPosition(i);
+                //                long array[] = { startPosition, getBuckets().get(i).getKey() };
+                //                leftBuckets.add(array);
+
+            }
+        }
+
+        for (int i = 0; i < histogram.getBuckets().size(); i++) {
+            if (histogram.getBuckets().get(i).getValue() != 0.0) {
+                rightEstimate += histogram.getBuckets().get(i).getValue();
+                //                long startPosition = histogram.getBucketStartPosition(i);
+                //                long array[] = { startPosition, histogram.getBuckets().get(i).getKey() };
+                //                rightBuckets.add(array);
+
+            }
+        }
+        //        for (long[] arrayL : leftBuckets) {
+        //            for (long[] arrayR : rightBuckets) {
+        //                if (arrayL[0] <= arrayR[0] && arrayL[1] >= arrayR[1]) {
+        //                    leftEstimate += rangeQuery(arrayR[0], arrayR[1]);
+        //                    rightEstimate += histogram.rangeQuery(arrayR[0], arrayR[1]);
+        //                    estimate += rangeQuery(arrayR[0], arrayR[1]) * histogram.rangeQuery(arrayR[0], arrayR[1]);
+        //                } else if (arrayL[0] <= arrayR[0] && arrayL[1] <= arrayR[1] && arrayL[1] >= arrayR[0]) {
+        //                    leftEstimate += rangeQuery(arrayR[0], arrayL[1]);
+        //                    rightEstimate += histogram.rangeQuery(arrayR[0], arrayL[1]);
+        //                    estimate += rangeQuery(arrayR[0], arrayL[1]) * histogram.rangeQuery(arrayR[0], arrayL[1]);
+        //                } else if (arrayL[0] >= arrayR[0] && arrayL[1] >= arrayR[1] && arrayL[0] <= arrayR[1]) {
+        //                    leftEstimate += rangeQuery(arrayL[0], arrayR[1]);
+        //                    rightEstimate += histogram.rangeQuery(arrayL[0], arrayR[1]);
+        //                    estimate += rangeQuery(arrayL[0], arrayR[1]) * histogram.rangeQuery(arrayL[0], arrayR[1]);
+        //                } else if (arrayL[0] >= arrayR[0] && arrayL[1] <= arrayR[1]) {
+        //                    leftEstimate += rangeQuery(arrayL[0], arrayL[1]);
+        //                    rightEstimate += histogram.rangeQuery(arrayL[0], arrayL[1]);
+        //                    estimate += rangeQuery(arrayL[0], arrayL[1]) * histogram.rangeQuery(arrayL[0], arrayL[1]);
+        //                }
+        //            }
+        //        }
+        //
+        //        if (primIndex == true)
+        //            return Math.max(rightEstimate, leftEstimate);
+        estimate = leftEstimate * rightEstimate;
+        return estimate;
+    }
+
+    @Override
+    public long uniqueQuery(boolean primIndex) {
+        long distinctValues = 0;
+        if (primIndex) {
+            for (int i = 0; i < getBuckets().size(); i++) {
+                if (getBuckets().get(i).getValue() != 0) {
+                    distinctValues += getBuckets().get(i).getValue();
+                }
+            }
+        } else {
+            for (int i = 0; i < getBuckets().size(); i++) {
+                if (getBuckets().get(i).getUniqueValue() != 0) {
+                    distinctValues += getBuckets().get(i).getUniqueValue();
+                }
+            }
+        }
+        return distinctValues;
     }
 
     public double approximateValueWithinBucket(int bucketIdx, long startPosition, long endPosition) {

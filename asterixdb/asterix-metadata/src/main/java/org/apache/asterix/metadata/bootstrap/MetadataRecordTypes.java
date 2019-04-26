@@ -104,6 +104,8 @@ public final class MetadataRecordTypes {
     public static final String FIELD_NAME_TIMESTAMP = "Timestamp";
     public static final String FIELD_NAME_TRANSACTION_STATE = "TransactionState";
     public static final String FIELD_NAME_TYPE = "Type";
+    public static final String FIELD_NAME_UNIQUE = "UniqueElements";
+    public static final String FIELD_NAME_UNIQUE_ELEM = "UniqueElem";
     public static final String FIELD_NAME_UNORDERED_LIST = "UnorderedList";
     public static final String FIELD_NAME_VALUE = "Value";
     public static final String FIELD_NAME_WORKING_MEMORY_SIZE = "WorkingMemorySize";
@@ -479,15 +481,30 @@ public final class MetadataRecordTypes {
     public static final String RECORD_NAME_STATISTICS_SYNOPSIS_ELEMENT = "StatisticsSynopsisElementRecordType";
     public static final int STATISTICS_SYNOPSIS_ELEMENT_ARECORD_KEY_FIELD_INDEX = 0;
     public static final int STATISTICS_SYNOPSIS_ELEMENT_ARECORD_VALUE_FIELD_INDEX = 1;
+    public static final int STATISTICS_SYNOPSIS_ELEMENT_ARECORD_UNIQUE_VALUE_FIELD_INDEX = 2;
     public static final String STATISTICS_SYNOPSIS_ELEMENT_ARECORD_UNIQUE_VALUES_NUM_FIELD_NAME = "UniqueValuesNum";
 
     public static ARecordType STATISTICS_SYNOPSIS_ELEMENT_RECORDTYPE = createRecordType(
             // RecordTypeName
             RECORD_NAME_STATISTICS_SYNOPSIS_ELEMENT,
             // FieldNames
+            new String[] { FIELD_NAME_KEY, FIELD_NAME_VALUE, FIELD_NAME_UNIQUE_ELEM },
+            // FieldTypes
+            new IAType[] { BuiltinType.AINT64, BuiltinType.ADOUBLE, BuiltinType.AINT64 },
+            //IsOpen?
+            true);
+
+    public static final String RECORD_NAME_STATISTICS_SYNOPSIS_UNIQUE = "StatisticsSynopsisUniqueRecordType";
+    public static final int STATISTICS_SYNOPSIS_UNIQUE_ARECORD_KEY_FIELD_INDEX = 0;
+    public static final int STATISTICS_SYNOPSIS_UNIQUE_ARECORD_VALUE_FIELD_INDEX = 1;
+
+    public static ARecordType STATISTICS_SYNOPSIS_UNIQUE_RECORDTYPE = createRecordType(
+            // RecordTypeName
+            RECORD_NAME_STATISTICS_SYNOPSIS_UNIQUE,
+            // FieldNames
             new String[] { FIELD_NAME_KEY, FIELD_NAME_VALUE },
             // FieldTypes
-            new IAType[] { BuiltinType.AINT64, BuiltinType.ADOUBLE },
+            new IAType[] { BuiltinType.AINT64, BuiltinType.AINT32 },
             //IsOpen?
             true);
 
@@ -495,15 +512,17 @@ public final class MetadataRecordTypes {
     public static final int STATISTICS_SYNOPSIS_ARECORD_TYPE_FIELD_INDEX = 0;
     public static final int STATISTICS_SYNOPSIS_ARECORD_SIZE_FIELD_INDEX = 1;
     public static final int STATISTICS_SYNOPSIS_ARECORD_ELEMENTS_FIELD_INDEX = 2;
+    public static final int STATISTICS_SYNOPSIS_ARECORD_UNIQUE_FIELD_INDEX = 3;
 
     public static ARecordType STATISTICS_SYNOPSIS_RECORDTYPE = createRecordType(
             // RecordTypeName
             RECORD_NAME_STATISTICS_SYNOPSIS,
             // FieldNames
-            new String[] { FIELD_NAME_TYPE, FIELD_NAME_SIZE, FIELD_NAME_ELEMENTS },
+            new String[] { FIELD_NAME_TYPE, FIELD_NAME_SIZE, FIELD_NAME_ELEMENTS, FIELD_NAME_UNIQUE },
             // FieldTypes
             new IAType[] { BuiltinType.ASTRING, BuiltinType.AINT32,
-                    new AOrderedListType(STATISTICS_SYNOPSIS_ELEMENT_RECORDTYPE, null) },
+                    new AOrderedListType(STATISTICS_SYNOPSIS_ELEMENT_RECORDTYPE, null),
+                    new AOrderedListType(STATISTICS_SYNOPSIS_UNIQUE_RECORDTYPE, null) },
             //IsOpen?
             true);
 

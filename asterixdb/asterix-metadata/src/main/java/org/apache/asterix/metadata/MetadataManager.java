@@ -24,7 +24,9 @@ import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.concurrent.TimeUnit;
 
 import org.apache.asterix.common.config.MetadataProperties;
@@ -497,6 +499,7 @@ public abstract class MetadataManager implements IMetadataManager {
             LocalDateTime minComponentId = LocalDateTime.MAX;
             LocalDateTime maxComponentId = LocalDateTime.MIN;
             int synopsisSize = 0;
+            Map<Long, Integer> uniqueMap = new HashMap<>();
             int maxSynopsisElements = 0;
             //TODO : proactively merge only stats only within a node/partition?
             for (Statistics stat : fieldStats) {
@@ -509,6 +512,7 @@ public abstract class MetadataManager implements IMetadataManager {
                 } else {
                     synopsisList.add(stat.getSynopsis());
                     synopsisSize = Integer.max(synopsisSize, stat.getSynopsis().getSize());
+                    uniqueMap = stat.getSynopsis().getMap();
                     maxSynopsisElements = Integer.max(maxSynopsisElements, stat.getSynopsis().getElements().size());
                 }
                 if (stat.getComponentID().getMinTimestamp().isBefore(minComponentId)) {
@@ -537,7 +541,7 @@ public abstract class MetadataManager implements IMetadataManager {
                     try {
                         AbstractSynopsis mergedSynopsis = SynopsisFactory.createSynopsis(type, keyTypeTraits,
                                 SynopsisElementFactory.createSynopsisElementsCollection(type, maxSynopsisElements),
-                                maxSynopsisElements, synopsisSize);
+                                maxSynopsisElements, synopsisSize, uniqueMap);
                         //trigger stats merge routine manually
                         mergedSynopsis.merge(synopsisList);
                         mergedStats = new Statistics(dataverseName, datasetName, indexName, fieldName,

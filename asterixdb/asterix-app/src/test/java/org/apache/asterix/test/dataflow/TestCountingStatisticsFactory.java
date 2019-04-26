@@ -41,7 +41,7 @@ public class TestCountingStatisticsFactory extends AbstractStatisticsFactory {
         private int count = 0;
 
         public CountingSynopsis() {
-            super(Integer.MIN_VALUE, Integer.MAX_VALUE, Integer.SIZE, 0, null);
+            super(Integer.MIN_VALUE, Integer.MAX_VALUE, Integer.SIZE, 0, null, null);
         }
 
         @Override
@@ -61,6 +61,18 @@ public class TestCountingStatisticsFactory extends AbstractStatisticsFactory {
 
         @Override
         public double rangeQuery(long startPosition, long endPosition) {
+            return 0;
+        }
+
+        @Override
+        public double joinQuery(ISynopsis synopsis, boolean primIndex) {
+            // TODO Auto-generated method stub
+            return 0;
+        }
+
+        @Override
+        public long uniqueQuery(boolean primIndex) {
+            // TODO Auto-generated method stub
             return 0;
         }
     }
@@ -123,4 +135,5 @@ public class TestCountingStatisticsFactory extends AbstractStatisticsFactory {
     public boolean canCollectStats() {
         return true;
     }
+
 }

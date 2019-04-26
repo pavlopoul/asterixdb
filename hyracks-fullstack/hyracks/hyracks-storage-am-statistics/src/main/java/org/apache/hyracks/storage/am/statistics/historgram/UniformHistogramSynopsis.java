@@ -28,7 +28,7 @@ public class UniformHistogramSynopsis extends EquiHeightHistogramSynopsis<Unifor
 
     public UniformHistogramSynopsis(long domainStart, long domainEnd, int maxLevel, long elementsNum, int bucketsNum,
             List<UniformHistogramBucket> buckets) {
-        super(domainStart, domainEnd, maxLevel, elementsNum, bucketsNum, buckets);
+        super(domainStart, domainEnd, maxLevel, elementsNum, bucketsNum, buckets, null);
     }
 
     public UniformHistogramSynopsis(long domainStart, long domainEnd, int maxLevel, long elementsNum, int bucketsNum) {

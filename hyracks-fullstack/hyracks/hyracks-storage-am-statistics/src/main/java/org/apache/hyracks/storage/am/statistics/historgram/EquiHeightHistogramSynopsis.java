@@ -19,6 +19,7 @@
 package org.apache.hyracks.storage.am.statistics.historgram;
 
 import java.util.List;
+import java.util.Map;
 
 import org.apache.hyracks.storage.am.lsm.common.api.ISynopsis;
 
@@ -28,8 +29,8 @@ public abstract class EquiHeightHistogramSynopsis<T extends HistogramBucket> ext
     private final long elementsPerBucket;
 
     public EquiHeightHistogramSynopsis(long domainStart, long domainEnd, int maxLevel, long elementsNum, int bucketsNum,
-            List<T> buckets) {
-        super(domainStart, domainEnd, maxLevel, bucketsNum, buckets);
+            List<T> buckets, Map<Long, Integer> uniqueMap) {
+        super(domainStart, domainEnd, maxLevel, bucketsNum, buckets, uniqueMap);
         elementsPerBucket = Math.max((long) Math.ceil((double) elementsNum / bucketsNum), 1);
     }
 

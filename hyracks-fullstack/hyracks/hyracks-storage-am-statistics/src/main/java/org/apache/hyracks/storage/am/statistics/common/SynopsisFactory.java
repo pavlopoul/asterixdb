@@ -21,6 +21,7 @@ package org.apache.hyracks.storage.am.statistics.common;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
+import java.util.Map;
 import java.util.PriorityQueue;
 
 import org.apache.hyracks.api.dataflow.value.ITypeTraits;
@@ -40,7 +41,7 @@ public class SynopsisFactory {
     @SuppressWarnings("unchecked")
     public static AbstractSynopsis<? extends ISynopsisElement<Long>> createSynopsis(SynopsisType type,
             ITypeTraits keyTypeTraits, Collection<? extends ISynopsisElement> synopsisElements,
-            long synopsisElementsNum, int synopsisSize) throws HyracksDataException {
+            long synopsisElementsNum, int synopsisSize, Map<Long, Integer> uniquemap) throws HyracksDataException {
         long domainStart = TypeTraitsDomainUtils.minDomainValue(keyTypeTraits);
         long domainEnd = TypeTraitsDomainUtils.maxDomainValue(keyTypeTraits);
         int maxLevel = TypeTraitsDomainUtils.maxLevel(keyTypeTraits);
@@ -54,11 +55,11 @@ public class SynopsisFactory {
                         synopsisSize, (List<HistogramBucket>) synopsisElements);
             case EquiWidthHistogram:
                 return new EquiWidthHistogramSynopsis(domainStart, domainEnd, maxLevel, synopsisSize,
-                        (List<HistogramBucket>) synopsisElements);
+                        (List<HistogramBucket>) synopsisElements, uniquemap);
             case Wavelet:
             case GroupCountSketch:
                 return new WaveletSynopsis(domainStart, domainEnd, maxLevel, synopsisSize,
-                        (Collection<WaveletCoefficient>) synopsisElements, true, true);
+                        (Collection<WaveletCoefficient>) synopsisElements, true, true, uniquemap);
             case PrefixSumWavelet:
                 return new PrefixSumWaveletSynopsis(domainStart, domainEnd, maxLevel, synopsisSize,
                         (Collection<WaveletCoefficient>) synopsisElements, true, true);

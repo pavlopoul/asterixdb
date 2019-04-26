@@ -684,4 +684,10 @@ public class ExternalBTreeWithBuddy extends AbstractLSMIndex implements ITreeInd
             LSMComponentFileReferences mergeFileRefs, ILSMIOOperationCallback callback) throws HyracksDataException {
         return null;
     }
+
+    @Override
+    public ILSMIOOperationCallback getStatisticsAwareIOOperationCallback(ILSMIOOperationCallback ioOpCallback2) {
+        // TODO Auto-generated method stub
+        return null;
+    }
 }

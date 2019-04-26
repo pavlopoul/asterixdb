@@ -185,15 +185,13 @@ public class StatisticsManager implements IStatisticsManager {
             if (flushComponentSynopsis != null) {
                 List<String> parsedComponentsPath =
                         parsePathComponents(((BTree) newComponent.getIndex()).getFileReference().getRelativePath());
-                ICcAddressedMessage msg =
-                        new ReportFlushComponentStatisticsMessage(flushComponentSynopsis, ncContext.getNodeId(),
-                                parsedComponentsPath.get(1),
-                                new ComponentStatisticsId(
-                                        LocalDateTime.parse(parsedComponentsPath.get(6),
-                                                AbstractLSMIndexFileManager.FORMATTER),
-                                        LocalDateTime.parse(parsedComponentsPath.get(5),
-                                                AbstractLSMIndexFileManager.FORMATTER)),
-                                isAntimatter);
+                ICcAddressedMessage msg = new ReportFlushComponentStatisticsMessage(flushComponentSynopsis,
+                        ncContext.getNodeId(), parsedComponentsPath.get(1),
+                        new ComponentStatisticsId(
+                                LocalDateTime.parse(parsedComponentsPath.get(6), AbstractLSMIndexFileManager.FORMATTER),
+                                LocalDateTime.parse(parsedComponentsPath.get(5),
+                                        AbstractLSMIndexFileManager.FORMATTER)),
+                        isAntimatter);
                 sendMessage(msg);
             }
         }

@@ -436,4 +436,10 @@ public class LSMRTree extends AbstractLSMRTree {
                 mergeFileRefs.getDeleteIndexFileReference(), mergeFileRefs.getBloomFilterFileReference(), callback,
                 getIndexIdentifier());
     }
+
+    @Override
+    public ILSMIOOperationCallback getStatisticsAwareIOOperationCallback(ILSMIOOperationCallback ioOpCallback2) {
+        // TODO Auto-generated method stub
+        return null;
+    }
 }

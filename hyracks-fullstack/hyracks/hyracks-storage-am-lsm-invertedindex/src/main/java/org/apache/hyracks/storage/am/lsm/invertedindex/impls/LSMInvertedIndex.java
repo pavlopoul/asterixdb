@@ -500,4 +500,10 @@ public class LSMInvertedIndex extends AbstractLSMIndex implements IInvertedIndex
                 mergeFileRefs.getDeleteIndexFileReference(), mergeFileRefs.getBloomFilterFileReference(), callback,
                 getIndexIdentifier());
     }
+
+    @Override
+    public ILSMIOOperationCallback getStatisticsAwareIOOperationCallback(ILSMIOOperationCallback ioOpCallback2) {
+        // TODO Auto-generated method stub
+        return null;
+    }
 }

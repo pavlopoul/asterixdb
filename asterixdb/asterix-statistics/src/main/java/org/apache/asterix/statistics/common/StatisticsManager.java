@@ -116,8 +116,8 @@ public class StatisticsManager implements IStatisticsManager {
                 namePattern + File.separator + numPattern + File.separator + namePattern + File.separator;
         // Disk component name format: T2_T1_s. T2 & T1 are the same for flush component.
         // For merged component T2 is the max timestamp of the latest component, T1 - min timestamp of the earliest.
-        String timestampPattern = "(\\d{4}-\\d{2}-\\d{2}-\\d{2}-\\d{2}-\\d{2}-\\d{3})";
-
+        // String timestampPattern = "(\\d{4}-\\d{2}-\\d{2}-\\d{2}-\\d{2}-\\d{2}-\\d{3})";
+        String timestampPattern = "(\\d_\\d)";
         StringBuilder regexpStringBuilder = new StringBuilder();
         //non-greedy pattern for storage directory name
         regexpStringBuilder.append(dirPattern).append("+?");
@@ -129,7 +129,7 @@ public class StatisticsManager implements IStatisticsManager {
         regexpStringBuilder.append(indexDatasetPattern);
         //component name
         regexpStringBuilder.append(timestampPattern).append(AbstractLSMIndexFileManager.DELIMITER)
-                .append(timestampPattern).append(AbstractLSMIndexFileManager.DELIMITER)
+                /*.append(timestampPattern).append(AbstractLSMIndexFileManager.DELIMITER)*/
                 .append(AbstractLSMIndexFileManager.BTREE_SUFFIX);
 
         Pattern p = Pattern.compile(regexpStringBuilder.toString());

@@ -546,8 +546,8 @@ public final class MetadataRecordTypes {
                     FIELD_NAME_MIN_ID, FIELD_NAME_MAX_ID, FIELD_NAME_SYNOPSIS },
             // FieldTypes
             new IAType[] { BuiltinType.ASTRING, BuiltinType.ASTRING, BuiltinType.ASTRING, BuiltinType.ASTRING,
-                    BuiltinType.ABOOLEAN, BuiltinType.ASTRING, BuiltinType.ASTRING, BuiltinType.ASTRING,
-                    BuiltinType.ASTRING, STATISTICS_SYNOPSIS_RECORDTYPE },
+                    BuiltinType.ABOOLEAN, BuiltinType.ASTRING, BuiltinType.ASTRING, BuiltinType.AINT64,
+                    BuiltinType.AINT64, STATISTICS_SYNOPSIS_RECORDTYPE },
             //IsOpen?
             true);
 

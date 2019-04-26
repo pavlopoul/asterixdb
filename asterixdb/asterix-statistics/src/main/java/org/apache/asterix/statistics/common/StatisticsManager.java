@@ -20,7 +20,6 @@ package org.apache.asterix.statistics.common;
 
 import java.io.File;
 import java.io.Serializable;
-import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
@@ -117,7 +116,7 @@ public class StatisticsManager implements IStatisticsManager {
         // Disk component name format: T2_T1_s. T2 & T1 are the same for flush component.
         // For merged component T2 is the max timestamp of the latest component, T1 - min timestamp of the earliest.
         // String timestampPattern = "(\\d{4}-\\d{2}-\\d{2}-\\d{2}-\\d{2}-\\d{2}-\\d{3})";
-        String timestampPattern = "(\\d_\\d)";
+        String timestampPattern = "(\\d)";
         StringBuilder regexpStringBuilder = new StringBuilder();
         //non-greedy pattern for storage directory name
         regexpStringBuilder.append(dirPattern).append("+?");
@@ -129,7 +128,7 @@ public class StatisticsManager implements IStatisticsManager {
         regexpStringBuilder.append(indexDatasetPattern);
         //component name
         regexpStringBuilder.append(timestampPattern).append(AbstractLSMIndexFileManager.DELIMITER)
-                /*.append(timestampPattern).append(AbstractLSMIndexFileManager.DELIMITER)*/
+                .append(timestampPattern).append(AbstractLSMIndexFileManager.DELIMITER)
                 .append(AbstractLSMIndexFileManager.BTREE_SUFFIX);
 
         Pattern p = Pattern.compile(regexpStringBuilder.toString());
@@ -143,39 +142,6 @@ public class StatisticsManager implements IStatisticsManager {
             results.add(m.group(i));
         }
         return results;
-        //        String numPattern = "\\d";
-        //        String namePattern = "([^\\\\]+)";
-        //        String dirPattern = namePattern + "\\\\";
-        //        String indexDatasetPattern = namePattern + "\\\\" + numPattern + "\\\\" + namePattern + "\\\\";
-        //        // Disk component name format: T2_T1_s. T2 & T1 are the same for flush component.
-        //        // For merged component T2 is the max timestamp of the latest component, T1 - min timestamp of the earliest.
-        //        String timestampPattern = "(\\d{4}-\\d{2}-\\d{2}-\\d{2}-\\d{2}-\\d{2}-\\d{3})";
-        //
-        //        StringBuilder regexpStringBuilder = new StringBuilder();
-        //        //non-greedy pattern for storage directory name
-        //        regexpStringBuilder.append(dirPattern).append("+?");
-        //        //partition name
-        //        regexpStringBuilder.append(dirPattern);
-        //        //dataverse name
-        //        regexpStringBuilder.append(dirPattern);
-        //        //dataset & index names
-        //        regexpStringBuilder.append(indexDatasetPattern);
-        //        //component name
-        //        regexpStringBuilder.append(timestampPattern).append(AbstractLSMIndexFileManager.DELIMITER)
-        //                .append(timestampPattern).append(AbstractLSMIndexFileManager.DELIMITER)
-        //                .append(AbstractLSMIndexFileManager.BTREE_SUFFIX);
-        //
-        //        Pattern p = Pattern.compile(regexpStringBuilder.toString());
-        //        Matcher m = p.matcher(componentPath);
-        //        if (!m.matches()) {
-        //            throw new HyracksDataException("Cannot parse out component's path");
-        //        }
-        //
-        //        List<String> results = new ArrayList<>();
-        //        for (int i = 1; i <= m.groupCount(); i++) {
-        //            results.add(m.group(i));
-        //        }
-        //        return results;
     }
 
     private void sendFlushSynopsisStatistics(Collection<StatisticsEntry> flushComponentSynopses,
@@ -187,10 +153,8 @@ public class StatisticsManager implements IStatisticsManager {
                         parsePathComponents(((BTree) newComponent.getIndex()).getFileReference().getRelativePath());
                 ICcAddressedMessage msg = new ReportFlushComponentStatisticsMessage(flushComponentSynopsis,
                         ncContext.getNodeId(), parsedComponentsPath.get(1),
-                        new ComponentStatisticsId(
-                                LocalDateTime.parse(parsedComponentsPath.get(6), AbstractLSMIndexFileManager.FORMATTER),
-                                LocalDateTime.parse(parsedComponentsPath.get(5),
-                                        AbstractLSMIndexFileManager.FORMATTER)),
+                        new ComponentStatisticsId(Long.parseLong(parsedComponentsPath.get(6)),
+                                Long.parseLong(parsedComponentsPath.get(5))),
                         isAntimatter);
                 sendMessage(msg);
             }
@@ -207,15 +171,13 @@ public class StatisticsManager implements IStatisticsManager {
             for (ILSMDiskComponent mergedComponent : mergedComponents) {
                 List<String> parsedMergedComponentPath =
                         parsePathComponents(((BTree) mergedComponent.getIndex()).getFileReference().getRelativePath());
-                mergedComponentIds.add(new ComponentStatisticsId(
-                        LocalDateTime.parse(parsedMergedComponentPath.get(6), AbstractLSMIndexFileManager.FORMATTER),
-                        LocalDateTime.parse(parsedMergedComponentPath.get(5), AbstractLSMIndexFileManager.FORMATTER)));
+                mergedComponentIds.add(new ComponentStatisticsId(Long.getLong(parsedMergedComponentPath.get(6)),
+                        Long.getLong(parsedMergedComponentPath.get(5))));
             }
             ICcAddressedMessage msg = new ReportMergeComponentStatisticsMessage(flushComponentSynopsis,
                     ncContext.getNodeId(), parsedComponentsPath.get(1),
-                    new ComponentStatisticsId(
-                            LocalDateTime.parse(parsedComponentsPath.get(6), AbstractLSMIndexFileManager.FORMATTER),
-                            LocalDateTime.parse(parsedComponentsPath.get(5), AbstractLSMIndexFileManager.FORMATTER)),
+                    new ComponentStatisticsId(Long.getLong(parsedComponentsPath.get(6)),
+                            Long.getLong(parsedComponentsPath.get(5))),
                     isAntimatter, mergedComponentIds);
             sendMessage(msg);
         }

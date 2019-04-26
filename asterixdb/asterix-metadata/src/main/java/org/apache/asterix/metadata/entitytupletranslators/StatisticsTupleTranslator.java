@@ -23,7 +23,6 @@ import java.io.DataInput;
 import java.io.DataInputStream;
 import java.io.DataOutput;
 import java.rmi.RemoteException;
-import java.time.LocalDateTime;
 import java.time.format.DateTimeParseException;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -66,7 +65,6 @@ import org.apache.hyracks.dataflow.common.data.accessors.ITupleReference;
 import org.apache.hyracks.storage.am.lsm.common.api.ISynopsis;
 import org.apache.hyracks.storage.am.lsm.common.api.ISynopsis.SynopsisType;
 import org.apache.hyracks.storage.am.lsm.common.api.ISynopsisElement;
-import org.apache.hyracks.storage.am.lsm.common.impls.AbstractLSMIndexFileManager;
 import org.apache.hyracks.storage.am.lsm.common.impls.ComponentStatisticsId;
 import org.apache.hyracks.storage.am.statistics.common.SynopsisElementFactory;
 import org.apache.hyracks.storage.am.statistics.common.SynopsisFactory;
@@ -124,12 +122,10 @@ public class StatisticsTupleTranslator extends AbstractTupleTranslator<Statistic
         String partitionName =
                 ((AString) statisticsRecord.getValueByPos(MetadataRecordTypes.STATISTICS_ARECORD_PARTITION_FIELD_INDEX))
                         .getStringValue();
-        LocalDateTime componentMinId = LocalDateTime.parse(((AString) statisticsRecord
-                .getValueByPos(MetadataRecordTypes.STATISTICS_ARECORD_COMPONENT_MIN_TIMESTAMP_INDEX)).getStringValue(),
-                AbstractLSMIndexFileManager.FORMATTER);
-        LocalDateTime componentMaxId = LocalDateTime.parse(((AString) statisticsRecord
-                .getValueByPos(MetadataRecordTypes.STATISTICS_ARECORD_COMPONENT_MAX_TIMESTAMP_INDEX)).getStringValue(),
-                AbstractLSMIndexFileManager.FORMATTER);
+        Long componentMinId = ((AInt64) statisticsRecord
+                .getValueByPos(MetadataRecordTypes.STATISTICS_ARECORD_COMPONENT_MIN_TIMESTAMP_INDEX)).getLongValue();
+        Long componentMaxId = ((AInt64) statisticsRecord
+                .getValueByPos(MetadataRecordTypes.STATISTICS_ARECORD_COMPONENT_MAX_TIMESTAMP_INDEX)).getLongValue();
         ARecord synopsisRecord =
                 (ARecord) statisticsRecord.getValueByPos(MetadataRecordTypes.STATISTICS_ARECORD_SYNOPSIS_FIELD_INDEX);
         SynopsisType synopsisType = SynopsisType.valueOf(((AString) synopsisRecord
@@ -219,9 +215,8 @@ public class StatisticsTupleTranslator extends AbstractTupleTranslator<Statistic
         aString.setValue(metadataEntity.getPartition());
         stringSerde.serialize(aString, tupleBuilder.getDataOutput());
         tupleBuilder.addFieldEndOffset();
-        aString.setValue(
-                AbstractLSMIndexFileManager.FORMATTER.format(metadataEntity.getComponentID().getMinTimestamp()));
-        stringSerde.serialize(aString, tupleBuilder.getDataOutput());
+        aInt64.setValue(metadataEntity.getComponentID().getMinTimestamp());
+        int64Serde.serialize(aInt64, tupleBuilder.getDataOutput());
         tupleBuilder.addFieldEndOffset();
 
         // write the payload in the 9th field of the tuple
@@ -270,16 +265,14 @@ public class StatisticsTupleTranslator extends AbstractTupleTranslator<Statistic
 
         // write field 7
         fieldValue.reset();
-        aString.setValue(
-                AbstractLSMIndexFileManager.FORMATTER.format(metadataEntity.getComponentID().getMinTimestamp()));
-        stringSerde.serialize(aString, fieldValue.getDataOutput());
+        aInt64.setValue(metadataEntity.getComponentID().getMinTimestamp());
+        int64Serde.serialize(aInt64, fieldValue.getDataOutput());
         recordBuilder.addField(MetadataRecordTypes.STATISTICS_ARECORD_COMPONENT_MIN_TIMESTAMP_INDEX, fieldValue);
 
         // write field 8
         fieldValue.reset();
-        aString.setValue(
-                AbstractLSMIndexFileManager.FORMATTER.format(metadataEntity.getComponentID().getMaxTimestamp()));
-        stringSerde.serialize(aString, fieldValue.getDataOutput());
+        aInt64.setValue(metadataEntity.getComponentID().getMaxTimestamp());
+        int64Serde.serialize(aInt64, fieldValue.getDataOutput());
         recordBuilder.addField(MetadataRecordTypes.STATISTICS_ARECORD_COMPONENT_MAX_TIMESTAMP_INDEX, fieldValue);
 
         // write field 9

@@ -19,37 +19,35 @@
 package org.apache.hyracks.storage.am.lsm.common.impls;
 
 import java.io.Serializable;
-import java.time.LocalDateTime;
 
 public class ComponentStatisticsId implements Serializable {
 
-    private LocalDateTime minTimestamp;
+    private Long minValue;
 
-    private LocalDateTime maxTimestamp;
+    private Long maxValue;
 
-    public ComponentStatisticsId(LocalDateTime minTimestamp, LocalDateTime maxTimestamp) {
-        this.minTimestamp = minTimestamp;
-        this.maxTimestamp = maxTimestamp;
+    public ComponentStatisticsId(Long minValue, Long maxValue) {
+        this.minValue = minValue;
+        this.maxValue = maxValue;
     }
 
-    public LocalDateTime getMinTimestamp() {
-        return minTimestamp;
+    public Long getMinTimestamp() {
+        return minValue;
     }
 
-    public LocalDateTime getMaxTimestamp() {
-        return maxTimestamp;
+    public Long getMaxTimestamp() {
+        return maxValue;
     }
 
     @Override
     public String toString() {
-        return "[ " + AbstractLSMIndexFileManager.FORMATTER.format(minTimestamp) + ", "
-                + AbstractLSMIndexFileManager.FORMATTER.format(maxTimestamp) + " ]";
+        return "[ " + String.valueOf(minValue) + ", " + String.valueOf(maxValue) + " ]";
 
     }
 
     @Override
     public int hashCode() {
-        return 31 * minTimestamp.hashCode() + maxTimestamp.hashCode();
+        return 31 * minValue.hashCode() + maxValue.hashCode();
     }
 
     @Override
@@ -61,10 +59,10 @@ public class ComponentStatisticsId implements Serializable {
             return false;
         }
         ComponentStatisticsId other = (ComponentStatisticsId) obj;
-        if (!maxTimestamp.equals(other.maxTimestamp)) {
+        if (!maxValue.equals(other.maxValue)) {
             return false;
         }
-        if (!minTimestamp.equals(other.minTimestamp)) {
+        if (!minValue.equals(other.minValue)) {
             return false;
         }
         return true;

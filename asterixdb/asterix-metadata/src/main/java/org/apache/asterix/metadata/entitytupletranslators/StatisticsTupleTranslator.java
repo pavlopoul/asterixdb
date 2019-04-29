@@ -364,27 +364,29 @@ public class StatisticsTupleTranslator extends AbstractTupleTranslator<Statistic
 
         mapBuilder.reset((AOrderedListType) MetadataRecordTypes.STATISTICS_SYNOPSIS_RECORDTYPE
                 .getFieldTypes()[MetadataRecordTypes.STATISTICS_SYNOPSIS_ARECORD_UNIQUE_FIELD_INDEX]);
-        for (Map.Entry<Long, Integer> synopsisUnique : synopsis.getMap().entrySet()) {
-            // Skip synopsis elements with 0 value
-            synopsisUniqueRecordBuilder.reset(MetadataRecordTypes.STATISTICS_SYNOPSIS_UNIQUE_RECORDTYPE);
-            itemValue.reset();
+        if (synopsis.getMap() != null) {
+            for (Map.Entry<Long, Integer> synopsisUnique : synopsis.getMap().entrySet()) {
+                // Skip synopsis elements with 0 value
+                synopsisUniqueRecordBuilder.reset(MetadataRecordTypes.STATISTICS_SYNOPSIS_UNIQUE_RECORDTYPE);
+                itemValue.reset();
 
-            // write subrecord field 0
-            fieldValue.reset();
-            aInt64.setValue(synopsisUnique.getKey());
-            int64Serde.serialize(aInt64, fieldValue.getDataOutput());
-            synopsisUniqueRecordBuilder.addField(MetadataRecordTypes.STATISTICS_SYNOPSIS_UNIQUE_ARECORD_KEY_FIELD_INDEX,
-                    fieldValue);
+                // write subrecord field 0
+                fieldValue.reset();
+                aInt64.setValue(synopsisUnique.getKey());
+                int64Serde.serialize(aInt64, fieldValue.getDataOutput());
+                synopsisUniqueRecordBuilder
+                        .addField(MetadataRecordTypes.STATISTICS_SYNOPSIS_UNIQUE_ARECORD_KEY_FIELD_INDEX, fieldValue);
 
-            // write subrecord field 1
-            fieldValue.reset();
-            aInt32.setValue(synopsisUnique.getValue());
-            int32Serde.serialize(aInt32, fieldValue.getDataOutput());
-            synopsisUniqueRecordBuilder
-                    .addField(MetadataRecordTypes.STATISTICS_SYNOPSIS_UNIQUE_ARECORD_VALUE_FIELD_INDEX, fieldValue);
+                // write subrecord field 1
+                fieldValue.reset();
+                aInt32.setValue(synopsisUnique.getValue());
+                int32Serde.serialize(aInt32, fieldValue.getDataOutput());
+                synopsisUniqueRecordBuilder
+                        .addField(MetadataRecordTypes.STATISTICS_SYNOPSIS_UNIQUE_ARECORD_VALUE_FIELD_INDEX, fieldValue);
 
-            synopsisUniqueRecordBuilder.write(itemValue.getDataOutput(), true);
-            mapBuilder.addItem(itemValue);
+                synopsisUniqueRecordBuilder.write(itemValue.getDataOutput(), true);
+                mapBuilder.addItem(itemValue);
+            }
         }
         // write field 3
         fieldValue.reset();

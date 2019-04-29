@@ -118,6 +118,14 @@ public class QuantileSketch<T extends Comparable<T>> implements ISketch<T, T> {
             return successor.getValue().getFirst();
         }
 
+        public V firstEntry() {
+            Entry<K, LinkedList<V>> firstNotNullEntry = map.firstEntry();
+            if (firstNotNullEntry == null) {
+                return null;
+            }
+            return map.firstEntry().getValue().getFirst();
+        }
+
         public V lastEntry() {
             // because we designate null as the last value, look for the highest entry less then dummy maximum
             Entry<K, LinkedList<V>> lastNonNullEntry = map.lowerEntry(null);
@@ -254,6 +262,7 @@ public class QuantileSketch<T extends Comparable<T>> implements ISketch<T, T> {
             return ranks;
         }
         long rMin = e.g;
+        ranks.add(elements.firstEntry().value);
         while (it.hasNext() && quantile <= quantileNum) {
             boolean getNextRank = false;
             // if the requested rank is withing error bounds from the end

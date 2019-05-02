@@ -49,7 +49,7 @@ public abstract class HistogramSynopsis<T extends HistogramBucket> extends Abstr
     }
 
     protected int getPointBucket(long position) {
-        int idx = Collections.binarySearch(getBuckets(), new HistogramBucket(position, 0.0, 0),
+        int idx = Collections.binarySearch(getBuckets(), new HistogramBucket(position, 0.0, 0, 0),
                 Comparator.comparingLong(HistogramBucket::getKey));
         if (idx < 0) {
             idx = -idx - 1;
@@ -67,11 +67,19 @@ public abstract class HistogramSynopsis<T extends HistogramBucket> extends Abstr
     public double rangeQuery(long startPosition, long endPosition) {
         int startBucket = getPointBucket(startPosition);
         int endBucket = getPointBucket(endPosition);
+        if (startBucket == getBuckets().size()) {
+            return 0.0;
+        }
         if (endBucket == getBuckets().size()) {
             endBucket = endBucket - 1;
         }
+        if (this.getType() == SynopsisType.ContinuousHistogram) {
+            endPosition = endPosition > getBuckets().get(endBucket).getKey() ? getBuckets().get(endBucket).getKey()
+                    : endPosition;
+        }
         long endBucketLeftBorder = getBucketStartPosition(endBucket);
         double value = 0.0;
+        //if (this.getType() != SynopsisType.ContinuousHistogram) {
         if (startBucket == endBucket) {
             value = approximateValueWithinBucket(startBucket, startPosition, endPosition);
         } else {
@@ -84,6 +92,13 @@ public abstract class HistogramSynopsis<T extends HistogramBucket> extends Abstr
                 value += getBuckets().get(i).getValue();
             }
         }
+        //} else {
+        //        if (startBucket == endBucket) {
+        //            value = getBuckets().get(startBucket).getValue()
+        //                    / (double) /*((EquiHeightHistogramSynopsis<T>) this).getElementsPerBucket()*/getBuckets()
+        //                            .get(startBucket).getHeight();
+        //        }
+        // }
         return value;
     }
 
@@ -145,16 +160,20 @@ public abstract class HistogramSynopsis<T extends HistogramBucket> extends Abstr
     @Override
     public long uniqueQuery(boolean primIndex) {
         long distinctValues = 0;
-        if (primIndex) {
-            for (int i = 0; i < getBuckets().size(); i++) {
-                if (getBuckets().get(i).getValue() != 0) {
-                    distinctValues += getBuckets().get(i).getValue();
-                }
-            }
+        if (this.getType() == SynopsisType.ContinuousHistogram) {
+            distinctValues = getBuckets().get(getSize() - 1).getUniqueValue();
         } else {
-            for (int i = 0; i < getBuckets().size(); i++) {
-                if (getBuckets().get(i).getUniqueValue() != 0) {
-                    distinctValues += getBuckets().get(i).getUniqueValue();
+            if (primIndex) {
+                for (int i = 0; i < getBuckets().size(); i++) {
+                    if (getBuckets().get(i).getValue() != 0) {
+                        distinctValues += getBuckets().get(i).getValue();
+                    }
+                }
+            } else {
+                for (int i = 0; i < getBuckets().size(); i++) {
+                    if (getBuckets().get(i).getUniqueValue() != 0) {
+                        distinctValues += getBuckets().get(i).getUniqueValue();
+                    }
                 }
             }
         }

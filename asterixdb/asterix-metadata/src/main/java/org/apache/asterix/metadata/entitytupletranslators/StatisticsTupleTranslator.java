@@ -162,6 +162,9 @@ public class StatisticsTupleTranslator extends AbstractTupleTranslator<Statistic
                         ((AInt64) coeff.getValueByPos(
                                 MetadataRecordTypes.STATISTICS_SYNOPSIS_ELEMENT_ARECORD_UNIQUE_VALUE_FIELD_INDEX))
                                         .getLongValue(),
+                        ((AInt64) coeff.getValueByPos(
+                                MetadataRecordTypes.STATISTICS_SYNOPSIS_ELEMENT_ARECORD_HEIGHT_FIELD_INDEX))
+                                        .getLongValue(),
                         uniqueValNum, keyTypeTraits));
 
             }
@@ -339,6 +342,13 @@ public class StatisticsTupleTranslator extends AbstractTupleTranslator<Statistic
             int64Serde.serialize(aInt64, fieldValue.getDataOutput());
             synopsisElementRecordBuilder.addField(
                     MetadataRecordTypes.STATISTICS_SYNOPSIS_ELEMENT_ARECORD_UNIQUE_VALUE_FIELD_INDEX, fieldValue);
+
+            // write subrecord field 3
+            fieldValue.reset();
+            aInt64.setValue(synopsisElement.getHeight());
+            int64Serde.serialize(aInt64, fieldValue.getDataOutput());
+            synopsisElementRecordBuilder
+                    .addField(MetadataRecordTypes.STATISTICS_SYNOPSIS_ELEMENT_ARECORD_HEIGHT_FIELD_INDEX, fieldValue);
 
             // write optional field 2
             if (synopsisElement instanceof UniformHistogramBucket) {

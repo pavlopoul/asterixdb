@@ -76,4 +76,10 @@ public class TestSynopsisElement implements ISynopsisElement<Comparable>, Compar
         // TODO Auto-generated method stub
         return null;
     }
+
+    @Override
+    public Long getHeight() {
+        // TODO Auto-generated method stub
+        return null;
+    }
 }

@@ -64,6 +64,7 @@ public final class MetadataRecordTypes {
     public static final String FIELD_NAME_FILE_SIZE = "FileSize";
     public static final String FIELD_NAME_FILE_STRUCTURE = "FileStructure";
     public static final String FIELD_NAME_GROUP_NAME = "GroupName";
+    public static final String FIELD_NAME_HEIGHT = "BucketHeight";
     public static final String FIELD_NAME_HINTS = "Hints";
     public static final String FIELD_NAME_INDEX_NAME = "IndexName";
     public static final String FIELD_NAME_INDEX_STRUCTURE = "IndexStructure";
@@ -482,15 +483,16 @@ public final class MetadataRecordTypes {
     public static final int STATISTICS_SYNOPSIS_ELEMENT_ARECORD_KEY_FIELD_INDEX = 0;
     public static final int STATISTICS_SYNOPSIS_ELEMENT_ARECORD_VALUE_FIELD_INDEX = 1;
     public static final int STATISTICS_SYNOPSIS_ELEMENT_ARECORD_UNIQUE_VALUE_FIELD_INDEX = 2;
+    public static final int STATISTICS_SYNOPSIS_ELEMENT_ARECORD_HEIGHT_FIELD_INDEX = 3;
     public static final String STATISTICS_SYNOPSIS_ELEMENT_ARECORD_UNIQUE_VALUES_NUM_FIELD_NAME = "UniqueValuesNum";
 
     public static ARecordType STATISTICS_SYNOPSIS_ELEMENT_RECORDTYPE = createRecordType(
             // RecordTypeName
             RECORD_NAME_STATISTICS_SYNOPSIS_ELEMENT,
             // FieldNames
-            new String[] { FIELD_NAME_KEY, FIELD_NAME_VALUE, FIELD_NAME_UNIQUE_ELEM },
+            new String[] { FIELD_NAME_KEY, FIELD_NAME_VALUE, FIELD_NAME_UNIQUE_ELEM, FIELD_NAME_HEIGHT },
             // FieldTypes
-            new IAType[] { BuiltinType.AINT64, BuiltinType.ADOUBLE, BuiltinType.AINT64 },
+            new IAType[] { BuiltinType.AINT64, BuiltinType.ADOUBLE, BuiltinType.AINT64, BuiltinType.AINT64 },
             //IsOpen?
             true);
 

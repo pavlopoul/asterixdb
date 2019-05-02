@@ -42,7 +42,7 @@ public class ContinuousHistogramSynopsis extends EquiHeightHistogramSynopsis<His
 
     public void appendToBucket(int bucketId, int bucketNum, long tuplePos, double frequency) {
         if (bucketId >= getBuckets().size()) {
-            getBuckets().add(new HistogramBucket(0l, frequency, 0l));
+            getBuckets().add(new HistogramBucket(0l, frequency, 0l, this.getElementsPerBucket()));
         } else {
             getBuckets().get(bucketId).appendToValue(frequency);
         }

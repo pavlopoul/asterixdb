@@ -43,7 +43,7 @@ public class CardinalityEstimator implements ICardinalityEstimator {
     public long getRangeCardinality(IMetadataProvider metadataProvider, String dataverseName, String datasetName,
             List<String> fieldName, long rangeStart, long rangeStop) throws AlgebricksException {
 
-        getUniqueCardinality(metadataProvider, dataverseName, datasetName, fieldName);
+        //getUniqueCardinality(metadataProvider, dataverseName, datasetName, fieldName);
         List<Statistics> stats = null;
         List<Index> datasetIndexes =
                 ((MetadataProvider) metadataProvider).getDatasetIndexes(dataverseName, datasetName);
@@ -70,7 +70,6 @@ public class CardinalityEstimator implements ICardinalityEstimator {
             } else if (rangeStart == rangeStop) {
                 synopsisEstimate = s.getSynopsis().pointQuery(rangeStart);
             }
-            int size = s.getSynopsis().getMap().size();
             estimate += synopsisEstimate * (s.isAntimatter() ? -1 : 1);
         }
         long endTime = System.nanoTime();

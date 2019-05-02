@@ -231,4 +231,10 @@ public class WaveletCoefficient implements ISynopsisElement<Long> {
         // TODO Auto-generated method stub
         return null;
     }
+
+    @Override
+    public Long getHeight() {
+        // TODO Auto-generated method stub
+        return null;
+    }
 }

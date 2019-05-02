@@ -190,6 +190,10 @@ public class QuantileSketch<T extends Comparable<T>> implements ISketch<T, T> {
         return elements.size();
     }
 
+    public int length() {
+        return size;
+    }
+
     @Override
     public void insert(T v) {
         QuantileSketchElement newElement;

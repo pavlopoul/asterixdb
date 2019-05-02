@@ -45,4 +45,6 @@ public interface ISynopsisElement<T> extends Serializable {
 
     Long getUniqueValue();
 
+    Long getHeight();
+
 }

@@ -44,19 +44,23 @@ public class QuantileSketchBuilder
     public void finishSynopsisBuild() throws HyracksDataException {
         //extract quantiles from the sketch, i.e. create an equi-height histogram
         List<Long> ranks = sketch.finish();
+        long height = sketch.length() / (ranks.size() - 1);
         // take into account that rank values could contain duplicates
         Long prev = null;
         long bucketHeight = 0;
         for (Long r : ranks) {
             if (prev != null && r != prev) {
-                synopsis.getElements().add(new HistogramBucket(prev, bucketHeight, 0l));
+                synopsis.getElements()
+                        .add(new HistogramBucket(prev, bucketHeight, 0l, /*synopsis.getElementsPerBucket()*/height));
                 bucketHeight = 0;
             }
-            bucketHeight += synopsis.getElementsPerBucket();
+            //            bucketHeight += synopsis.getElementsPerBucket();
+            bucketHeight += height;
             prev = r;
         }
         if (prev != null) {
-            synopsis.getElements().add(new HistogramBucket(prev, bucketHeight, 0l));
+            synopsis.getElements().add(new HistogramBucket(prev, bucketHeight, /*0l*/sketch.getSize() - 1,
+                    /*synopsis.getElementsPerBucket()*/height));
         }
     }
 

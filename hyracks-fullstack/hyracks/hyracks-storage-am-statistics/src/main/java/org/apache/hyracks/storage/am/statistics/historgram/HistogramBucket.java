@@ -27,11 +27,13 @@ public class HistogramBucket implements ISynopsisElement<Long> {
     private long rightBorder;
     private double value;
     private long unique;
+    private long height;
 
-    public HistogramBucket(long border, double value, long unique) {
+    public HistogramBucket(long border, double value, long unique, long height) {
         this.rightBorder = border;
         this.value = value;
         this.unique = unique;
+        this.height = height;
     }
 
     public void setRightBorder(long rightBorder) {
@@ -63,6 +65,12 @@ public class HistogramBucket implements ISynopsisElement<Long> {
     @Override
     public Long getUniqueValue() {
         return unique;
+    }
+
+    @Override
+    public Long getHeight() {
+
+        return height;
     }
 
 }

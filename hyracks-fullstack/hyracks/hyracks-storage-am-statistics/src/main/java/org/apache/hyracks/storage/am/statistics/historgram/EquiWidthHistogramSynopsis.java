@@ -34,7 +34,7 @@ public class EquiWidthHistogramSynopsis extends HistogramSynopsis<HistogramBucke
         bucketWidth = (domainEnd - domainStart + 1) / bucketsNum;
         long border = domainStart + bucketWidth;
         for (int i = 0; i < bucketsNum; i++) {
-            getBuckets().add(new HistogramBucket(border, 0.0, 0));
+            getBuckets().add(new HistogramBucket(border, 0.0, 0, 0));
             border += bucketWidth;
         }
         getBuckets().get(bucketsNum - 1).setRightBorder(domainEnd);

@@ -61,4 +61,5 @@ public abstract class EquiHeightHistogramSynopsis<T extends HistogramBucket> ext
     public void finishBucket(int activeBucket) {
         setBucketBorder(activeBucket, getDomainEnd());
     }
+
 }

@@ -43,7 +43,7 @@ public class CardinalityEstimator implements ICardinalityEstimator {
     public long getRangeCardinality(IMetadataProvider metadataProvider, String dataverseName, String datasetName,
             List<String> fieldName, long rangeStart, long rangeStop) throws AlgebricksException {
 
-        //getUniqueCardinality(metadataProvider, dataverseName, datasetName, fieldName);
+        getUniqueCardinality(metadataProvider, dataverseName, datasetName, fieldName);
         List<Statistics> stats = null;
         List<Index> datasetIndexes =
                 ((MetadataProvider) metadataProvider).getDatasetIndexes(dataverseName, datasetName);

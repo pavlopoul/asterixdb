@@ -18,7 +18,6 @@
  */
 package org.apache.hyracks.storage.am.statistics.historgram;
 
-import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.Comparator;
@@ -79,7 +78,6 @@ public abstract class HistogramSynopsis<T extends HistogramBucket> extends Abstr
         }
         long endBucketLeftBorder = getBucketStartPosition(endBucket);
         double value = 0.0;
-        //if (this.getType() != SynopsisType.ContinuousHistogram) {
         if (startBucket == endBucket) {
             value = approximateValueWithinBucket(startBucket, startPosition, endPosition);
         } else {
@@ -92,13 +90,6 @@ public abstract class HistogramSynopsis<T extends HistogramBucket> extends Abstr
                 value += getBuckets().get(i).getValue();
             }
         }
-        //} else {
-        //        if (startBucket == endBucket) {
-        //            value = getBuckets().get(startBucket).getValue()
-        //                    / (double) /*((EquiHeightHistogramSynopsis<T>) this).getElementsPerBucket()*/getBuckets()
-        //                            .get(startBucket).getHeight();
-        //        }
-        // }
         return value;
     }
 
@@ -108,8 +99,8 @@ public abstract class HistogramSynopsis<T extends HistogramBucket> extends Abstr
         double leftEstimate = 0.0;
         double rightEstimate = 0.0;
         double estimate = 0.0;
-        List<long[]> leftBuckets = new ArrayList<>();
-        List<long[]> rightBuckets = new ArrayList<>();
+        //        List<long[]> leftBuckets = new ArrayList<>();
+        //        List<long[]> rightBuckets = new ArrayList<>();
         for (int i = 0; i < getBuckets().size(); i++) {
             if (getBuckets().get(i).getValue() != 0.0) {
                 leftEstimate += getBuckets().get(i).getValue();
@@ -161,22 +152,23 @@ public abstract class HistogramSynopsis<T extends HistogramBucket> extends Abstr
     public long uniqueQuery(boolean primIndex) {
         long distinctValues = 0;
         if (this.getType() == SynopsisType.ContinuousHistogram) {
-            distinctValues = getBuckets().get(getSize() - 1).getUniqueValue();
-        } else {
-            if (primIndex) {
-                for (int i = 0; i < getBuckets().size(); i++) {
-                    if (getBuckets().get(i).getValue() != 0) {
-                        distinctValues += getBuckets().get(i).getValue();
-                    }
+            //distinctValues = getBuckets().get(getSize() - 1).getUniqueValue();
+            primIndex = false;
+        }
+        if (primIndex) {
+            for (int i = 0; i < getBuckets().size(); i++) {
+                if (getBuckets().get(i).getValue() != 0) {
+                    distinctValues += getBuckets().get(i).getValue();
                 }
-            } else {
-                for (int i = 0; i < getBuckets().size(); i++) {
-                    if (getBuckets().get(i).getUniqueValue() != 0) {
-                        distinctValues += getBuckets().get(i).getUniqueValue();
-                    }
+            }
+        } else {
+            for (int i = 0; i < getBuckets().size(); i++) {
+                if (getBuckets().get(i).getUniqueValue() != 0) {
+                    distinctValues += getBuckets().get(i).getUniqueValue();
                 }
             }
         }
+
         return distinctValues;
     }
 

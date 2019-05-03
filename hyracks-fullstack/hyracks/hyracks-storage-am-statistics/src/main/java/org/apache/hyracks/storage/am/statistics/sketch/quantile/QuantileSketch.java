@@ -27,6 +27,7 @@ import java.util.List;
 import java.util.Map.Entry;
 import java.util.PriorityQueue;
 import java.util.Queue;
+import java.util.SortedMap;
 import java.util.TreeMap;
 
 import org.apache.hyracks.storage.am.statistics.sketch.ISketch;
@@ -47,6 +48,10 @@ public class QuantileSketch<T extends Comparable<T>> implements ISketch<T, T> {
             this.value = value;
             this.g = g;
             this.delta = delta;
+        }
+
+        public T getValue() {
+            return value;
         }
 
         @Override
@@ -116,6 +121,10 @@ public class QuantileSketch<T extends Comparable<T>> implements ISketch<T, T> {
                 return null;
             }
             return successor.getValue().getFirst();
+        }
+
+        public SortedMap<K, LinkedList<V>> subMap(K fromKey, K toKey) {
+            return map.subMap(fromKey, toKey);
         }
 
         public V firstEntry() {
@@ -194,6 +203,10 @@ public class QuantileSketch<T extends Comparable<T>> implements ISketch<T, T> {
         return size;
     }
 
+    public TreeMapWithDuplicates<T, QuantileSketchElement> getElements() {
+        return elements;
+    }
+
     @Override
     public void insert(T v) {
         QuantileSketchElement newElement;
@@ -266,7 +279,7 @@ public class QuantileSketch<T extends Comparable<T>> implements ISketch<T, T> {
             return ranks;
         }
         long rMin = e.g;
-        ranks.add(elements.firstEntry().value);
+        //ranks.add(elements.firstEntry().value);
         while (it.hasNext() && quantile <= quantileNum) {
             boolean getNextRank = false;
             // if the requested rank is withing error bounds from the end

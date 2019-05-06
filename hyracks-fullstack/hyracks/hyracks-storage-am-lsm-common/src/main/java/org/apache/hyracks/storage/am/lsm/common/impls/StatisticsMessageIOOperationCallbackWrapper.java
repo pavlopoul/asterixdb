@@ -75,6 +75,7 @@ public class StatisticsMessageIOOperationCallbackWrapper implements ILSMIOOperat
 
     @Override
     public void completed(ILSMIOOperation operation) {
+        wrapperIOOpCallback.completed(operation);
         // TODO Auto-generated method stub
 
     }

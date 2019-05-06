@@ -96,15 +96,6 @@ public class CardinalityEstimator implements ICardinalityEstimator {
         if ((innerStats == null || innerStats.isEmpty()) && (outerStats == null || outerStats.isEmpty())) {
             return CardinalityInferenceVisitor.UNKNOWN;
         }
-        //        List<Statistics> stats;
-        //        List<Statistics> secStats;
-        //        if (innerStats.get(0).getSynopsis().getSize() > outerStats.get(0).getSynopsis().getSize()) {
-        //            stats = outerStats;
-        //            secStats = innerStats;
-        //        } else {
-        //            stats = innerStats;
-        //            secStats = outerStats;
-        //        }
         for (Statistics s : innerStats) {
             for (Statistics sec : outerStats) {
                 result += s.getSynopsis().joinQuery(sec.getSynopsis(), this.primIndex);

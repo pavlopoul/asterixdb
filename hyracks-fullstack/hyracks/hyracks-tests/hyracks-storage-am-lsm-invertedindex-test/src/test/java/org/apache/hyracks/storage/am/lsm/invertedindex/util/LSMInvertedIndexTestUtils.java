@@ -764,6 +764,12 @@ public class LSMInvertedIndexTestUtils {
         public IStatsCollector getStatsCollector() {
             return null;
         }
+
+        @Override
+        public Set<Object> getStateObjectKeys() {
+            // TODO Auto-generated method stub
+            return null;
+        }
     }
 
 }

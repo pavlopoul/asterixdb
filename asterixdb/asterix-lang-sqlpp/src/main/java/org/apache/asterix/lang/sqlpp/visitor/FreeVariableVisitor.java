@@ -40,6 +40,7 @@ import org.apache.asterix.lang.common.expression.ListConstructor;
 import org.apache.asterix.lang.common.expression.LiteralExpr;
 import org.apache.asterix.lang.common.expression.OperatorExpr;
 import org.apache.asterix.lang.common.expression.QuantifiedExpression;
+import org.apache.asterix.lang.common.expression.ListSliceExpression;
 import org.apache.asterix.lang.common.expression.RecordConstructor;
 import org.apache.asterix.lang.common.expression.UnaryExpr;
 import org.apache.asterix.lang.common.expression.VariableExpr;
@@ -286,12 +287,19 @@ public class FreeVariableVisitor extends AbstractSqlppQueryExpressionVisitor<Voi
         for (GbyVariableExpressionPair gbyVarExpr : gc.getGbyPairList()) {
             gbyVarExpr.getExpr().accept(this, freeVars);
         }
-        for (GbyVariableExpressionPair decorVarExpr : gc.getDecorPairList()) {
-            decorVarExpr.getExpr().accept(this, freeVars);
+        if (gc.hasDecorList()) {
+            for (GbyVariableExpressionPair decorVarExpr : gc.getDecorPairList()) {
+                decorVarExpr.getExpr().accept(this, freeVars);
+            }
         }
         if (gc.hasGroupFieldList()) {
             for (Pair<Expression, Identifier> groupField : gc.getGroupFieldList()) {
                 groupField.first.accept(this, freeVars);
+            }
+        }
+        if (gc.hasWithMap()) {
+            for (Expression expr : gc.getWithVarMap().keySet()) {
+                expr.accept(this, freeVars);
             }
         }
         return null;
@@ -417,6 +425,18 @@ public class FreeVariableVisitor extends AbstractSqlppQueryExpressionVisitor<Voi
     }
 
     @Override
+    public Void visit(ListSliceExpression expression, Collection<VariableExpr> freeVars) throws CompilationException {
+        expression.getExpr().accept(this, freeVars);
+        expression.getStartIndexExpression().accept(this, freeVars);
+
+        // End index expression can be null (optional)
+        if (expression.hasEndExpression()) {
+            expression.getEndIndexExpression().accept(this, freeVars);
+        }
+        return null;
+    }
+
+    @Override
     public Void visit(CaseExpression caseExpr, Collection<VariableExpr> freeVars) throws CompilationException {
         caseExpr.getConditionExpr().accept(this, freeVars);
         visit(caseExpr.getWhenExprs(), freeVars);
@@ -427,11 +447,27 @@ public class FreeVariableVisitor extends AbstractSqlppQueryExpressionVisitor<Voi
 
     @Override
     public Void visit(WindowExpression winExpr, Collection<VariableExpr> freeVars) throws CompilationException {
-        winExpr.getExpr().accept(this, freeVars);
         if (winExpr.hasPartitionList()) {
             visit(winExpr.getPartitionList(), freeVars);
         }
-        visit(winExpr.getOrderbyList(), freeVars);
+        if (winExpr.hasOrderByList()) {
+            visit(winExpr.getOrderbyList(), freeVars);
+        }
+        if (winExpr.hasFrameStartExpr()) {
+            winExpr.getFrameStartExpr().accept(this, freeVars);
+        }
+        if (winExpr.hasFrameEndExpr()) {
+            winExpr.getFrameEndExpr().accept(this, freeVars);
+        }
+        if (winExpr.hasWindowFieldList()) {
+            for (Pair<Expression, Identifier> field : winExpr.getWindowFieldList()) {
+                field.first.accept(this, freeVars);
+            }
+        }
+        visit(winExpr.getExprList(), freeVars);
+        if (winExpr.hasWindowVar()) {
+            freeVars.remove(winExpr.getWindowVar());
+        }
         return null;
     }
 

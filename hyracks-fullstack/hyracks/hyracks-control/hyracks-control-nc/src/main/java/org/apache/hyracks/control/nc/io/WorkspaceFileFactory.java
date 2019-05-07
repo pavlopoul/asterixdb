@@ -41,8 +41,11 @@ public final class WorkspaceFileFactory implements IWorkspaceFileFactory {
         registry.registerDeallocatable(new IDeallocatable() {
             @Override
             public void deallocate() {
+                if (!fRef.getRelativePath().startsWith("./Materialize")) {
+                    FileUtils.deleteQuietly(fRef.getFile());
+                }
                 // Delete the created managed file.
-                FileUtils.deleteQuietly(fRef.getFile());
+                //FileUtils.deleteQuietly(fRef.getFile());
             }
         });
         return fRef;

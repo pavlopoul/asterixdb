@@ -189,7 +189,8 @@ public class IntroducePrimaryIndexForAggregationRule implements IAlgebraicRewrit
         Dataset dataset = datasetAndIndex.getLeft();
         Index primaryIndex = datasetAndIndex.getRight();
         /////// replace the operator. prepare the parameters of the BTree of the new unnestmap operator ///////
-        if (dataset.getDatasetType() == DatasetConfig.DatasetType.INTERNAL) {
+        if (dataset.getDatasetType() == DatasetConfig.DatasetType.INTERNAL
+                || dataset.getDatasetType() == DatasetConfig.DatasetType.READER) {
             /////// check usage of variables produced by scan operator in parents ///////
             Set<LogicalVariable> variablesProducedByScanOp = getVariablesProducedByScanOp(scanOperator,
                     dataset.getPrimaryKeys().size(), scanOperator.getVariables().size());
@@ -249,11 +250,16 @@ public class IntroducePrimaryIndexForAggregationRule implements IAlgebraicRewrit
 
     /**
      * Returns null if there is no primary index defined on the dataset
-     * @param scanOperator Scan or unnest-map operator
-     * @param originalBTreeParameters The BTree parameters if the operator is unnest-map
-     * @param context Needed to get the metadata provider and ask for the index
+     * 
+     * @param scanOperator
+     *            Scan or unnest-map operator
+     * @param originalBTreeParameters
+     *            The BTree parameters if the operator is unnest-map
+     * @param context
+     *            Needed to get the metadata provider and ask for the index
      * @return The dataset and its primary index
-     * @throws AlgebricksException when there is a problem getting the dataset or its indexes from the metadata
+     * @throws AlgebricksException
+     *             when there is a problem getting the dataset or its indexes from the metadata
      */
     private Pair<Dataset, Index> findDatasetAndSecondaryPrimaryIndex(AbstractScanOperator scanOperator,
             BTreeJobGenParams originalBTreeParameters, IOptimizationContext context) throws AlgebricksException {

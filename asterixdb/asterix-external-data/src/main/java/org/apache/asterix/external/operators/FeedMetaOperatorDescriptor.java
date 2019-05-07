@@ -29,6 +29,7 @@ import org.apache.hyracks.api.dataflow.IOperatorDescriptor;
 import org.apache.hyracks.api.dataflow.IOperatorNodePushable;
 import org.apache.hyracks.api.dataflow.value.IRecordDescriptorProvider;
 import org.apache.hyracks.api.exceptions.HyracksDataException;
+import org.apache.hyracks.api.job.IOperatorEnvironment;
 import org.apache.hyracks.api.job.JobSpecification;
 import org.apache.hyracks.dataflow.std.base.AbstractSingleActivityOperatorDescriptor;
 
@@ -87,17 +88,17 @@ public class FeedMetaOperatorDescriptor extends AbstractSingleActivityOperatorDe
 
     @Override
     public IOperatorNodePushable createPushRuntime(final IHyracksTaskContext ctx,
-            final IRecordDescriptorProvider recordDescProvider, final int partition, final int nPartitions)
-            throws HyracksDataException {
+            final IRecordDescriptorProvider recordDescProvider, final int partition, final int nPartitions,
+            final IOperatorEnvironment pastEnv) throws HyracksDataException {
         IOperatorNodePushable nodePushable = null;
         switch (runtimeType) {
             case COMPUTE:
                 nodePushable = new FeedMetaComputeNodePushable(ctx, recordDescProvider, partition, nPartitions,
-                        coreOperator, feedConnectionId, feedPolicyProperties, this);
+                        coreOperator, feedConnectionId, feedPolicyProperties, this, pastEnv);
                 break;
             case STORE:
                 nodePushable = new FeedMetaStoreNodePushable(ctx, recordDescProvider, partition, nPartitions,
-                        coreOperator, feedConnectionId, feedPolicyProperties, this);
+                        coreOperator, feedConnectionId, feedPolicyProperties, this, pastEnv);
                 break;
             default:
                 throw new RuntimeDataException(ErrorCode.OPERATORS_FEED_META_OPERATOR_DESCRIPTOR_INVALID_RUNTIME,

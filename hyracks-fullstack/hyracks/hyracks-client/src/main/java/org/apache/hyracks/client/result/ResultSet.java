@@ -21,13 +21,14 @@ package org.apache.hyracks.client.result;
 import org.apache.hyracks.api.client.IHyracksClientConnection;
 import org.apache.hyracks.api.comm.NetworkAddress;
 import org.apache.hyracks.api.context.IHyracksCommonContext;
-import org.apache.hyracks.api.result.IResultSet;
-import org.apache.hyracks.api.result.IResultDirectory;
-import org.apache.hyracks.api.result.IResultSetReader;
-import org.apache.hyracks.api.result.ResultSetId;
 import org.apache.hyracks.api.exceptions.HyracksDataException;
 import org.apache.hyracks.api.io.IIOManager;
 import org.apache.hyracks.api.job.JobId;
+import org.apache.hyracks.api.network.ISocketChannelFactory;
+import org.apache.hyracks.api.result.IResultDirectory;
+import org.apache.hyracks.api.result.IResultSet;
+import org.apache.hyracks.api.result.IResultSetReader;
+import org.apache.hyracks.api.result.ResultSetId;
 import org.apache.hyracks.client.net.ClientNetworkManager;
 import org.apache.hyracks.control.nc.resources.memory.FrameManager;
 
@@ -38,11 +39,12 @@ public class ResultSet implements IResultSet {
 
     private final IHyracksCommonContext resultClientCtx;
 
-    public ResultSet(IHyracksClientConnection hcc, int frameSize, int nReaders) throws Exception {
+    public ResultSet(IHyracksClientConnection hcc, ISocketChannelFactory socketChannelFactory, int frameSize,
+            int nReaders) throws Exception {
         NetworkAddress ddsAddress = hcc.getResultDirectoryAddress();
-        resultDirectory = new ResultDirectory(ddsAddress.getAddress(), ddsAddress.getPort());
+        resultDirectory = new ResultDirectory(ddsAddress.getAddress(), ddsAddress.getPort(), socketChannelFactory);
 
-        netManager = new ClientNetworkManager(nReaders);
+        netManager = new ClientNetworkManager(nReaders, socketChannelFactory);
         netManager.start();
 
         resultClientCtx = new ResultClientContext(frameSize);

@@ -33,6 +33,7 @@ import java.util.Iterator;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Map.Entry;
 import java.util.Objects;
 import java.util.Properties;
 import java.util.Set;
@@ -65,7 +66,6 @@ import org.apache.asterix.common.exceptions.AsterixException;
 import org.apache.asterix.common.exceptions.CompilationException;
 import org.apache.asterix.common.exceptions.ErrorCode;
 import org.apache.asterix.common.exceptions.MetadataException;
-import org.apache.asterix.common.exceptions.RuntimeDataException;
 import org.apache.asterix.common.functions.FunctionSignature;
 import org.apache.asterix.common.utils.JobUtils;
 import org.apache.asterix.common.utils.JobUtils.ProgressState;
@@ -73,13 +73,25 @@ import org.apache.asterix.compiler.provider.ILangCompilationProvider;
 import org.apache.asterix.external.indexing.ExternalFile;
 import org.apache.asterix.external.indexing.IndexingConstants;
 import org.apache.asterix.external.operators.FeedIntakeOperatorNodePushable;
+import org.apache.asterix.external.operators.ReaderJobOperatorDescriptor;
 import org.apache.asterix.external.util.ExternalDataConstants;
+import org.apache.asterix.formats.nontagged.SerializerDeserializerProvider;
 import org.apache.asterix.formats.nontagged.TypeTraitProvider;
+import org.apache.asterix.lang.common.base.Expression;
+import org.apache.asterix.lang.common.base.Expression.Kind;
 import org.apache.asterix.lang.common.base.IReturningStatement;
 import org.apache.asterix.lang.common.base.IRewriterFactory;
 import org.apache.asterix.lang.common.base.IStatementRewriter;
 import org.apache.asterix.lang.common.base.Statement;
+import org.apache.asterix.lang.common.clause.WhereClause;
+import org.apache.asterix.lang.common.expression.CallExpr;
+import org.apache.asterix.lang.common.expression.FieldAccessor;
 import org.apache.asterix.lang.common.expression.IndexedTypeExpression;
+import org.apache.asterix.lang.common.expression.LiteralExpr;
+import org.apache.asterix.lang.common.expression.OperatorExpr;
+import org.apache.asterix.lang.common.expression.VariableExpr;
+import org.apache.asterix.lang.common.literal.IntegerLiteral;
+import org.apache.asterix.lang.common.literal.StringLiteral;
 import org.apache.asterix.lang.common.statement.CompactStatement;
 import org.apache.asterix.lang.common.statement.ConnectFeedStatement;
 import org.apache.asterix.lang.common.statement.CreateDataverseStatement;
@@ -115,12 +127,22 @@ import org.apache.asterix.lang.common.statement.WriteStatement;
 import org.apache.asterix.lang.common.struct.Identifier;
 import org.apache.asterix.lang.common.struct.VarIdentifier;
 import org.apache.asterix.lang.common.util.FunctionUtil;
+import org.apache.asterix.lang.sqlpp.clause.FromClause;
+import org.apache.asterix.lang.sqlpp.clause.FromTerm;
+import org.apache.asterix.lang.sqlpp.clause.Projection;
+import org.apache.asterix.lang.sqlpp.clause.SelectBlock;
+import org.apache.asterix.lang.sqlpp.clause.SelectClause;
+import org.apache.asterix.lang.sqlpp.clause.SelectRegular;
+import org.apache.asterix.lang.sqlpp.clause.SelectSetOperation;
+import org.apache.asterix.lang.sqlpp.expression.SelectExpression;
+import org.apache.asterix.lang.sqlpp.struct.SetOperationInput;
 import org.apache.asterix.metadata.IDatasetDetails;
 import org.apache.asterix.metadata.MetadataManager;
 import org.apache.asterix.metadata.MetadataTransactionContext;
 import org.apache.asterix.metadata.bootstrap.MetadataBuiltinEntities;
 import org.apache.asterix.metadata.dataset.hints.DatasetHints;
 import org.apache.asterix.metadata.dataset.hints.DatasetHints.DatasetNodegroupCardinalityHint;
+import org.apache.asterix.metadata.declared.DatasetDataSource;
 import org.apache.asterix.metadata.declared.MetadataProvider;
 import org.apache.asterix.metadata.entities.BuiltinTypeMap;
 import org.apache.asterix.metadata.entities.CompactionPolicy;
@@ -134,6 +156,8 @@ import org.apache.asterix.metadata.entities.FeedPolicyEntity;
 import org.apache.asterix.metadata.entities.Function;
 import org.apache.asterix.metadata.entities.Index;
 import org.apache.asterix.metadata.entities.InternalDatasetDetails;
+import org.apache.asterix.metadata.entities.InternalDatasetDetails.FileStructure;
+import org.apache.asterix.metadata.entities.InternalDatasetDetails.PartitioningStrategy;
 import org.apache.asterix.metadata.entities.NodeGroup;
 import org.apache.asterix.metadata.feeds.FeedMetadataUtil;
 import org.apache.asterix.metadata.lock.ExternalDatasetsRegistry;
@@ -144,11 +168,16 @@ import org.apache.asterix.metadata.utils.KeyFieldTypeUtil;
 import org.apache.asterix.metadata.utils.MetadataConstants;
 import org.apache.asterix.metadata.utils.MetadataLockUtil;
 import org.apache.asterix.metadata.utils.MetadataUtil;
+import org.apache.asterix.om.base.AInt32;
+import org.apache.asterix.om.base.AString;
 import org.apache.asterix.om.base.IAObject;
+import org.apache.asterix.om.constants.AsterixConstantValue;
+import org.apache.asterix.om.functions.BuiltinFunctions;
 import org.apache.asterix.om.types.ARecordType;
 import org.apache.asterix.om.types.ATypeTag;
 import org.apache.asterix.om.types.IAType;
 import org.apache.asterix.om.types.TypeSignature;
+import org.apache.asterix.runtime.evaluators.common.ClosedRecordConstructorEvalFactory;
 import org.apache.asterix.transaction.management.service.transaction.DatasetIdFactory;
 import org.apache.asterix.translator.AbstractLangTranslator;
 import org.apache.asterix.translator.ClientJobRequest;
@@ -177,14 +206,36 @@ import org.apache.commons.lang3.mutable.MutableObject;
 import org.apache.commons.lang3.tuple.Triple;
 import org.apache.hyracks.algebricks.common.exceptions.AlgebricksException;
 import org.apache.hyracks.algebricks.common.utils.Pair;
+import org.apache.hyracks.algebricks.core.algebra.base.ILogicalExpression;
+import org.apache.hyracks.algebricks.core.algebra.base.ILogicalOperator;
+import org.apache.hyracks.algebricks.core.algebra.base.LogicalOperatorTag;
+import org.apache.hyracks.algebricks.core.algebra.base.LogicalVariable;
 import org.apache.hyracks.algebricks.core.algebra.expressions.AbstractFunctionCallExpression.FunctionKind;
+import org.apache.hyracks.algebricks.core.algebra.expressions.ConstantExpression;
+import org.apache.hyracks.algebricks.core.algebra.expressions.ScalarFunctionCallExpression;
+import org.apache.hyracks.algebricks.core.algebra.expressions.VariableReferenceExpression;
+import org.apache.hyracks.algebricks.core.algebra.operators.logical.AssignOperator;
+import org.apache.hyracks.algebricks.core.algebra.operators.logical.DataSourceScanOperator;
 import org.apache.hyracks.algebricks.data.IAWriterFactory;
 import org.apache.hyracks.algebricks.data.IResultSerializerFactoryProvider;
+import org.apache.hyracks.algebricks.runtime.base.IPushRuntimeFactory;
+import org.apache.hyracks.algebricks.runtime.base.IScalarEvaluatorFactory;
+import org.apache.hyracks.algebricks.runtime.evaluators.ColumnAccessEvalFactory;
+import org.apache.hyracks.algebricks.runtime.operators.meta.AlgebricksMetaOperatorDescriptor;
+import org.apache.hyracks.algebricks.runtime.operators.std.AssignRuntimeFactory;
+import org.apache.hyracks.algebricks.runtime.operators.std.StreamProjectRuntimeFactory;
 import org.apache.hyracks.algebricks.runtime.serializer.ResultSerializerFactoryProvider;
 import org.apache.hyracks.algebricks.runtime.writers.PrinterBasedWriterFactory;
 import org.apache.hyracks.api.client.IClusterInfoCollector;
 import org.apache.hyracks.api.client.IHyracksClientConnection;
+import org.apache.hyracks.api.constraints.PartitionConstraintHelper;
+import org.apache.hyracks.api.dataflow.ConnectorDescriptorId;
+import org.apache.hyracks.api.dataflow.IConnectorDescriptor;
+import org.apache.hyracks.api.dataflow.IOperatorDescriptor;
+import org.apache.hyracks.api.dataflow.OperatorDescriptorId;
+import org.apache.hyracks.api.dataflow.value.ISerializerDeserializer;
 import org.apache.hyracks.api.dataflow.value.ITypeTraits;
+import org.apache.hyracks.api.dataflow.value.RecordDescriptor;
 import org.apache.hyracks.api.exceptions.HyracksDataException;
 import org.apache.hyracks.api.exceptions.SourceLocation;
 import org.apache.hyracks.api.io.FileSplit;
@@ -202,6 +253,9 @@ import org.apache.hyracks.control.common.controllers.CCConfig;
 import org.apache.hyracks.control.common.job.profiling.om.JobProfile;
 import org.apache.hyracks.control.common.job.profiling.om.JobletProfile;
 import org.apache.hyracks.control.common.job.profiling.om.TaskProfile;
+import org.apache.hyracks.dataflow.std.connectors.OneToOneConnectorDescriptor;
+import org.apache.hyracks.dataflow.std.join.OptimizedHybridHashJoinOperatorDescriptor;
+import org.apache.hyracks.dataflow.std.misc.IncrementalSinkOperatorDescriptor;
 import org.apache.hyracks.storage.am.lsm.common.api.ILSMMergePolicyFactory;
 import org.apache.logging.log4j.Level;
 import org.apache.logging.log4j.LogManager;
@@ -223,11 +277,12 @@ public class QueryTranslator extends AbstractLangTranslator implements IStatemen
     protected Dataverse activeDataverse;
     protected final List<FunctionDecl> declaredFunctions;
     protected final ILangCompilationProvider compilationProvider;
-    protected final APIFramework apiFramework;
+    protected APIFramework apiFramework;
     protected final IRewriterFactory rewriterFactory;
     protected final ExecutorService executorService;
     protected final EnumSet<JobFlag> jobFlags = EnumSet.noneOf(JobFlag.class);
     protected final IMetadataLockManager lockManager;
+    protected int queries;
 
     public QueryTranslator(ICcApplicationContext appCtx, List<Statement> statements, SessionOutput output,
             ILangCompilationProvider compilationProvider, ExecutorService executorService) {
@@ -241,6 +296,7 @@ public class QueryTranslator extends AbstractLangTranslator implements IStatemen
         apiFramework = new APIFramework(compilationProvider);
         rewriterFactory = compilationProvider.getRewriterFactory();
         activeDataverse = MetadataBuiltinEntities.DEFAULT_DATAVERSE;
+        queries = 0;
         this.executorService = executorService;
         if (appCtx.getServiceContext().getAppConfig().getBoolean(CCConfig.Option.ENFORCE_FRAME_WRITER_PROTOCOL)) {
             this.jobFlags.add(JobFlag.ENFORCE_CONTRACT);
@@ -308,7 +364,7 @@ public class QueryTranslator extends AbstractLangTranslator implements IStatemen
                         activeDataverse = handleUseDataverseStatement(metadataProvider, stmt);
                         break;
                     case CREATE_DATAVERSE:
-                        handleCreateDataverseStatement(metadataProvider, stmt);
+                        handleCreateDataverseStatement(metadataProvider, stmt, requestParameters);
                         break;
                     case DATASET_DECL:
                         handleCreateDatasetStatement(metadataProvider, stmt, hcc, requestParameters);
@@ -323,7 +379,7 @@ public class QueryTranslator extends AbstractLangTranslator implements IStatemen
                         handleCreateNodeGroupStatement(metadataProvider, stmt);
                         break;
                     case DATAVERSE_DROP:
-                        handleDataverseDropStatement(metadataProvider, stmt, hcc);
+                        handleDataverseDropStatement(metadataProvider, stmt, hcc, requestParameters);
                         break;
                     case DATASET_DROP:
                         handleDatasetDropStatement(metadataProvider, stmt, hcc, requestParameters);
@@ -465,7 +521,8 @@ public class QueryTranslator extends AbstractLangTranslator implements IStatemen
         }
     }
 
-    protected void handleCreateDataverseStatement(MetadataProvider metadataProvider, Statement stmt) throws Exception {
+    protected void handleCreateDataverseStatement(MetadataProvider metadataProvider, Statement stmt,
+            IRequestParameters requestParameters) throws Exception {
         CreateDataverseStatement stmtCreateDataverse = (CreateDataverseStatement) stmt;
         String dvName = stmtCreateDataverse.getDataverseName().getValue();
         MetadataTransactionContext mdTxnCtx = MetadataManager.INSTANCE.beginTransaction();
@@ -941,7 +998,7 @@ public class QueryTranslator extends AbstractLangTranslator implements IStatemen
         boolean filesIndexReplicated = false;
         try {
             index.setPendingOp(MetadataUtil.PENDING_ADD_OP);
-            if (ds.getDatasetType() == DatasetType.INTERNAL) {
+            if (ds.getDatasetType() == DatasetType.INTERNAL || ds.getDatasetType() == DatasetType.READER) {
                 validateDatasetState(metadataProvider, ds, sourceLoc);
             } else {
                 // External dataset
@@ -1220,7 +1277,7 @@ public class QueryTranslator extends AbstractLangTranslator implements IStatemen
     }
 
     protected void handleDataverseDropStatement(MetadataProvider metadataProvider, Statement stmt,
-            IHyracksClientConnection hcc) throws Exception {
+            IHyracksClientConnection hcc, IRequestParameters requestParameters) throws Exception {
         DataverseDropStatement stmtDelete = (DataverseDropStatement) stmt;
         SourceLocation sourceLoc = stmtDelete.getSourceLocation();
         String dataverseName = stmtDelete.getDataverseName().getValue();
@@ -1826,8 +1883,8 @@ public class QueryTranslator extends AbstractLangTranslator implements IStatemen
                     new CompiledLoadFromFileStatement(dataverseName, loadStmt.getDatasetName().getValue(),
                             loadStmt.getAdapter(), loadStmt.getProperties(), loadStmt.dataIsAlreadySorted());
             cls.setSourceLocation(stmt.getSourceLocation());
-            JobSpecification spec =
-                    apiFramework.compileQuery(hcc, metadataProvider, null, 0, null, sessionOutput, cls, null, null);
+            JobSpecification spec = apiFramework.compileQuery(hcc, metadataProvider, null, 0, null, sessionOutput, cls,
+                    null, null, true, null);
             afterCompile();
             MetadataManager.INSTANCE.commitTransaction(mdTxnCtx);
             bActiveTxn = false;
@@ -1862,7 +1919,10 @@ public class QueryTranslator extends AbstractLangTranslator implements IStatemen
                 metadataProvider.getLocks().unlock();
             }
         };
-        final IStatementCompiler compiler = () -> {
+        final IStatementCompiler compiler = (/*JobSpecification spec, JobBuilder builder,*/
+                List<ILogicalOperator> operators, boolean first,
+                /*JobGenContext context, PlanCompiler pc,
+                Map<Mutable<ILogicalOperator>, List<ILogicalOperator>> operatorVisitedToParents, */Query newQuery) -> {
             MetadataTransactionContext mdTxnCtx = MetadataManager.INSTANCE.beginTransaction();
             boolean bActiveTxn = true;
             metadataProvider.setMetadataTxnContext(mdTxnCtx);
@@ -1883,7 +1943,7 @@ public class QueryTranslator extends AbstractLangTranslator implements IStatemen
         if (compileOnly) {
             locker.lock();
             try {
-                return compiler.compile();
+                return compiler.compile(null, true, null);
             } finally {
                 locker.unlock();
             }
@@ -1895,7 +1955,7 @@ public class QueryTranslator extends AbstractLangTranslator implements IStatemen
         } else {
             locker.lock();
             try {
-                final JobSpecification jobSpec = compiler.compile();
+                final JobSpecification jobSpec = compiler.compile(null, true, null);
                 if (jobSpec == null) {
                     return jobSpec;
                 }
@@ -1924,7 +1984,7 @@ public class QueryTranslator extends AbstractLangTranslator implements IStatemen
                     stmtDelete.getQuery());
             clfrqs.setSourceLocation(stmt.getSourceLocation());
             JobSpecification jobSpec = rewriteCompileQuery(hcc, metadataProvider, clfrqs.getQuery(), clfrqs, stmtParams,
-                    stmtRewriter, null);
+                    stmtRewriter, null, true, null);
             afterCompile();
 
             MetadataManager.INSTANCE.commitTransaction(mdTxnCtx);
@@ -1947,8 +2007,8 @@ public class QueryTranslator extends AbstractLangTranslator implements IStatemen
     @Override
     public JobSpecification rewriteCompileQuery(IClusterInfoCollector clusterInfoCollector,
             MetadataProvider metadataProvider, Query query, ICompiledDmlStatement stmt,
-            Map<String, IAObject> stmtParams, IStatementRewriter stmtRewriter, Stats stats)
-            throws AlgebricksException, ACIDException {
+            Map<String, IAObject> stmtParams, IStatementRewriter stmtRewriter, List<ILogicalOperator> operators,
+            boolean first, Query newQuery) throws AlgebricksException, ACIDException {
 
         Map<VarIdentifier, IAObject> externalVars = createExternalVariables(stmtParams, stmtRewriter);
 
@@ -1959,7 +2019,15 @@ public class QueryTranslator extends AbstractLangTranslator implements IStatemen
         // Query Compilation (happens under the same ongoing metadata transaction)
         return apiFramework.compileQuery(clusterInfoCollector, metadataProvider, (Query) rewrittenResult.first,
                 rewrittenResult.second, stmt == null ? null : stmt.getDatasetName(), sessionOutput, stmt, externalVars,
-                stats);
+                operators, first, newQuery);
+    }
+
+    public boolean getFinished() {
+        return apiFramework.getFinished();
+    }
+
+    public List<ILogicalOperator> getOperators() {
+        return apiFramework.getOperators();
     }
 
     private JobSpecification rewriteCompileInsertUpsert(IClusterInfoCollector clusterInfoCollector,
@@ -1997,7 +2065,7 @@ public class QueryTranslator extends AbstractLangTranslator implements IStatemen
         // Insert/upsert statement compilation (happens under the same ongoing metadata
         // transaction)
         return apiFramework.compileQuery(clusterInfoCollector, metadataProvider, rewrittenInsertUpsert.getQuery(),
-                rewrittenResult.second, datasetName, sessionOutput, clfrqs, externalVars, null);
+                rewrittenResult.second, datasetName, sessionOutput, clfrqs, externalVars, null, true, null);
     }
 
     protected void handleCreateFeedStatement(MetadataProvider metadataProvider, Statement stmt) throws Exception {
@@ -2438,7 +2506,8 @@ public class QueryTranslator extends AbstractLangTranslator implements IStatemen
     }
 
     private interface IStatementCompiler {
-        JobSpecification compile() throws AlgebricksException, RemoteException, ACIDException;
+        JobSpecification compile(List<ILogicalOperator> operators, boolean first, Query newQuery)
+                throws AlgebricksException, RemoteException, ACIDException;
     }
 
     protected void handleQuery(MetadataProvider metadataProvider, Query query, IHyracksClientConnection hcc,
@@ -2457,13 +2526,18 @@ public class QueryTranslator extends AbstractLangTranslator implements IStatemen
                 ExternalDatasetsRegistry.INSTANCE.releaseAcquiredLocks(metadataProvider);
             }
         };
-        final IStatementCompiler compiler = () -> {
-            MetadataTransactionContext mdTxnCtx = MetadataManager.INSTANCE.beginTransaction();
+        final IStatementCompiler compiler = (List<ILogicalOperator> operators, boolean first, Query newQuery) -> {
+            MetadataTransactionContext mdTxnCtx = null;
+            if (newQuery == null) {
+                mdTxnCtx = MetadataManager.INSTANCE.beginTransaction();
+            } else {
+                mdTxnCtx = metadataProvider.getMetadataTxnContext();
+            }
             boolean bActiveTxn = true;
             metadataProvider.setMetadataTxnContext(mdTxnCtx);
             try {
-                final JobSpecification jobSpec =
-                        rewriteCompileQuery(hcc, metadataProvider, query, null, stmtParams, stmtRewriter, stats);
+                final JobSpecification jobSpec = rewriteCompileQuery(hcc, metadataProvider, query, null, stmtParams,
+                        stmtRewriter, operators, first, newQuery);
                 afterCompile();
                 MetadataManager.INSTANCE.commitTransaction(mdTxnCtx);
                 bActiveTxn = false;
@@ -2489,7 +2563,7 @@ public class QueryTranslator extends AbstractLangTranslator implements IStatemen
             case ASYNC:
                 MutableBoolean printed = new MutableBoolean(false);
                 executorService.submit(() -> asyncCreateAndRunJob(hcc, compiler, locker, resultDelivery,
-                        clientContextId, ctx, resultSetId, printed));
+                        clientContextId, ctx, resultSetId, printed, metadataProvider));
                 synchronized (printed) {
                     while (!printed.booleanValue()) {
                         printed.wait();
@@ -2504,7 +2578,7 @@ public class QueryTranslator extends AbstractLangTranslator implements IStatemen
                     sessionOutput.release();
                     ResultUtil.printResults(appCtx, resultReader, sessionOutput, stats,
                             metadataProvider.findOutputRecordType());
-                }, clientContextId, ctx);
+                }, clientContextId, ctx, metadataProvider);
                 break;
             case DEFERRED:
                 createAndRunJob(hcc, jobFlags, null, compiler, locker, resultDelivery, id -> {
@@ -2514,7 +2588,7 @@ public class QueryTranslator extends AbstractLangTranslator implements IStatemen
                         outMetadata.getResultSets()
                                 .add(Triple.of(id, resultSetId, metadataProvider.findOutputRecordType()));
                     }
-                }, clientContextId, ctx);
+                }, clientContextId, ctx, metadataProvider);
                 break;
             default:
                 break;
@@ -2542,7 +2616,7 @@ public class QueryTranslator extends AbstractLangTranslator implements IStatemen
 
     private void asyncCreateAndRunJob(IHyracksClientConnection hcc, IStatementCompiler compiler, IMetadataLocker locker,
             ResultDelivery resultDelivery, String clientContextId, IStatementExecutorContext ctx,
-            ResultSetId resultSetId, MutableBoolean printed) {
+            ResultSetId resultSetId, MutableBoolean printed, MetadataProvider mp) {
         Mutable<JobId> jobId = new MutableObject<>(JobId.INVALID);
         try {
             createAndRunJob(hcc, jobFlags, jobId, compiler, locker, resultDelivery, id -> {
@@ -2553,7 +2627,7 @@ public class QueryTranslator extends AbstractLangTranslator implements IStatemen
                     printed.setTrue();
                     printed.notify();
                 }
-            }, clientContextId, ctx);
+            }, clientContextId, ctx, mp);
         } catch (Exception e) {
             if (Objects.equals(JobId.INVALID, jobId.getValue())) {
                 // compilation failed
@@ -2582,15 +2656,249 @@ public class QueryTranslator extends AbstractLangTranslator implements IStatemen
         JobUtils.runJob(hcc, jobSpec, jobFlags, true);
     }
 
-    private static void createAndRunJob(IHyracksClientConnection hcc, EnumSet<JobFlag> jobFlags, Mutable<JobId> jId,
+    private static List<Expression> addArgs(Object... args) {
+        List<Expression> argExprs = new ArrayList<>();
+        for (Object arg : args) {
+            if (arg instanceof Integer) {
+                argExprs.add(new LiteralExpr(new IntegerLiteral((Integer) arg)));
+            } else if (arg instanceof String) {
+                argExprs.add(new LiteralExpr(new StringLiteral((String) arg)));
+            } else if (arg instanceof Expression) {
+                argExprs.add((Expression) arg);
+            }
+        }
+        return argExprs;
+    }
+
+    private void createAndRunJob(IHyracksClientConnection hcc, EnumSet<JobFlag> jobFlags, Mutable<JobId> jId,
             IStatementCompiler compiler, IMetadataLocker locker, ResultDelivery resultDelivery, IResultPrinter printer,
-            String clientContextId, IStatementExecutorContext ctx) throws Exception {
+            String clientContextId, IStatementExecutorContext ctx, MetadataProvider mp) throws Exception {
         ClientJobRequest req = null;
-        locker.lock();
-        try {
-            final JobSpecification jobSpec = compiler.compile();
+        JobSpecification jobSpec = null;
+        List<ILogicalOperator> operators = new ArrayList<>();
+        Query newQuery = null;
+        boolean first = true;
+        RecordDescriptor[] rdesc = null;
+        DatasetDataSource dataSource1 = null;
+        List<LogicalVariable> evars = null;
+        List<String> datasources = new ArrayList<>();
+        RecordDescriptor[] internalRecordDescriptors = new RecordDescriptor[3];
+        while (!getFinished()) {
+            locker.lock();
+            jobSpec = compiler.compile(operators, first, newQuery);
             if (jobSpec == null) {
                 return;
+            }
+            operators = getOperators();
+            if (!getFinished()) {
+                List<LogicalVariable> vars = null;
+                IAType[] types = null;
+                String[] fieldNames = null;
+                String recordTypeName = null;
+                VariableReferenceExpression varexpr = null;
+                int i = 0;
+                for (ILogicalOperator op : operators) {
+                    if (op.getOperatorTag() == LogicalOperatorTag.INNERJOIN) {
+                        vars = op.getSchema();
+                        evars = vars;
+                        types = new IAType[vars.size()];
+                        fieldNames = new String[vars.size()];
+                        if (!datasources.isEmpty()) {
+                            datasources.clear();
+                        }
+                    }
+                    if (op.getOperatorTag() == LogicalOperatorTag.ASSIGN) {
+                        if (vars != null)
+                            for (LogicalVariable var : vars) {
+                                if (var == ((AssignOperator) op).getVariables().get(0)) {
+                                    List<Mutable<ILogicalExpression>> expressions =
+                                            ((AssignOperator) op).getExpressions();
+
+                                    ILogicalOperator childOp = op;
+                                    while (childOp.getOperatorTag() != LogicalOperatorTag.DATASOURCESCAN) {
+                                        childOp = childOp.getInputs().get(0).getValue();
+                                    }
+                                    DataSourceScanOperator scan = (DataSourceScanOperator) childOp;
+                                    dataSource1 = (DatasetDataSource) scan.getDataSource();
+                                    ARecordType recordType = (ARecordType) dataSource1.getItemType();
+                                    for (Mutable<ILogicalExpression> expression : expressions) {
+
+                                        ScalarFunctionCallExpression sfce =
+                                                (ScalarFunctionCallExpression) expression.getValue();
+                                        ConstantExpression ce =
+                                                (ConstantExpression) sfce.getArguments().get(1).getValue();
+                                        AsterixConstantValue cs = (AsterixConstantValue) ce.getValue();
+                                        int aint32 = ((AInt32) cs.getObject()).getIntegerValue();
+
+                                        IAType type = recordType.getFieldTypes()[aint32];
+                                        types[i] = type;
+                                        fieldNames[i] = recordType.getFieldNames()[aint32];
+                                        i++;
+                                    }
+                                    ScalarFunctionCallExpression sfce1 =
+                                            (ScalarFunctionCallExpression) expressions.get(0).getValue();
+                                    varexpr = (VariableReferenceExpression) sfce1.getArguments().get(0).getValue();
+                                    recordTypeName = varexpr.getVariableReference().toString().substring(2);
+                                    datasources.add(recordTypeName);
+                                    break;
+                                }
+                            }
+                    }
+                    if (op.getOperatorTag() == LogicalOperatorTag.DATASOURCESCAN) {
+                        if (vars != null)
+                            for (LogicalVariable var : vars) {
+                                if (var == ((DataSourceScanOperator) op).getVariables().get(0)) {
+                                    DataSourceScanOperator scan = (DataSourceScanOperator) op;
+
+                                    IAType type = (IAType) scan.getDataSource().getSchemaTypes()[0];
+                                    types[i] = type;
+                                    DatasetDataSource datasource = (DatasetDataSource) scan.getDataSource();
+                                    ARecordType rType = (ARecordType) datasource.getItemType();
+                                    fieldNames[i] = rType.getFieldNames()[0];
+                                    for (String datasource1 : datasources) {
+                                        if (!datasource1.equals(scan.getVariables().get(scan.getVariables().size() - 1)
+                                                .toString().substring(2))) {
+                                            datasources.add(scan.getVariables().get(scan.getVariables().size() - 1)
+                                                    .toString().substring(2));
+                                            break;
+                                        }
+                                    }
+                                    i++;
+                                }
+                            }
+                    }
+                }
+                IScalarEvaluatorFactory[] args = new IScalarEvaluatorFactory[fieldNames.length * 2];
+                for (int j = 0; j < fieldNames.length * 2; j = j + 2) {
+                    IAObject field = new AString(fieldNames[j / 2]);
+                    AsterixConstantValue acv = new AsterixConstantValue(field);
+                    ConstantExpression ce = new ConstantExpression(acv);
+
+                    IScalarEvaluatorFactory copyEvaluatorFactory =
+                            mp.getDataFormat().getConstantEvalFactory(ce.getValue());
+
+                    args[j] = copyEvaluatorFactory;
+                    args[j + 1] = new ColumnAccessEvalFactory(j / 2);
+                }
+                ARecordType recType = new ARecordType(null, fieldNames, types, false);
+                ClosedRecordConstructorEvalFactory crc = new ClosedRecordConstructorEvalFactory(args, recType);
+                List<List<String>> primKey = new ArrayList<>();
+                List<String> str = new ArrayList<>();
+                str.add(fieldNames[1]);
+                primKey.add(str);
+                List<IAType> strType = new ArrayList<>();
+                strType.add(types[1]);
+                queries++;
+                IAType newRecordType =
+                        new ARecordType(recordTypeName + String.valueOf(queries), fieldNames, types, false);
+                for (Entry<OperatorDescriptorId, List<IConnectorDescriptor>> entry : jobSpec.getOperatorInputMap()
+                        .entrySet()) {
+                    if (jobSpec.getOperatorMap().get(entry.getKey()) instanceof AlgebricksMetaOperatorDescriptor) {
+                        if (!jobSpec.getOperatorOutputMap().containsKey(entry.getKey())) {
+                            List<IConnectorDescriptor> toBeRemoved = entry.getValue();
+                            for (IConnectorDescriptor conn : toBeRemoved) {
+                                OperatorDescriptorId id = jobSpec.getConnectorOperatorMap().get(conn.getConnectorId())
+                                        .getKey().getKey().getOperatorId();
+                                IConnectorDescriptor conn2 = jobSpec.getOperatorInputMap().get(id).get(0);
+                                OperatorDescriptorId id2 = jobSpec.getConnectorOperatorMap().get(conn2.getConnectorId())
+                                        .getKey().getKey().getOperatorId();
+                                jobSpec.getConnectorMap().remove(conn2.getConnectorId());
+                                jobSpec.getConnectorOperatorMap().remove(conn2.getConnectorId());
+                                jobSpec.getConnectorMap().remove(conn.getConnectorId());
+                                jobSpec.getConnectorOperatorMap().remove(conn.getConnectorId());
+                                jobSpec.getOperatorMap().remove(entry.getKey());
+                                jobSpec.getOperatorMap().remove(id);
+                                jobSpec.getOperatorMap().remove(id2);
+                            }
+                        }
+                    }
+                }
+                List<ConnectorDescriptorId> connId = new ArrayList<>();
+                for (Entry<ConnectorDescriptorId, IConnectorDescriptor> entry : jobSpec.getConnectorMap().entrySet()) {
+                    if (!jobSpec.getConnectorOperatorMap().containsKey(entry.getKey())) {
+                        connId.add(entry.getKey());
+                    }
+                }
+                for (ConnectorDescriptorId cid : connId) {
+                    jobSpec.getConnectorMap().remove(cid);
+                }
+                newQuery = makeConnectionQuery(varexpr, recordTypeName + String.valueOf(queries), dataSource1,
+                        newRecordType, mp, primKey, strType, datasources, newQuery);
+                OperatorDescriptorId odId = null;
+                OperatorDescriptorId id = null;
+                for (Entry<OperatorDescriptorId, IOperatorDescriptor> entry : jobSpec.getOperatorMap().entrySet()) {
+                    if (entry.getValue() instanceof OptimizedHybridHashJoinOperatorDescriptor) {
+                        odId = entry.getKey();
+                    }
+                    if (entry.getValue() instanceof IncrementalSinkOperatorDescriptor) {
+                        id = entry.getKey();
+                    }
+                }
+                IScalarEvaluatorFactory[] evalFactories = new IScalarEvaluatorFactory[1];
+                evalFactories[0] = crc;
+                rdesc = jobSpec.getOperatorMap().get(odId).getOutputRecordDescriptors();
+                ISerializerDeserializer[] fields = new ISerializerDeserializer[rdesc[0].getFieldCount() + 1];
+
+                ITypeTraits[] typeTraits = new ITypeTraits[rdesc[0].getFieldCount() + 1];
+                for (int k = 0; k < fields.length - 1; k++) {
+                    fields[k] = rdesc[0].getFields()[k];
+                    typeTraits[k] = rdesc[0].getTypeTraits()[k];
+                }
+                fields[fields.length - 1] = SerializerDeserializerProvider.INSTANCE.getSerializerDeserializer(recType);
+                typeTraits[fields.length - 1] = typeTraits[0];
+                int[] outColumns = new int[1];
+                outColumns[0] = evars.size();
+                int[] projectionList = new int[evars.size()];
+                int[] aprojectionList = new int[evars.size() + 1];
+                for (int j = 0; j < projectionList.length; j++) {
+                    projectionList[j] = j;
+                }
+                for (int j = 0; j < aprojectionList.length; j++) {
+                    aprojectionList[j] = j;
+                }
+                ISerializerDeserializer[] newfields = new ISerializerDeserializer[1];
+                ITypeTraits[] newtypeTraits = new ITypeTraits[1];
+                newfields[0] = fields[fields.length - 1];
+                typeTraits[0] = typeTraits[fields.length - 1];
+                StreamProjectRuntimeFactory proruntime = new StreamProjectRuntimeFactory(projectionList, false);
+                RecordDescriptor projectDesc = rdesc[0];
+                RecordDescriptor assignDesc = new RecordDescriptor(fields, typeTraits);
+                AssignRuntimeFactory runtime =
+                        new AssignRuntimeFactory(outColumns, evalFactories, aprojectionList, false);
+                StreamProjectRuntimeFactory proruntime2 = new StreamProjectRuntimeFactory(outColumns, false);
+                RecordDescriptor projectDesc2 = new RecordDescriptor(newfields, newtypeTraits);
+                IPushRuntimeFactory[] runtimeFactories = new IPushRuntimeFactory[3];
+                runtimeFactories[0] = proruntime;
+                internalRecordDescriptors[0] = projectDesc;
+                runtimeFactories[1] = runtime;
+                internalRecordDescriptors[1] = assignDesc;
+                runtimeFactories[2] = proruntime2;
+                internalRecordDescriptors[2] = projectDesc2;
+                IPushRuntimeFactory[] outRuntimeFactories = new IPushRuntimeFactory[1];
+                outRuntimeFactories[0] = null;
+                int[] outPositions = new int[1];
+                outPositions[0] = 0;
+                AlgebricksMetaOperatorDescriptor amod = new AlgebricksMetaOperatorDescriptor(jobSpec, 1, 1,
+                        runtimeFactories, internalRecordDescriptors, outRuntimeFactories, outPositions);
+                String[] readerLocations =
+                        mp.getApplicationContext().getClusterStateManager().getClusterLocations().getLocations();
+                PartitionConstraintHelper.addAbsoluteLocationConstraint(jobSpec, amod, readerLocations);
+
+                for (Entry<ConnectorDescriptorId, org.apache.commons.lang3.tuple.Pair<org.apache.commons.lang3.tuple.Pair<IOperatorDescriptor, Integer>, org.apache.commons.lang3.tuple.Pair<IOperatorDescriptor, Integer>>> entry : jobSpec
+                        .getConnectorOperatorMap().entrySet()) {
+                    if (entry.getValue().getLeft().getKey() instanceof IncrementalSinkOperatorDescriptor
+                            || entry.getValue().getRight().getKey() instanceof IncrementalSinkOperatorDescriptor) {
+                        jobSpec.getConnectorOperatorMap().remove(entry.getKey());
+                        jobSpec.getConnectorMap().remove(entry.getKey());
+                    }
+                }
+
+                jobSpec.connect(new OneToOneConnectorDescriptor(jobSpec), jobSpec.getOperatorMap().get(odId), 0, amod,
+                        0);
+                jobSpec.connect(new OneToOneConnectorDescriptor(jobSpec), amod, 0, jobSpec.getOperatorMap().get(id), 0);
+                removeFromConnectors(0, jobSpec, jobSpec.getConnectorOperatorMap());
+            } else {
+                removeFromConnectors(0, jobSpec, jobSpec.getConnectorOperatorMap());
             }
             final JobId jobId = JobUtils.runJob(hcc, jobSpec, jobFlags, false);
             if (ctx != null && clientContextId != null) {
@@ -2605,15 +2913,190 @@ public class QueryTranslator extends AbstractLangTranslator implements IStatemen
                 hcc.waitForCompletion(jobId);
             } else {
                 hcc.waitForCompletion(jobId);
-                printer.print(jobId);
-            }
-        } finally {
-            locker.unlock();
-            // No matter the job succeeds or fails, removes it into the context.
-            if (req != null) {
-                req.complete();
+                if (getFinished()) {
+                    printer.print(jobId);
+                    locker.unlock();
+                    if (req != null) {
+                        req.complete();
+                    }
+                }
             }
         }
+    }
+
+    private void removeFromConnectors(int readers, JobSpecification jobSpec,
+            Map<ConnectorDescriptorId, org.apache.commons.lang3.tuple.Pair<org.apache.commons.lang3.tuple.Pair<IOperatorDescriptor, Integer>, org.apache.commons.lang3.tuple.Pair<IOperatorDescriptor, Integer>>> connectors) {
+        OperatorDescriptorId rid = null;
+        OperatorDescriptorId rid2 = null;
+        ConnectorDescriptorId cId = null;
+        ConnectorDescriptorId cId2 = null;
+        for (Entry<ConnectorDescriptorId, org.apache.commons.lang3.tuple.Pair<org.apache.commons.lang3.tuple.Pair<IOperatorDescriptor, Integer>, org.apache.commons.lang3.tuple.Pair<IOperatorDescriptor, Integer>>> entry : connectors
+                .entrySet()) {
+            if (entry.getValue().getRight().getKey() instanceof ReaderJobOperatorDescriptor) {
+                readers++;
+                if (readers == 1) {
+                    rid = entry.getValue().getLeft().getKey().getOperatorId();
+                    cId = entry.getKey();
+                } else {
+                    rid2 = entry.getValue().getLeft().getKey().getOperatorId();
+                    cId2 = entry.getKey();
+                }
+
+            }
+        }
+        if (rid != null) {
+            jobSpec.getConnectorOperatorMap().remove(cId);
+            jobSpec.getConnectorMap().remove(cId);
+            jobSpec.getOperatorMap().remove(rid);
+            if (rid2 != null) {
+                jobSpec.getConnectorOperatorMap().remove(cId2);
+                jobSpec.getConnectorMap().remove(cId2);
+                jobSpec.getOperatorMap().remove(rid2);
+            }
+        }
+    }
+
+    private Query makeConnectionQuery(VariableReferenceExpression varexpr, String recordTypeName,
+            DatasetDataSource dataSource, IAType newRecordType, MetadataProvider mp, List<List<String>> primKey,
+            List<IAType> strType, List<String> datasources, Query newQuery)
+            throws AlgebricksException, ACIDException, RemoteException {
+        //        Query newQuery = null;
+        VarIdentifier fromVarId = new VarIdentifier(varexpr.getVariableReference().toString().substring(1));
+        VariableExpr fromTermLeftExpr = new VariableExpr(fromVarId);
+        Dataset newSet = new Dataset("newdata", recordTypeName, "newdata", recordTypeName, null, null,
+                "newdata." + recordTypeName, "prefix", dataSource.getDataset().getCompactionPolicyProperties(),
+                new InternalDatasetDetails(FileStructure.BTREE, PartitioningStrategy.HASH, new ArrayList<>(),
+                        new ArrayList<>(), new ArrayList<>(), new ArrayList<>(), false, new ArrayList<>()),
+                new HashMap<>(), DatasetType.READER, 1, 0, 0, "none");
+        List<Expression> exprList = addArgs(newSet.getDataverseName() + "." + newSet.getDatasetName());
+        CallExpr datasrouceCallFunction = new CallExpr(new FunctionSignature(BuiltinFunctions.DATASET), exprList);
+        FromTerm fromterm = new FromTerm(datasrouceCallFunction, fromTermLeftExpr, null, null);
+        Query oldQuery = null;
+        if (newQuery == null) {
+            oldQuery = (Query) statements.get(1);
+        } else {
+            oldQuery = newQuery;
+        }
+        Expression exp = oldQuery.getBody();
+        List<FromTerm> fromTermOld = null;
+        List<FromTerm> fromTermNew = new ArrayList<>();
+        SelectClause oldselect = null;
+        SelectClause newselect = null;
+        if (exp.getKind() == Kind.SELECT_EXPRESSION) {
+            SelectExpression select = (SelectExpression) exp;
+            oldselect = select.getSelectSetOperation().getLeftInput().getSelectBlock().getSelectClause();
+            newselect = oldselect;
+            FromClause fromold = select.getSelectSetOperation().getLeftInput().getSelectBlock().getFromClause();
+            fromTermOld = fromold.getFromTerms();
+        }
+        VariableExpr oldselexp =
+                (VariableExpr) ((FieldAccessor) oldselect.getSelectRegular().getProjections().get(0).getExpression())
+                        .getExpr();
+        List<Projection> newprojection = new ArrayList<>();
+        for (String datasource : datasources) {
+            if (oldselexp.getVar().getValue().substring(1).equals(datasource)) {
+                newprojection
+                        .add(new Projection(
+                                new FieldAccessor(fromTermLeftExpr,
+                                        ((FieldAccessor) oldselect.getSelectRegular().getProjections().get(0)
+                                                .getExpression()).getIdent()),
+                                oldselect.getSelectRegular().getProjections().get(0).getName(), false, false));
+
+            }
+        }
+        if (!newprojection.isEmpty()) {
+            newselect = new SelectClause(null, new SelectRegular(newprojection), false);
+        }
+        for (FromTerm oldterm : fromTermOld) {
+            if (!oldterm.getLeftVariable().toString().substring(1).equals(datasources.get(0))
+                    && !oldterm.getLeftVariable().toString().substring(1).equals(datasources.get(1))) {
+                fromTermNew.add(oldterm);
+            }
+        }
+        fromTermNew.add(0, fromterm);
+        FromClause fromClause = new FromClause(fromTermNew);
+        Dataverse newDataverse = new Dataverse("newdata", "", 0);
+        Datatype newDatatype = new Datatype("newdata", recordTypeName, newRecordType, false);
+        final MetadataTransactionContext writeTxn = MetadataManager.INSTANCE.beginTransaction();
+        mp.setMetadataTxnContext(writeTxn);
+        if (MetadataManager.INSTANCE.getDataset(writeTxn, "newdata", newSet.getDatasetName()) != null) {
+            MetadataManager.INSTANCE.dropFromCache(writeTxn, newDataverse);
+            MetadataManager.INSTANCE.dropDataverse(writeTxn, newDataverse.getDataverseName());
+            MetadataManager.INSTANCE.dropNodegroup(writeTxn, newSet.getNodeGroupName(), true);
+        }
+        if (MetadataManager.INSTANCE.getDataverse(writeTxn, newDataverse.getDataverseName()) == null) {
+            MetadataManager.INSTANCE.addDataverse(writeTxn, newDataverse);
+        }
+        MetadataManager.INSTANCE.addDataset(writeTxn, newSet);
+        MetadataManager.INSTANCE.addDatatype(writeTxn, newDatatype);
+        if (MetadataManager.INSTANCE.getNodegroup(writeTxn, newSet.getNodeGroupName()) == null) {
+            MetadataManager.INSTANCE.addNodegroup(writeTxn,
+                    new NodeGroup(newSet.getNodeGroupName(), MetadataManager.INSTANCE
+                            .getNodegroup(mp.getMetadataTxnContext(), dataSource.getDataset().getNodeGroupName())
+                            .getNodeNames()));
+        }
+        if (exp.getKind() == Kind.SELECT_EXPRESSION) {
+            SelectExpression select = (SelectExpression) exp;
+            WhereClause whereClause = select.getSelectSetOperation().getLeftInput().getSelectBlock().getWhereClause();
+            OperatorExpr whereExpr = (OperatorExpr) whereClause.getWhereExpr();
+            OperatorExpr newWhereExpr = new OperatorExpr();
+            for (Expression e : whereExpr.getExprList()) {
+                OperatorExpr oE = (OperatorExpr) e;
+                FieldAccessor fE1 = (FieldAccessor) oE.getExprList().get(0);
+                FieldAccessor fE2 = (FieldAccessor) oE.getExprList().get(1);
+                if (fE1.getExpr().toString().substring(1).equals(datasources.get(0))
+                        || fE1.getExpr().toString().substring(1).equals(datasources.get(1))) {
+                    if (fE2.getExpr().toString().substring(1).equals(datasources.get(0))
+                            || fE2.getExpr().toString().substring(1).equals(datasources.get(1))) {
+                        continue;
+                    }
+                }
+                newWhereExpr.addOperand(e);
+            }
+            for (int i = 1; i < whereExpr.getOpList().size(); i++) {
+                newWhereExpr.addOperator(whereExpr.getOpList().get(i));
+            }
+            if (newWhereExpr.getOpList().size() == 0) {
+                OperatorExpr oE = (OperatorExpr) newWhereExpr.getExprList().get(0);
+                FieldAccessor fE1 = (FieldAccessor) oE.getExprList().get(0);
+                FieldAccessor fE2 = (FieldAccessor) oE.getExprList().get(1);
+                if (fE1.getExpr().toString().substring(1).equals(datasources.get(0))
+                        || fE1.getExpr().toString().substring(1).equals(datasources.get(1))) {
+                    fE1 = new FieldAccessor(fromTermLeftExpr, fE1.getIdent());
+                } else {
+                    fE2 = new FieldAccessor(fromTermLeftExpr, fE2.getIdent());
+                }
+
+                newWhereExpr.addOperator(oE.getOpList().get(0));
+                newWhereExpr.getExprList().add(fE2);
+                newWhereExpr.getExprList().set(0, fE1);
+            } else {
+                for (Expression e : newWhereExpr.getExprList()) {
+                    OperatorExpr oE = (OperatorExpr) e;
+                    FieldAccessor fE1 = (FieldAccessor) oE.getExprList().get(0);
+                    FieldAccessor fE2 = (FieldAccessor) oE.getExprList().get(1);
+                    if (fE1.getExpr().toString().substring(1).equals(datasources.get(0))
+                            || fE1.getExpr().toString().substring(1).equals(datasources.get(1))) {
+                        fE1 = new FieldAccessor(fromTermLeftExpr, fE1.getIdent());
+                        oE.getExprList().set(0, fE1);
+                    } else if (fE2.getExpr().toString().substring(1).equals(datasources.get(0))
+                            || fE2.getExpr().toString().substring(1).equals(datasources.get(1))) {
+                        fE2 = new FieldAccessor(fromTermLeftExpr, fE2.getIdent());
+                        oE.getExprList().set(1, fE2);
+                    } else {
+                        continue;
+                    }
+
+                }
+            }
+            WhereClause newwhere = new WhereClause(newWhereExpr);
+            SelectBlock selectBlock = new SelectBlock(newselect, fromClause, null, newwhere, null, null, null);
+            SelectSetOperation selectSetOperation =
+                    new SelectSetOperation(new SetOperationInput(selectBlock, null), null);
+            SelectExpression body = new SelectExpression(null, selectSetOperation, null, null, true);
+            newQuery = new Query(false, true, body, 0);
+        }
+        return newQuery;
     }
 
     protected void handleCreateNodeGroupStatement(MetadataProvider metadataProvider, Statement stmt) throws Exception {
@@ -2930,13 +3413,13 @@ public class QueryTranslator extends AbstractLangTranslator implements IStatemen
         }
     }
 
-    protected void validateStatements(List<Statement> statements) throws RuntimeDataException {
-        if (statements.stream().filter(this::isNotAllowedMultiStatement).count() > 1) {
-            throw new RuntimeDataException(ErrorCode.UNSUPPORTED_MULTIPLE_STATEMENTS);
+    public static void validateStatements(List<Statement> statements) throws CompilationException {
+        if (statements.stream().filter(QueryTranslator::isNotAllowedMultiStatement).count() > 1) {
+            throw new CompilationException(ErrorCode.UNSUPPORTED_MULTIPLE_STATEMENTS);
         }
     }
 
-    protected boolean isNotAllowedMultiStatement(Statement statement) {
+    protected static boolean isNotAllowedMultiStatement(Statement statement) {
         switch (statement.getKind()) {
             case DATAVERSE_DECL:
             case FUNCTION_DECL:

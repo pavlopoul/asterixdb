@@ -22,6 +22,7 @@ import java.util.Timer;
 import java.util.concurrent.ExecutorService;
 
 import org.apache.hyracks.api.application.IServiceContext;
+import org.apache.hyracks.api.network.INetworkSecurityManager;
 
 public interface IControllerService {
     void start() throws Exception;
@@ -35,4 +36,11 @@ public interface IControllerService {
     Timer getTimer();
 
     Object getApplicationContext();
+
+    /**
+     * Gets the network security manager
+     *
+     * @return the network security manager
+     */
+    INetworkSecurityManager getNetworkSecurityManager();
 }

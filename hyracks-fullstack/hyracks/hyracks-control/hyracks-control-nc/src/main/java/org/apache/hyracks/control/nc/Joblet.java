@@ -24,6 +24,7 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.Hashtable;
 import java.util.Map;
+import java.util.Set;
 import java.util.concurrent.atomic.AtomicLong;
 
 import org.apache.hyracks.api.application.INCServiceContext;
@@ -194,6 +195,11 @@ public class Joblet implements IHyracksJobletContext, ICounterContext {
         @Override
         public synchronized IStateObject getStateObject(Object id) {
             return stateObjectMap.get(id);
+        }
+
+        @Override
+        public synchronized Set<Object> getStateObjectKeys() {
+            return stateObjectMap.keySet();
         }
     }
 

@@ -34,6 +34,7 @@ public interface Expression extends ILangExpression {
         OP_EXPRESSION,
         FIELD_ACCESSOR_EXPRESSION,
         INDEX_ACCESSOR_EXPRESSION,
+        LIST_SLICE_EXPRESSION,
         UNARY_EXPRESSION,
         UNION_EXPRESSION,
         SELECT_EXPRESSION,

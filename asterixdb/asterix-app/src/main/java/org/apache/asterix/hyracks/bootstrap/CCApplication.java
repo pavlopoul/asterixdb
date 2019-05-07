@@ -87,7 +87,6 @@ import org.apache.asterix.util.MetadataBuiltinFunctions;
 import org.apache.hyracks.algebricks.common.exceptions.AlgebricksException;
 import org.apache.hyracks.api.application.ICCServiceContext;
 import org.apache.hyracks.api.application.IServiceContext;
-import org.apache.hyracks.api.client.HyracksConnection;
 import org.apache.hyracks.api.client.IHyracksClientConnection;
 import org.apache.hyracks.api.config.IConfigManager;
 import org.apache.hyracks.api.control.IGatekeeper;
@@ -102,6 +101,7 @@ import org.apache.hyracks.http.server.HttpServer;
 import org.apache.hyracks.http.server.HttpServerConfig;
 import org.apache.hyracks.http.server.HttpServerConfigBuilder;
 import org.apache.hyracks.http.server.WebManager;
+import org.apache.hyracks.ipc.impl.HyracksConnection;
 import org.apache.hyracks.util.LoggingConfigUtil;
 import org.apache.logging.log4j.Level;
 import org.apache.logging.log4j.LogManager;
@@ -145,7 +145,8 @@ public class CCApplication extends BaseCCApplication {
 
         String strIP = ccServiceCtx.getCCContext().getClusterControllerInfo().getClientNetAddress();
         int port = ccServiceCtx.getCCContext().getClusterControllerInfo().getClientNetPort();
-        hcc = new HyracksConnection(strIP, port);
+        hcc = new HyracksConnection(strIP, port,
+                ccServiceCtx.getControllerService().getNetworkSecurityManager().getSocketChannelFactory());
         MetadataBuiltinFunctions.init();
         ILibraryManager libraryManager = new ExternalLibraryManager();
         ReplicationProperties repProp =
@@ -167,7 +168,8 @@ public class CCApplication extends BaseCCApplication {
         }
         MetadataProperties metadataProperties = appCtx.getMetadataProperties();
 
-        setAsterixStateProxy(AsterixStateProxy.registerRemoteObject(metadataProperties.getMetadataCallbackPort()));
+        setAsterixStateProxy(AsterixStateProxy.registerRemoteObject(controllerService.getNetworkSecurityManager(),
+                metadataProperties.getMetadataCallbackPort()));
         ccServiceCtx.setDistributedState(proxy);
         MetadataManager.initialize(proxy, metadataProperties, appCtx);
         ccServiceCtx.addJobLifecycleListener(appCtx.getActiveNotificationHandler());

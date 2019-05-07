@@ -54,6 +54,7 @@ import org.apache.asterix.external.operators.ExternalLookupOperatorDescriptor;
 import org.apache.asterix.external.operators.ExternalRTreeSearchOperatorDescriptor;
 import org.apache.asterix.external.operators.ExternalScanOperatorDescriptor;
 import org.apache.asterix.external.operators.FeedIntakeOperatorDescriptor;
+import org.apache.asterix.external.operators.ReaderJobOperatorDescriptor;
 import org.apache.asterix.external.provider.AdapterFactoryProvider;
 import org.apache.asterix.external.util.ExternalDataConstants;
 import org.apache.asterix.external.util.FeedConstants;
@@ -516,7 +517,7 @@ public class MetadataProvider implements IMetadataProvider<DataSourceId, String>
                         primaryKeyFields, primaryKeyFieldsInSecondaryIndex, proceedIndexOnlyPlan);
         IStorageManager storageManager = getStorageComponentProvider().getStorageManager();
         IIndexDataflowHelperFactory indexHelperFactory = new IndexDataflowHelperFactory(storageManager, spPc.first);
-        BTreeSearchOperatorDescriptor btreeSearchOp;
+        IOperatorDescriptor btreeSearchOp;
 
         if (dataset.getDatasetType() == DatasetType.INTERNAL) {
             btreeSearchOp = new BTreeSearchOperatorDescriptor(jobSpec, outputRecDesc, lowKeyFields, highKeyFields,
@@ -524,11 +525,13 @@ public class MetadataProvider implements IMetadataProvider<DataSourceId, String>
                     context.getMissingWriterFactory(), searchCallbackFactory, minFilterFieldIndexes,
                     maxFilterFieldIndexes, propagateFilter, tupleFilterFactory, outputLimit, proceedIndexOnlyPlan,
                     failValueForIndexOnlyPlan, successValueForIndexOnlyPlan);
-        } else {
+        } else if (dataset.getDatasetType() == DatasetType.EXTERNAL) {
             btreeSearchOp = new ExternalBTreeSearchOperatorDescriptor(jobSpec, outputRecDesc, lowKeyFields,
                     highKeyFields, lowKeyInclusive, highKeyInclusive, indexHelperFactory, retainInput, retainMissing,
                     context.getMissingWriterFactory(), searchCallbackFactory, minFilterFieldIndexes,
                     maxFilterFieldIndexes, ExternalDatasetsRegistry.INSTANCE.getAndLockDatasetVersion(dataset, this));
+        } else {
+            btreeSearchOp = new ReaderJobOperatorDescriptor(jobSpec, outputRecDesc);
         }
         return new Pair<>(btreeSearchOp, spPc.second);
     }

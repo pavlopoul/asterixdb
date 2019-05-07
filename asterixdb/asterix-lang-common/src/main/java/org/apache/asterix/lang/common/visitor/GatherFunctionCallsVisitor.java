@@ -20,6 +20,7 @@ package org.apache.asterix.lang.common.visitor;
  */
 
 import java.util.HashSet;
+import java.util.Map;
 import java.util.Set;
 
 import org.apache.asterix.common.exceptions.CompilationException;
@@ -36,6 +37,7 @@ import org.apache.asterix.lang.common.expression.GbyVariableExpressionPair;
 import org.apache.asterix.lang.common.expression.IfExpr;
 import org.apache.asterix.lang.common.expression.IndexAccessor;
 import org.apache.asterix.lang.common.expression.ListConstructor;
+import org.apache.asterix.lang.common.expression.ListSliceExpression;
 import org.apache.asterix.lang.common.expression.LiteralExpr;
 import org.apache.asterix.lang.common.expression.OperatorExpr;
 import org.apache.asterix.lang.common.expression.OrderedListTypeDefinition;
@@ -47,8 +49,10 @@ import org.apache.asterix.lang.common.expression.VariableExpr;
 import org.apache.asterix.lang.common.statement.FunctionDecl;
 import org.apache.asterix.lang.common.statement.InsertStatement;
 import org.apache.asterix.lang.common.statement.Query;
+import org.apache.asterix.lang.common.struct.Identifier;
 import org.apache.asterix.lang.common.struct.QuantifiedPair;
 import org.apache.asterix.lang.common.visitor.base.AbstractQueryExpressionVisitor;
+import org.apache.hyracks.algebricks.common.utils.Pair;
 
 public class GatherFunctionCallsVisitor extends AbstractQueryExpressionVisitor<Void, Void> {
 
@@ -74,8 +78,20 @@ public class GatherFunctionCallsVisitor extends AbstractQueryExpressionVisitor<V
         for (GbyVariableExpressionPair p : gc.getGbyPairList()) {
             p.getExpr().accept(this, arg);
         }
-        for (GbyVariableExpressionPair p : gc.getDecorPairList()) {
-            p.getExpr().accept(this, arg);
+        if (gc.hasDecorList()) {
+            for (GbyVariableExpressionPair p : gc.getDecorPairList()) {
+                p.getExpr().accept(this, arg);
+            }
+        }
+        if (gc.hasGroupFieldList()) {
+            for (Pair<Expression, Identifier> p : gc.getGroupFieldList()) {
+                p.first.accept(this, arg);
+            }
+        }
+        if (gc.hasWithMap()) {
+            for (Map.Entry<Expression, VariableExpr> me : gc.getWithVarMap().entrySet()) {
+                me.getKey().accept(this, arg);
+            }
         }
         return null;
     }
@@ -91,6 +107,22 @@ public class GatherFunctionCallsVisitor extends AbstractQueryExpressionVisitor<V
     @Override
     public Void visit(IndexAccessor ia, Void arg) throws CompilationException {
         ia.getExpr().accept(this, arg);
+
+        if (!ia.isAny()) {
+            ia.getIndexExpr().accept(this, arg);
+        }
+
+        return null;
+    }
+
+    @Override
+    public Void visit(ListSliceExpression expression, Void arg) throws CompilationException {
+        expression.getExpr().accept(this, arg);
+        expression.getStartIndexExpression().accept(this, arg);
+
+        if (expression.hasEndExpression()) {
+            expression.getEndIndexExpression().accept(this, arg);
+        }
         return null;
     }
 

@@ -99,7 +99,8 @@ public class IsomorphismVariableMappingVisitor implements ILogicalOperatorVisito
     @Override
     public Void visitWindowOperator(WindowOperator op, ILogicalOperator arg) throws AlgebricksException {
         mapChildren(op, arg);
-        mapVariablesForAbstractAssign(op, arg);
+        mapVariablesForWindow(op, arg);
+        mapVariablesInNestedPlans(op, arg);
         return null;
     }
 
@@ -358,7 +359,7 @@ public class IsomorphismVariableMappingVisitor implements ILogicalOperatorVisito
                 rightOp.getExpressions());
     }
 
-    private void mapVariablesForGroupBy(ILogicalOperator left, ILogicalOperator right) throws AlgebricksException {
+    private void mapVariablesForGroupBy(ILogicalOperator left, ILogicalOperator right) {
         if (left.getOperatorTag() != right.getOperatorTag()) {
             return;
         }
@@ -370,6 +371,16 @@ public class IsomorphismVariableMappingVisitor implements ILogicalOperatorVisito
         leftPairs = leftOp.getDecorList();
         rightPairs = rightOp.getDecorList();
         mapVarExprPairList(leftPairs, rightPairs);
+    }
+
+    private void mapVariablesForWindow(ILogicalOperator left, ILogicalOperator right) {
+        if (left.getOperatorTag() != right.getOperatorTag()) {
+            return;
+        }
+        WindowOperator leftOp = (WindowOperator) left;
+        WindowOperator rightOp = (WindowOperator) right;
+        mapVariablesForAbstractAssign(leftOp.getVariables(), leftOp.getExpressions(), rightOp.getVariables(),
+                rightOp.getExpressions());
     }
 
     private void mapVarExprPairList(List<Pair<LogicalVariable, Mutable<ILogicalExpression>>> leftPairs,
@@ -417,8 +428,11 @@ public class IsomorphismVariableMappingVisitor implements ILogicalOperatorVisito
         }
     }
 
-    private void mapVariablesInNestedPlans(ILogicalOperator opOrigin, ILogicalOperator arg) throws AlgebricksException {
-        AbstractOperatorWithNestedPlans op = (AbstractOperatorWithNestedPlans) opOrigin;
+    private void mapVariablesInNestedPlans(AbstractOperatorWithNestedPlans op, ILogicalOperator arg)
+            throws AlgebricksException {
+        if (op.getOperatorTag() != arg.getOperatorTag()) {
+            return;
+        }
         AbstractOperatorWithNestedPlans argOp = (AbstractOperatorWithNestedPlans) arg;
         List<ILogicalPlan> plans = op.getNestedPlans();
         List<ILogicalPlan> plansArg = argOp.getNestedPlans();

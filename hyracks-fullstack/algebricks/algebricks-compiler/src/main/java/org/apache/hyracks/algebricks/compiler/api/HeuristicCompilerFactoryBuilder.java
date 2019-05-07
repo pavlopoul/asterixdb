@@ -18,8 +18,11 @@
  */
 package org.apache.hyracks.algebricks.compiler.api;
 
+import java.util.List;
+
 import org.apache.hyracks.algebricks.common.constraints.AlgebricksPartitionConstraint;
 import org.apache.hyracks.algebricks.common.exceptions.AlgebricksException;
+import org.apache.hyracks.algebricks.core.algebra.base.ILogicalOperator;
 import org.apache.hyracks.algebricks.core.algebra.base.ILogicalPlan;
 import org.apache.hyracks.algebricks.core.algebra.base.IOptimizationContext;
 import org.apache.hyracks.algebricks.core.algebra.expressions.IConflictingTypeResolver;
@@ -66,6 +69,9 @@ public class HeuristicCompilerFactoryBuilder extends AbstractCompilerFactoryBuil
 
     private IOptimizationContextFactory optCtxFactory;
 
+    public JobGenContext context;
+    public PlanCompiler pc;
+
     public HeuristicCompilerFactoryBuilder() {
         this.optCtxFactory = DefaultOptimizationContextFactory.INSTANCE;
     }
@@ -95,6 +101,43 @@ public class HeuristicCompilerFactoryBuilder extends AbstractCompilerFactoryBuil
 
                     @Override
                     public JobSpecification createJob(Object appContext,
+                            IJobletEventListenerFactory jobEventListenerFactory, List<ILogicalOperator> operators,
+                            boolean first) throws AlgebricksException {
+                        AlgebricksConfig.ALGEBRICKS_LOGGER.trace("Starting Job Generation.\n");
+                        return pc.compilePlan(plan, jobEventListenerFactory, operators, first);
+                    }
+
+                    @Override
+                    public List<ILogicalOperator> getOperators() throws AlgebricksException {
+                        AlgebricksConfig.ALGEBRICKS_LOGGER.trace("Starting Job Generation.\n");
+                        return pc.getOperators();
+                    }
+
+                    @Override
+                    public boolean getFinished(Object appContext, boolean first, JobGenContext context1,
+                            PlanCompiler pc1) throws AlgebricksException {
+                        AlgebricksConfig.ALGEBRICKS_LOGGER.trace("Starting Job Generation.\n");
+
+                        return pc.getFinished();
+                    }
+
+                    @Override
+                    public List<ILogicalOperator> traversePlan(Object appContext, boolean first, JobGenContext context1,
+                            PlanCompiler pc1) throws AlgebricksException {
+                        AlgebricksConfig.ALGEBRICKS_LOGGER.trace("Starting Job Generation.\n");
+                        context = new JobGenContext(null, metadata, appContext, serializerDeserializerProvider,
+                                hashFunctionFactoryProvider, hashFunctionFamilyProvider, comparatorFactoryProvider,
+                                typeTraitProvider, binaryBooleanInspectorFactory, binaryIntegerInspectorFactory,
+                                printerProvider, missingWriterFactory, normalizedKeyComputerFactoryProvider,
+                                expressionRuntimeProvider, expressionTypeComputer, oc, expressionEvalSizeComputer,
+                                partialAggregationTypeComputer, predEvaluatorFactoryProvider,
+                                physicalOptimizationConfig.getFrameSize(), clusterLocations);
+                        pc = new PlanCompiler(context);
+                        return pc.traversePlan(plan.getRoots().get(0), true);
+                    }
+
+                    @Override
+                    public JobSpecification createLoadJob(Object appContext,
                             IJobletEventListenerFactory jobEventListenerFactory) throws AlgebricksException {
                         AlgebricksConfig.ALGEBRICKS_LOGGER.trace("Starting Job Generation.\n");
                         JobGenContext context = new JobGenContext(null, metadata, appContext,
@@ -107,7 +150,7 @@ public class HeuristicCompilerFactoryBuilder extends AbstractCompilerFactoryBuil
                                 clusterLocations);
 
                         PlanCompiler pc = new PlanCompiler(context);
-                        return pc.compilePlan(plan, jobEventListenerFactory);
+                        return pc.compileLoadPlan(plan, jobEventListenerFactory);
                     }
                 };
             }

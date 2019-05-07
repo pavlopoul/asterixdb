@@ -2041,6 +2041,37 @@
         <expected-error>Cannot compare non-primitive values (in line 27, at column 8)</expected-error>
       </compilation-unit>
     </test-case>
+    <test-case FilePath="array_fun">
+      <compilation-unit name="array_slice/array_slice_double_argument">
+        <output-dir compare="Text">array_slice/array_slice_double_argument</output-dir>
+      </compilation-unit>
+    </test-case>
+    <test-case FilePath="array_fun">
+      <compilation-unit name="array_slice/array_slice_int_argument">
+        <output-dir compare="Text">array_slice/array_slice_int_argument</output-dir>
+      </compilation-unit>
+    </test-case>
+    <test-case FilePath="array_fun">
+      <compilation-unit name="array_slice/array_slice_negative_argument">
+        <output-dir compare="Text">array_slice/array_slice_negative_argument</output-dir>
+      </compilation-unit>
+    </test-case>
+    <test-case FilePath="array_fun">
+      <compilation-unit name="array_slice/array_slice_missing_result">
+        <output-dir compare="Text">array_slice/array_slice_missing_result</output-dir>
+      </compilation-unit>
+    </test-case>
+    <test-case FilePath="array_fun">
+      <compilation-unit name="array_slice/array_slice_null_result">
+        <output-dir compare="Text">array_slice/array_slice_null_result</output-dir>
+      </compilation-unit>
+    </test-case>
+    <test-case FilePath="array_fun">
+      <compilation-unit name="array_slice/array_slice_exception_result">
+        <output-dir compare="Text">array_slice/array_slice_exception_result</output-dir>
+        <expected-error>Compilation error</expected-error>
+      </compilation-unit>
+    </test-case>
   </test-group>
   <test-group name="boolean">
     <test-case FilePath="boolean">
@@ -4590,6 +4621,11 @@
       </compilation-unit>
     </test-case>
     <test-case FilePath="list">
+      <compilation-unit name="get-item_03">
+        <output-dir compare="Text">get-item_03</output-dir>
+      </compilation-unit>
+    </test-case>
+    <test-case FilePath="list">
       <compilation-unit name="len_01">
         <output-dir compare="Text">len_01</output-dir>
       </compilation-unit>
@@ -4602,6 +4638,21 @@
     <test-case FilePath="list">
       <compilation-unit name="list-range">
         <output-dir compare="Text">list-range</output-dir>
+      </compilation-unit>
+    </test-case>
+    <test-case FilePath="list">
+      <compilation-unit name="list-slice_01">
+        <output-dir compare="Text">list-slice_01</output-dir>
+      </compilation-unit>
+    </test-case>
+    <test-case FilePath="list">
+      <compilation-unit name="list-slice_02">
+        <output-dir compare="Text">list-slice_02</output-dir>
+      </compilation-unit>
+    </test-case>
+    <test-case FilePath="list">
+      <compilation-unit name="list-slice_03">
+        <output-dir compare="Text">list-slice_03</output-dir>
       </compilation-unit>
     </test-case>
     <test-case FilePath="list">
@@ -5218,6 +5269,16 @@
           <output-dir compare="Text">word-jaccard-inline</output-dir>
         </compilation-unit>
       </test-case>
+      <test-case FilePath="nested-open-index/index-join">
+        <compilation-unit name="btree-secondary-non-enforced-equi-join">
+          <output-dir compare="Text">btree-secondary-non-enforced-equi-join</output-dir>
+        </compilation-unit>
+      </test-case>
+      <test-case FilePath="nested-open-index/index-join">
+        <compilation-unit name="btree-secondary-non-enforced-equi-join-2">
+          <output-dir compare="Text">btree-secondary-non-enforced-equi-join-2</output-dir>
+        </compilation-unit>
+      </test-case>
     </test-group>
     <test-group name="nested-open-index/index-leftouterjoin">
       <test-case FilePath="nested-open-index/index-leftouterjoin">
@@ -5320,6 +5381,26 @@
       <test-case FilePath="nested-open-index/index-selection">
         <compilation-unit name="rtree-secondary-index">
           <output-dir compare="Text">rtree-secondary-index</output-dir>
+        </compilation-unit>
+      </test-case>
+      <test-case FilePath="nested-open-index/index-selection">
+        <compilation-unit name="non-enforced-01">
+          <output-dir compare="Text">non-enforced-01</output-dir>
+        </compilation-unit>
+      </test-case>
+      <test-case FilePath="nested-open-index/index-selection">
+        <compilation-unit name="non-enforced-02">
+          <output-dir compare="Text">non-enforced-02</output-dir>
+        </compilation-unit>
+      </test-case>
+      <test-case FilePath="nested-open-index/index-selection">
+        <compilation-unit name="non-enforced-03">
+          <output-dir compare="Text">non-enforced-03</output-dir>
+        </compilation-unit>
+      </test-case>
+      <test-case FilePath="nested-open-index/index-selection">
+        <compilation-unit name="non-enforced-04">
+          <output-dir compare="Text">non-enforced-04</output-dir>
         </compilation-unit>
       </test-case>
     </test-group>
@@ -6227,13 +6308,28 @@
       </compilation-unit>
     </test-case>
     <test-case FilePath="numeric">
+      <compilation-unit name="cosh">
+        <output-dir compare="Text">cosh</output-dir>
+      </compilation-unit>
+    </test-case>
+    <test-case FilePath="numeric">
       <compilation-unit name="sin">
         <output-dir compare="Text">sin</output-dir>
       </compilation-unit>
     </test-case>
     <test-case FilePath="numeric">
+      <compilation-unit name="sinh">
+        <output-dir compare="Text">sinh</output-dir>
+      </compilation-unit>
+    </test-case>
+    <test-case FilePath="numeric">
       <compilation-unit name="tan">
         <output-dir compare="Text">tan</output-dir>
+      </compilation-unit>
+    </test-case>
+    <test-case FilePath="numeric">
+      <compilation-unit name="tanh">
+        <output-dir compare="Text">tanh</output-dir>
       </compilation-unit>
     </test-case>
     <test-case FilePath="numeric">
@@ -9123,6 +9219,11 @@
   </test-group>
   <test-group name="window">
     <test-case FilePath="window">
+      <compilation-unit name="cume_dist_01">
+        <output-dir compare="Text">cume_dist_01</output-dir>
+      </compilation-unit>
+    </test-case>
+    <test-case FilePath="window">
       <compilation-unit name="dense_rank_01">
         <output-dir compare="Text">dense_rank_01</output-dir>
       </compilation-unit>
@@ -9150,13 +9251,34 @@
       </compilation-unit>
     </test-case>
     <test-case FilePath="window">
+      <compilation-unit name="pg_win">
+        <output-dir compare="Text">pg_win</output-dir>
+      </compilation-unit>
+    </test-case>
+    <test-case FilePath="window">
       <compilation-unit name="rank_01">
         <output-dir compare="Text">rank_01</output-dir>
       </compilation-unit>
     </test-case>
     <test-case FilePath="window">
+      <compilation-unit name="ratio_to_report_01">
+        <output-dir compare="Text">ratio_to_report_01</output-dir>
+      </compilation-unit>
+    </test-case>
+    <test-case FilePath="window">
+      <compilation-unit name="ratio_to_report_02_negative">
+        <output-dir compare="Text">ratio_to_report_01</output-dir>
+        <expected-error>ASX1101: Unexpected ORDER BY clause in window expression</expected-error>
+      </compilation-unit>
+    </test-case>
+    <test-case FilePath="window">
       <compilation-unit name="row_number_01">
         <output-dir compare="Text">row_number_01</output-dir>
+      </compilation-unit>
+    </test-case>
+    <test-case FilePath="window">
+      <compilation-unit name="win_opt_01">
+        <output-dir compare="Text">win_opt_01</output-dir>
       </compilation-unit>
     </test-case>
   </test-group>
@@ -9997,6 +10119,11 @@
     <test-case FilePath="feeds">
       <compilation-unit name="http_feed_json">
         <output-dir compare="Text">http_feed_json</output-dir>
+      </compilation-unit>
+    </test-case>
+    <test-case FilePath="feeds">
+      <compilation-unit name="change-feed-with-filter-on-meta">
+        <output-dir compare="Text">change-feed-with-filter-on-meta</output-dir>
       </compilation-unit>
     </test-case>
   </test-group>

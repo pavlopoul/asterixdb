@@ -75,6 +75,12 @@ public class MaterializerTaskState extends AbstractStateObject {
         out.nextFrame(buffer);
     }
 
+    public void readIncremental() throws HyracksDataException {
+        RunFileReader in = null;
+        in = out.createReader();
+        in.open();
+    }
+
     public void writeOut(IFrameWriter writer, IFrame frame, boolean failed) throws HyracksDataException {
         RunFileReader in = null;
         if (out != null) {

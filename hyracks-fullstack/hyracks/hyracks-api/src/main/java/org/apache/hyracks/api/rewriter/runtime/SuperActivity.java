@@ -36,6 +36,7 @@ import org.apache.hyracks.api.exceptions.HyracksDataException;
 import org.apache.hyracks.api.job.ActivityCluster;
 import org.apache.hyracks.api.job.ActivityClusterGraph;
 import org.apache.hyracks.api.job.ActivityClusterId;
+import org.apache.hyracks.api.job.IOperatorEnvironment;
 import org.apache.hyracks.api.rewriter.OneToOneConnectedActivityCluster;
 
 /**
@@ -55,8 +56,8 @@ public class SuperActivity extends OneToOneConnectedActivityCluster implements I
 
     @Override
     public IOperatorNodePushable createPushRuntime(IHyracksTaskContext ctx,
-            final IRecordDescriptorProvider recordDescProvider, final int partition, final int nPartitions)
-            throws HyracksDataException {
+            final IRecordDescriptorProvider recordDescProvider, final int partition, final int nPartitions,
+            IOperatorEnvironment pastEnv) throws HyracksDataException {
         final Map<ActivityId, IActivity> startActivities = new HashMap<>();
         Map<ActivityId, IActivity> activities = getActivityMap();
         activities.forEach((key, value) -> {
@@ -165,7 +166,7 @@ public class SuperActivity extends OneToOneConnectedActivityCluster implements I
 
         };
         return new SuperActivityOperatorNodePushable(this, startActivities, ctx, wrappedRecDescProvider, partition,
-                nPartitions);
+                nPartitions, pastEnv);
     }
 
     @Override

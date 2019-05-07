@@ -36,6 +36,7 @@ import org.apache.hyracks.api.dataflow.IOperatorNodePushable;
 import org.apache.hyracks.api.dataflow.value.IRecordDescriptorProvider;
 import org.apache.hyracks.api.exceptions.HyracksDataException;
 import org.apache.hyracks.api.job.IOperatorDescriptorRegistry;
+import org.apache.hyracks.api.job.IOperatorEnvironment;
 import org.apache.hyracks.dataflow.std.base.AbstractSingleActivityOperatorDescriptor;
 import org.apache.hyracks.dataflow.std.base.AbstractUnaryInputSinkOperatorNodePushable;
 
@@ -52,7 +53,8 @@ public class FlushDatasetOperatorDescriptor extends AbstractSingleActivityOperat
 
     @Override
     public IOperatorNodePushable createPushRuntime(final IHyracksTaskContext ctx,
-            IRecordDescriptorProvider recordDescProvider, int partition, int nPartitions) throws HyracksDataException {
+            IRecordDescriptorProvider recordDescProvider, int partition, int nPartitions, IOperatorEnvironment pastEnv)
+            throws HyracksDataException {
         return new AbstractUnaryInputSinkOperatorNodePushable() {
 
             @Override
@@ -90,6 +92,7 @@ public class FlushDatasetOperatorDescriptor extends AbstractSingleActivityOperat
                             datasetLifeCycleManager.flushDataset(datasetId.getId(), false);
                         }
                     }
+                    datasetInfo.waitForIO();
                 } catch (ACIDException e) {
                     throw HyracksDataException.create(e);
                 }

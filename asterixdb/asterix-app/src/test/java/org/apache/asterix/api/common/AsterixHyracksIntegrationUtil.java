@@ -50,7 +50,6 @@ import org.apache.commons.io.FileUtils;
 import org.apache.commons.lang3.tuple.Pair;
 import org.apache.hyracks.api.application.ICCApplication;
 import org.apache.hyracks.api.application.INCApplication;
-import org.apache.hyracks.api.client.HyracksConnection;
 import org.apache.hyracks.api.client.IHyracksClientConnection;
 import org.apache.hyracks.api.config.IOption;
 import org.apache.hyracks.control.cc.ClusterControllerService;
@@ -59,6 +58,7 @@ import org.apache.hyracks.control.common.controllers.CCConfig;
 import org.apache.hyracks.control.common.controllers.ControllerConfig;
 import org.apache.hyracks.control.common.controllers.NCConfig;
 import org.apache.hyracks.control.nc.NodeControllerService;
+import org.apache.hyracks.ipc.impl.HyracksConnection;
 import org.apache.hyracks.storage.am.lsm.btree.impl.TestLsmBtreeLocalResource;
 import org.apache.hyracks.test.support.TestUtils;
 import org.apache.logging.log4j.Level;
@@ -71,8 +71,8 @@ public class AsterixHyracksIntegrationUtil {
 
     public static final int DEFAULT_HYRACKS_CC_CLIENT_PORT = 1098;
     public static final int DEFAULT_HYRACKS_CC_CLUSTER_PORT = 1099;
-    public static final String DEFAULT_CONF_FILE =
-            joinPath(getProjectPath().toString(), "src", "test", "resources", "cc.conf");
+    public static final String RESOURCES_PATH = joinPath(getProjectPath().toString(), "src", "test", "resources");
+    public static final String DEFAULT_CONF_FILE = joinPath(RESOURCES_PATH, "cc.conf");
     private static final String DEFAULT_STORAGE_PATH = joinPath("target", "io", "dir");
     private static String storagePath = DEFAULT_STORAGE_PATH;
     private static final long RESULT_TTL = TimeUnit.MINUTES.toMillis(5);
@@ -126,6 +126,8 @@ public class AsterixHyracksIntegrationUtil {
         ccApplication.registerConfig(configManager);
         final CCConfig ccConfig = createCCConfig(configManager);
         configManager.processConfig();
+        ccConfig.setKeyStorePath(joinPath(RESOURCES_PATH, ccConfig.getKeyStorePath()));
+        ccConfig.setTrustStorePath(joinPath(RESOURCES_PATH, ccConfig.getTrustStorePath()));
         cc = new ClusterControllerService(ccConfig, ccApplication);
 
         nodeNames = ccConfig.getConfigManager().getNodeNames();
@@ -146,8 +148,8 @@ public class AsterixHyracksIntegrationUtil {
             }
             ncApplication.registerConfig(ncConfigManager);
             opts.forEach(opt -> ncConfigManager.set(nodeId, opt.getLeft(), opt.getRight()));
-            nodeControllers.add(
-                    new NodeControllerService(fixupIODevices(createNCConfig(nodeId, ncConfigManager)), ncApplication));
+            nodeControllers
+                    .add(new NodeControllerService(fixupPaths(createNCConfig(nodeId, ncConfigManager)), ncApplication));
         }
 
         opts.forEach(opt -> configManager.set(opt.getLeft(), opt.getRight()));
@@ -176,7 +178,8 @@ public class AsterixHyracksIntegrationUtil {
         }
         // Wait until cluster becomes active
         ((ICcApplicationContext) cc.getApplicationContext()).getClusterStateManager().waitForState(ClusterState.ACTIVE);
-        hcc = new HyracksConnection(cc.getConfig().getClientListenAddress(), cc.getConfig().getClientListenPort());
+        hcc = new HyracksConnection(cc.getConfig().getClientListenAddress(), cc.getConfig().getClientListenPort(),
+                cc.getNetworkSecurityManager().getSocketChannelFactory());
         this.ncs = nodeControllers.toArray(new NodeControllerService[nodeControllers.size()]);
         setTestPersistedResourceRegistry();
     }
@@ -243,7 +246,7 @@ public class AsterixHyracksIntegrationUtil {
         return (INCApplication) Class.forName(ncAppClass).newInstance();
     }
 
-    private NCConfig fixupIODevices(NCConfig ncConfig) throws IOException, AsterixException, CmdLineException {
+    private NCConfig fixupPaths(NCConfig ncConfig) throws IOException, AsterixException, CmdLineException {
         // we have to first process the config
         ncConfig.getConfigManager().processConfig();
 
@@ -258,6 +261,10 @@ public class AsterixHyracksIntegrationUtil {
             nodeStores[i] = joinPath(getDefaultStoragePath(), ncConfig.getNodeId(), nodeStores[i]);
         }
         ncConfig.getConfigManager().set(ncConfig.getNodeId(), NCConfig.Option.IODEVICES, nodeStores);
+        final String keyStorePath = joinPath(RESOURCES_PATH, ncConfig.getKeyStorePath());
+        final String trustStorePath = joinPath(RESOURCES_PATH, ncConfig.getTrustStorePath());
+        ncConfig.getConfigManager().set(ncConfig.getNodeId(), NCConfig.Option.KEY_STORE_PATH, keyStorePath);
+        ncConfig.getConfigManager().set(ncConfig.getNodeId(), NCConfig.Option.TRUST_STORE_PATH, trustStorePath);
         return ncConfig;
     }
 

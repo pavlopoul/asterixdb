@@ -67,6 +67,8 @@ import org.apache.asterix.external.library.ExternalLibraryManager;
 import org.apache.asterix.file.StorageComponentProvider;
 import org.apache.asterix.metadata.MetadataManager;
 import org.apache.asterix.metadata.MetadataNode;
+import org.apache.asterix.metadata.RMIClientFactory;
+import org.apache.asterix.metadata.RMIServerFactory;
 import org.apache.asterix.metadata.api.IAsterixStateProxy;
 import org.apache.asterix.metadata.api.IMetadataNode;
 import org.apache.asterix.metadata.bootstrap.MetadataBootstrap;
@@ -78,16 +80,17 @@ import org.apache.asterix.statistics.common.StatisticsManager;
 import org.apache.asterix.transaction.management.resource.PersistentLocalResourceRepository;
 import org.apache.asterix.transaction.management.resource.PersistentLocalResourceRepositoryFactory;
 import org.apache.hyracks.api.application.INCServiceContext;
-import org.apache.hyracks.api.client.ClusterControllerInfo;
-import org.apache.hyracks.api.client.HyracksConnection;
 import org.apache.hyracks.api.client.IHyracksClientConnection;
+import org.apache.hyracks.api.client.impl.ClusterControllerInfo;
 import org.apache.hyracks.api.control.CcId;
 import org.apache.hyracks.api.exceptions.HyracksDataException;
 import org.apache.hyracks.api.io.IIOManager;
 import org.apache.hyracks.api.io.IPersistedResourceRegistry;
 import org.apache.hyracks.api.lifecycle.ILifeCycleComponent;
 import org.apache.hyracks.api.lifecycle.ILifeCycleComponentManager;
+import org.apache.hyracks.api.network.INetworkSecurityManager;
 import org.apache.hyracks.control.nc.NodeControllerService;
+import org.apache.hyracks.ipc.impl.HyracksConnection;
 import org.apache.hyracks.storage.am.lsm.common.api.ILSMIOOperationScheduler;
 import org.apache.hyracks.storage.am.lsm.common.api.ILSMMergePolicyFactory;
 import org.apache.hyracks.storage.am.lsm.common.api.IStatisticsManager;
@@ -446,8 +449,13 @@ public class NCAppRuntimeContext implements INcApplicationContext {
     @Override
     public synchronized void exportMetadataNodeStub() throws RemoteException {
         if (metadataNodeStub == null) {
+            final INetworkSecurityManager networkSecurityManager =
+                    ncServiceContext.getControllerService().getNetworkSecurityManager();
+            final RMIServerFactory serverSocketFactory = new RMIServerFactory(networkSecurityManager);
+            final RMIClientFactory clientSocketFactory =
+                    new RMIClientFactory(networkSecurityManager.getConfiguration().isSslEnabled());
             metadataNodeStub = (IMetadataNode) UnicastRemoteObject.exportObject(MetadataNode.INSTANCE,
-                    getMetadataProperties().getMetadataPort());
+                    getMetadataProperties().getMetadataPort(), clientSocketFactory, serverSocketFactory);
         }
     }
 
@@ -494,7 +502,8 @@ public class NCAppRuntimeContext implements INcApplicationContext {
                         // TODO(mblow): multicc
                         CcId primaryCcId = ncSrv.getPrimaryCcId();
                         ClusterControllerInfo ccInfo = ncSrv.getNodeParameters(primaryCcId).getClusterControllerInfo();
-                        hcc = new HyracksConnection(ccInfo.getClientNetAddress(), ccInfo.getClientNetPort());
+                        hcc = new HyracksConnection(ccInfo.getClientNetAddress(), ccInfo.getClientNetPort(),
+                                ncSrv.getNetworkSecurityManager().getSocketChannelFactory());
                     } catch (Exception e) {
                         throw HyracksDataException.create(e);
                     }

@@ -722,4 +722,6 @@ public interface IMetadataManager extends IMetadataBootstrap {
             throws AlgebricksException;
 
     long getMaxTxnId();
+
+    void dropFromCache(MetadataTransactionContext writeTxn, Dataverse newDataverse);
 }

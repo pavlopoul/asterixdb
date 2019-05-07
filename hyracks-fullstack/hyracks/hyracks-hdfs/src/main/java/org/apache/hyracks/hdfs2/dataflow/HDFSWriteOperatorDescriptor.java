@@ -33,6 +33,7 @@ import org.apache.hyracks.api.dataflow.value.IRecordDescriptorProvider;
 import org.apache.hyracks.api.dataflow.value.RecordDescriptor;
 import org.apache.hyracks.api.exceptions.HyracksDataException;
 import org.apache.hyracks.api.exceptions.HyracksException;
+import org.apache.hyracks.api.job.IOperatorEnvironment;
 import org.apache.hyracks.api.job.JobSpecification;
 import org.apache.hyracks.dataflow.common.comm.io.FrameTupleAccessor;
 import org.apache.hyracks.dataflow.common.data.accessors.FrameTupleReference;
@@ -71,8 +72,8 @@ public class HDFSWriteOperatorDescriptor extends AbstractSingleActivityOperatorD
 
     @Override
     public IOperatorNodePushable createPushRuntime(final IHyracksTaskContext ctx,
-            final IRecordDescriptorProvider recordDescProvider, final int partition, final int nPartitions)
-            throws HyracksDataException {
+            final IRecordDescriptorProvider recordDescProvider, final int partition, final int nPartitions,
+            final IOperatorEnvironment pastEnv) throws HyracksDataException {
 
         return new AbstractUnaryInputSinkOperatorNodePushable() {
 

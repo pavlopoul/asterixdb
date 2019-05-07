@@ -28,6 +28,7 @@ import org.apache.asterix.lang.common.base.IRewriterFactory;
 import org.apache.asterix.lang.common.clause.LetClause;
 import org.apache.asterix.lang.common.rewrites.LangRewritingContext;
 import org.apache.asterix.lang.common.statement.FunctionDecl;
+import org.apache.asterix.lang.common.struct.Identifier;
 import org.apache.asterix.lang.common.visitor.AbstractInlineUdfsVisitor;
 import org.apache.asterix.lang.sqlpp.clause.AbstractBinaryCorrelateClause;
 import org.apache.asterix.lang.sqlpp.clause.FromClause;
@@ -43,6 +44,7 @@ import org.apache.asterix.lang.sqlpp.clause.SelectRegular;
 import org.apache.asterix.lang.sqlpp.clause.SelectSetOperation;
 import org.apache.asterix.lang.sqlpp.clause.UnnestClause;
 import org.apache.asterix.lang.sqlpp.expression.CaseExpression;
+import org.apache.asterix.lang.common.expression.ListSliceExpression;
 import org.apache.asterix.lang.sqlpp.expression.SelectExpression;
 import org.apache.asterix.lang.sqlpp.expression.WindowExpression;
 import org.apache.asterix.lang.sqlpp.struct.SetOperationRight;
@@ -246,17 +248,58 @@ public class SqlppInlineUdfsVisitor extends AbstractInlineUdfsVisitor
 
     @Override
     public Boolean visit(WindowExpression winExpr, List<FunctionDecl> funcs) throws CompilationException {
-        Pair<Boolean, Expression> result = inlineUdfsInExpr(winExpr.getExpr(), funcs);
-        winExpr.setExpr(result.second);
-        boolean inlined = result.first;
+        boolean inlined = false;
         if (winExpr.hasPartitionList()) {
             Pair<Boolean, List<Expression>> inlinedList = inlineUdfsInExprList(winExpr.getPartitionList(), funcs);
             winExpr.setPartitionList(inlinedList.second);
+            inlined = inlinedList.first;
+        }
+        if (winExpr.hasOrderByList()) {
+            Pair<Boolean, List<Expression>> inlinedList = inlineUdfsInExprList(winExpr.getOrderbyList(), funcs);
+            winExpr.setOrderbyList(inlinedList.second);
             inlined |= inlinedList.first;
         }
-        Pair<Boolean, List<Expression>> inlinedList = inlineUdfsInExprList(winExpr.getOrderbyList(), funcs);
-        winExpr.setOrderbyList(inlinedList.second);
+        if (winExpr.hasFrameStartExpr()) {
+            Pair<Boolean, Expression> inlinedExpr = inlineUdfsInExpr(winExpr.getFrameStartExpr(), funcs);
+            winExpr.setFrameStartExpr(inlinedExpr.second);
+            inlined |= inlinedExpr.first;
+        }
+        if (winExpr.hasFrameEndExpr()) {
+            Pair<Boolean, Expression> inlinedExpr = inlineUdfsInExpr(winExpr.getFrameEndExpr(), funcs);
+            winExpr.setFrameEndExpr(inlinedExpr.second);
+            inlined |= inlinedExpr.first;
+        }
+        if (winExpr.hasWindowFieldList()) {
+            Pair<Boolean, List<Pair<Expression, Identifier>>> inlinedList =
+                    inlineUdfsInFieldList(winExpr.getWindowFieldList(), funcs);
+            winExpr.setWindowFieldList(inlinedList.second);
+            inlined |= inlinedList.first;
+        }
+        Pair<Boolean, List<Expression>> inlinedList = inlineUdfsInExprList(winExpr.getExprList(), funcs);
+        winExpr.setExprList(inlinedList.second);
         inlined |= inlinedList.first;
+        return inlined;
+    }
+
+    @Override
+    public Boolean visit(ListSliceExpression expression, List<FunctionDecl> funcs) throws CompilationException {
+        Pair<Boolean, Expression> expressionResult = inlineUdfsInExpr(expression.getExpr(), funcs);
+        expression.setExpr(expressionResult.second);
+        boolean inlined = expressionResult.first;
+
+        Pair<Boolean, Expression> startIndexExpressResult =
+                inlineUdfsInExpr(expression.getStartIndexExpression(), funcs);
+        expression.setStartIndexExpression(startIndexExpressResult.second);
+        inlined |= startIndexExpressResult.first;
+
+        // End index expression can be null (optional)
+        if (expression.hasEndExpression()) {
+            Pair<Boolean, Expression> endIndexExpressionResult =
+                    inlineUdfsInExpr(expression.getEndIndexExpression(), funcs);
+            expression.setEndIndexExpression(endIndexExpressionResult.second);
+            inlined |= endIndexExpressionResult.first;
+        }
+
         return inlined;
     }
 

@@ -56,6 +56,8 @@ import org.apache.hyracks.api.job.JobId;
 import org.apache.hyracks.api.job.JobParameterByteStore;
 import org.apache.hyracks.api.lifecycle.ILifeCycleComponentManager;
 import org.apache.hyracks.api.lifecycle.LifeCycleComponentManager;
+import org.apache.hyracks.api.network.INetworkSecurityConfig;
+import org.apache.hyracks.api.network.INetworkSecurityManager;
 import org.apache.hyracks.api.result.IResultPartitionManager;
 import org.apache.hyracks.api.service.IControllerService;
 import org.apache.hyracks.api.util.CleanupUtils;
@@ -88,6 +90,8 @@ import org.apache.hyracks.ipc.api.IIPCEventListener;
 import org.apache.hyracks.ipc.api.IIPCHandle;
 import org.apache.hyracks.ipc.exceptions.IPCException;
 import org.apache.hyracks.ipc.impl.IPCSystem;
+import org.apache.hyracks.ipc.security.NetworkSecurityConfig;
+import org.apache.hyracks.ipc.security.NetworkSecurityManager;
 import org.apache.hyracks.net.protocols.muxdemux.FullFrameChannelInterfaceFactory;
 import org.apache.hyracks.util.ExitUtil;
 import org.apache.hyracks.util.MaintainedThreadNameExecutorService;
@@ -137,6 +141,8 @@ public class NodeControllerService implements IControllerService {
 
     private final Map<JobId, Joblet> jobletMap;
 
+    private Map<JobId, Joblet> pastJobletMap;
+
     private final Map<Long, ActivityClusterGraph> deployedJobSpecActivityClusterGraphMap;
 
     private final Map<JobId, JobParameterByteStore> jobParameterByteStoreMap = new HashMap<>();
@@ -158,6 +164,8 @@ public class NodeControllerService implements IControllerService {
     private final Mutable<FutureValue<Map<String, NodeControllerInfo>>> getNodeControllerInfosAcceptor;
 
     private final MemoryManager memoryManager;
+
+    private final INetworkSecurityManager networkSecurityManager;
 
     private StackTraceElement[] shutdownCallStack;
 
@@ -193,6 +201,8 @@ public class NodeControllerService implements IControllerService {
         if (application == null) {
             throw new IllegalArgumentException("INCApplication cannot be null");
         }
+        final INetworkSecurityConfig securityConfig = getNetworkSecurityConfig();
+        networkSecurityManager = new NetworkSecurityManager(securityConfig);
         this.application = application;
         id = ncConfig.getNodeId();
         if (id == null) {
@@ -265,12 +275,12 @@ public class NodeControllerService implements IControllerService {
         resultNetworkManager = new ResultNetworkManager(ncConfig.getResultListenAddress(),
                 ncConfig.getResultListenPort(), resultPartitionManager, ncConfig.getNetThreadCount(),
                 ncConfig.getNetBufferCount(), ncConfig.getResultPublicAddress(), ncConfig.getResultPublicPort(),
-                FullFrameChannelInterfaceFactory.INSTANCE);
+                FullFrameChannelInterfaceFactory.INSTANCE, networkSecurityManager.getSocketChannelFactory());
         if (ncConfig.getMessagingListenAddress() != null && serviceCtx.getMessagingChannelInterfaceFactory() != null) {
             messagingNetManager = new MessagingNetworkManager(this, ncConfig.getMessagingListenAddress(),
                     ncConfig.getMessagingListenPort(), ncConfig.getNetThreadCount(),
                     ncConfig.getMessagingPublicAddress(), ncConfig.getMessagingPublicPort(),
-                    serviceCtx.getMessagingChannelInterfaceFactory());
+                    serviceCtx.getMessagingChannelInterfaceFactory(), networkSecurityManager.getSocketChannelFactory());
         }
     }
 
@@ -278,12 +288,14 @@ public class NodeControllerService implements IControllerService {
     public void start() throws Exception {
         LOGGER.log(Level.INFO, "Starting NodeControllerService");
         ipc = new IPCSystem(new InetSocketAddress(ncConfig.getClusterListenAddress(), ncConfig.getClusterListenPort()),
-                new NodeControllerIPCI(this), new CCNCFunctions.SerializerDeserializer());
+                networkSecurityManager.getSocketChannelFactory(), new NodeControllerIPCI(this),
+                new CCNCFunctions.SerializerDeserializer());
         ipc.start();
         partitionManager = new PartitionManager(this);
         netManager = new NetworkManager(ncConfig.getDataListenAddress(), ncConfig.getDataListenPort(), partitionManager,
                 ncConfig.getNetThreadCount(), ncConfig.getNetBufferCount(), ncConfig.getDataPublicAddress(),
-                ncConfig.getDataPublicPort(), FullFrameChannelInterfaceFactory.INSTANCE);
+                ncConfig.getDataPublicPort(), FullFrameChannelInterfaceFactory.INSTANCE,
+                networkSecurityManager.getSocketChannelFactory());
         netManager.start();
         startApplication();
         init();
@@ -538,6 +550,14 @@ public class NodeControllerService implements IControllerService {
         return jobletMap;
     }
 
+    public Map<JobId, Joblet> getPastJobletMap() {
+        return pastJobletMap;
+    }
+
+    public void setPastJobletMap(Map<JobId, Joblet> pastJobletMap) {
+        this.pastJobletMap = pastJobletMap;
+    }
+
     public void removeJobParameterByteStore(JobId jobId) {
         jobParameterByteStoreMap.remove(jobId);
     }
@@ -717,5 +737,15 @@ public class NodeControllerService implements IControllerService {
 
     public INCApplication getApplication() {
         return application;
+    }
+
+    @Override
+    public INetworkSecurityManager getNetworkSecurityManager() {
+        return networkSecurityManager;
+    }
+
+    protected INetworkSecurityConfig getNetworkSecurityConfig() {
+        return NetworkSecurityConfig.of(ncConfig.isSslEnabled(), ncConfig.getKeyStorePath(),
+                ncConfig.getKeyStorePassword(), ncConfig.getTrustStorePath());
     }
 }

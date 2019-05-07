@@ -39,6 +39,7 @@ import org.apache.hyracks.api.exceptions.ErrorCode;
 import org.apache.hyracks.api.exceptions.HyracksDataException;
 import org.apache.hyracks.api.exceptions.HyracksException;
 import org.apache.hyracks.api.job.IOperatorDescriptorRegistry;
+import org.apache.hyracks.api.job.IOperatorEnvironment;
 import org.apache.hyracks.dataflow.common.comm.io.FrameTupleAccessor;
 import org.apache.hyracks.dataflow.common.comm.io.FrameTupleAppender;
 import org.apache.hyracks.dataflow.common.comm.util.FrameUtils;
@@ -140,8 +141,8 @@ public class IntersectOperatorDescriptor extends AbstractOperatorDescriptor {
 
         @Override
         public IOperatorNodePushable createPushRuntime(IHyracksTaskContext ctx,
-                IRecordDescriptorProvider recordDescProvider, int partition, int nPartitions)
-                throws HyracksDataException {
+                IRecordDescriptorProvider recordDescProvider, int partition, int nPartitions,
+                IOperatorEnvironment pastEnv) throws HyracksDataException {
             RecordDescriptor[] inputRecordDesc = new RecordDescriptor[inputArity];
             for (int i = 0; i < inputRecordDesc.length; i++) {
                 inputRecordDesc[i] = recordDescProvider.getInputRecordDescriptor(getActivityId(), i);

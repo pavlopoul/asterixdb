@@ -192,6 +192,11 @@ public abstract class MetadataManager implements IMetadataManager {
     }
 
     @Override
+    public void dropFromCache(MetadataTransactionContext ctx, Dataverse dataverse) {
+        cache.dropDataverse(dataverse);
+    }
+
+    @Override
     public List<Dataverse> getDataverses(MetadataTransactionContext ctx) throws AlgebricksException {
         try {
             return metadataNode.getDataverses(ctx.getTxnId());

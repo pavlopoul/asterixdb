@@ -29,6 +29,7 @@ import org.apache.hyracks.api.dataflow.value.IRecordDescriptorProvider;
 import org.apache.hyracks.api.dataflow.value.RecordDescriptor;
 import org.apache.hyracks.api.exceptions.HyracksDataException;
 import org.apache.hyracks.api.job.IOperatorDescriptorRegistry;
+import org.apache.hyracks.api.job.IOperatorEnvironment;
 import org.apache.hyracks.dataflow.std.base.AbstractSingleActivityOperatorDescriptor;
 import org.apache.hyracks.dataflow.std.base.AbstractUnaryInputUnaryOutputOperatorNodePushable;
 import org.apache.hyracks.storage.am.common.api.ISearchOperationCallbackFactory;
@@ -57,8 +58,8 @@ public class ExternalLookupOperatorDescriptor extends AbstractSingleActivityOper
 
     @Override
     public IOperatorNodePushable createPushRuntime(final IHyracksTaskContext ctx,
-            final IRecordDescriptorProvider recordDescProvider, final int partition, int nPartitions)
-            throws HyracksDataException {
+            final IRecordDescriptorProvider recordDescProvider, final int partition, int nPartitions,
+            IOperatorEnvironment pastEnv) throws HyracksDataException {
         // Create a file index accessor to be used for files lookup operations
         final ExternalFileIndexAccessor snapshotAccessor = new ExternalFileIndexAccessor(
                 dataflowHelperFactory.create(ctx.getJobletContext().getServiceContext(), partition),

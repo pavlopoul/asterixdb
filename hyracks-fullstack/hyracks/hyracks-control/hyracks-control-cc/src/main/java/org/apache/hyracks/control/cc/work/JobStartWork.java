@@ -79,6 +79,10 @@ public class JobStartWork extends SynchronizableWork {
                         ccs.getDeployedJobSpecStore().getDeployedJobSpecDescriptor(deployedJobSpecId), jobParameters,
                         deployedJobSpecId);
             }
+            //            if (jobManager.getArchivedJobs().iterator().hasNext()) {
+            //                ((JobManager) jobManager).addPast(jobManager.getArchivedJobs().iterator().next());
+            //                // jobManager.
+            //            }
             jobManager.add(run);
             callback.setValue(jobId);
         } catch (Exception e) {

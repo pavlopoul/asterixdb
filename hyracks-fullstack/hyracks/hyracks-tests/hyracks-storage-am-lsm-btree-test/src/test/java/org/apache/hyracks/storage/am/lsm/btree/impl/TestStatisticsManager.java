@@ -26,9 +26,11 @@ import java.util.Set;
 import org.apache.commons.collections4.MultiValuedMap;
 import org.apache.commons.collections4.multimap.ArrayListValuedHashMap;
 import org.apache.hyracks.api.exceptions.HyracksDataException;
+import org.apache.hyracks.api.io.FileReference;
 import org.apache.hyracks.storage.am.lsm.common.api.ILSMDiskComponent;
 import org.apache.hyracks.storage.am.lsm.common.api.IStatisticsManager;
 import org.apache.hyracks.storage.am.lsm.common.api.ISynopsis;
+import org.apache.hyracks.storage.am.lsm.common.impls.ComponentStatistics;
 
 public class TestStatisticsManager implements IStatisticsManager {
 
@@ -82,4 +84,12 @@ public class TestStatisticsManager implements IStatisticsManager {
     public Collection<ISynopsis> getStatistics(String field) {
         return synopsisIndex.get(field);
     }
+
+    @Override
+    public void addIntermediateStatistics(ISynopsis synopsis, String dataverse, String dataset, String index,
+            String field, boolean isAntimatter, ComponentStatistics component, FileReference partition) {
+        // TODO Auto-generated method stub
+
+    }
+
 }

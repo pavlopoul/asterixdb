@@ -48,16 +48,18 @@ public class StatisticsUtil {
         }
         List<IFieldExtractor> result = new ArrayList<>();
         // TODO: allow nested fields
-        String keyField = String.join(".", indexKeys.get(0));
-        IAType keyType = recordType.getFieldType(keyField);
-        // add statistics on indexed fields
-        if ((!isPrimaryIndex || keepStatisticsOnPrimaryKeys)
-                && ATypeHierarchy.belongsToDomain(keyType.getTypeTag(), Domain.INTEGER)) {
-            AIntegerSerializerDeserializer serDe =
-                    (AIntegerSerializerDeserializer) SerializerDeserializerProvider.INSTANCE
-                            .getNonTaggedSerializerDeserializer(keyType);
-            result.add(new FieldExtractor(serDe, 0, keyField, typeTraitProvider.getTypeTrait(keyType),
-                    keyType.getTypeTag()));
+        if (indexKeys.size() != 0) {
+            String keyField = String.join(".", indexKeys.get(0));
+            IAType keyType = recordType.getFieldType(keyField);
+            // add statistics on indexed fields
+            if ((!isPrimaryIndex || keepStatisticsOnPrimaryKeys)
+                    && ATypeHierarchy.belongsToDomain(keyType.getTypeTag(), Domain.INTEGER)) {
+                AIntegerSerializerDeserializer serDe =
+                        (AIntegerSerializerDeserializer) SerializerDeserializerProvider.INSTANCE
+                                .getNonTaggedSerializerDeserializer(keyType);
+                result.add(new FieldExtractor(serDe, 0, keyField, typeTraitProvider.getTypeTrait(keyType),
+                        keyType.getTypeTag()));
+            }
         }
         // add statistics on non-indexed fields
         if (isPrimaryIndex && unorderedStatisticsFields != null && unorderedStatisticsFields.length > 0) {

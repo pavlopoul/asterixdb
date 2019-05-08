@@ -21,12 +21,14 @@
 package org.apache.hyracks.storage.am.statistics.common;
 
 import org.apache.hyracks.api.exceptions.HyracksDataException;
+import org.apache.hyracks.api.io.FileReference;
 import org.apache.hyracks.dataflow.common.data.accessors.ITupleReference;
 import org.apache.hyracks.storage.am.lsm.common.api.ILSMDiskComponent;
 import org.apache.hyracks.storage.am.lsm.common.api.ILSMIOOperation.LSMIOOperationType;
 import org.apache.hyracks.storage.am.lsm.common.api.ILSMTreeTupleReference;
 import org.apache.hyracks.storage.am.lsm.common.api.IStatisticsManager;
 import org.apache.hyracks.storage.am.lsm.common.api.ISynopsisBuilder;
+import org.apache.hyracks.storage.am.lsm.common.impls.ComponentStatistics;
 import org.apache.hyracks.storage.common.buffercache.ICachedPage;
 
 public class CombinedSynopsisBuilder implements ISynopsisBuilder {
@@ -84,4 +86,12 @@ public class CombinedSynopsisBuilder implements ISynopsisBuilder {
         // TODO Auto-generated method stub
         return null;
     }
+
+    @Override
+    public void gatherIntermediateStatistics(IStatisticsManager statisticsManager, ComponentStatistics component,
+            FileReference partition) throws HyracksDataException {
+        // TODO Auto-generated method stub
+
+    }
+
 }

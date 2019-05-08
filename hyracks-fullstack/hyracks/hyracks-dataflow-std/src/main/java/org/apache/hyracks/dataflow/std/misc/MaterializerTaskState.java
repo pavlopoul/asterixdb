@@ -65,6 +65,10 @@ public class MaterializerTaskState extends AbstractStateObject {
         out.open();
     }
 
+    public RunFileWriter getOut() {
+        return out;
+    }
+
     public void close() throws HyracksDataException {
         if (out != null) {
             out.close();

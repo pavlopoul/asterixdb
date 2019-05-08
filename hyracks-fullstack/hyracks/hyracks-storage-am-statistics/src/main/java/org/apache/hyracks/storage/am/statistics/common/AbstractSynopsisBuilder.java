@@ -19,6 +19,7 @@
 package org.apache.hyracks.storage.am.statistics.common;
 
 import org.apache.hyracks.api.exceptions.HyracksDataException;
+import org.apache.hyracks.api.io.FileReference;
 import org.apache.hyracks.dataflow.common.data.accessors.ITupleReference;
 import org.apache.hyracks.storage.am.lsm.common.api.ILSMDiskComponent;
 import org.apache.hyracks.storage.am.lsm.common.api.ILSMIOOperation.LSMIOOperationType;
@@ -61,6 +62,16 @@ public abstract class AbstractSynopsisBuilder<T extends ISynopsis> implements IS
         } else if (opType == LSMIOOperationType.MERGE) {
             statisticsManager.addStatistics(null, dataverse, dataset, index, field, isAntimatter, component);
         }
+    }
+
+    @Override
+    public void gatherIntermediateStatistics(IStatisticsManager statisticsManager, ComponentStatistics component,
+            FileReference partition) throws HyracksDataException {
+        // Skip sending statistics about empty synopses if it's flush of bulkload
+        //        if (!isEmpty) {
+        statisticsManager.addIntermediateStatistics(synopsis, dataverse, dataset, index, field, isAntimatter, component,
+                partition);
+
     }
 
     @Override

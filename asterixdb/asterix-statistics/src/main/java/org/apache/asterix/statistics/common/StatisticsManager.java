@@ -34,11 +34,13 @@ import org.apache.commons.collections4.MultiValuedMap;
 import org.apache.commons.collections4.multimap.HashSetValuedHashMap;
 import org.apache.hyracks.api.application.INCServiceContext;
 import org.apache.hyracks.api.exceptions.HyracksDataException;
+import org.apache.hyracks.api.io.FileReference;
 import org.apache.hyracks.storage.am.btree.impls.BTree;
 import org.apache.hyracks.storage.am.lsm.common.api.ILSMDiskComponent;
 import org.apache.hyracks.storage.am.lsm.common.api.IStatisticsManager;
 import org.apache.hyracks.storage.am.lsm.common.api.ISynopsis;
 import org.apache.hyracks.storage.am.lsm.common.impls.AbstractLSMIndexFileManager;
+import org.apache.hyracks.storage.am.lsm.common.impls.ComponentStatistics;
 import org.apache.hyracks.storage.am.lsm.common.impls.ComponentStatisticsId;
 
 public class StatisticsManager implements IStatisticsManager {
@@ -90,11 +92,13 @@ public class StatisticsManager implements IStatisticsManager {
     //TODO:refactor this to use component IDs instead
     private MultiValuedMap<ILSMDiskComponent, StatisticsEntry> synopsisMap;
     private MultiValuedMap<ILSMDiskComponent, StatisticsEntry> antimatterSynopsisMap;
+    private MultiValuedMap<ComponentStatistics, StatisticsEntry> synopsisInterMap;
 
     public StatisticsManager(INCServiceContext ncApplicationContext) {
         ncContext = ncApplicationContext;
         synopsisMap = new HashSetValuedHashMap<>();
         antimatterSynopsisMap = new HashSetValuedHashMap<>();
+        synopsisInterMap = new HashSetValuedHashMap<>();
     }
 
     private void sendMessage(ICcAddressedMessage msg) throws HyracksDataException {
@@ -205,6 +209,23 @@ public class StatisticsManager implements IStatisticsManager {
         } else {
             synopsisMap.put(component, newEntry);
         }
+    }
+
+    @Override
+    public void addIntermediateStatistics(ISynopsis synopsis, String dataverse, String dataset, String index,
+            String field, boolean isAntimatter, ComponentStatistics component, FileReference partition)
+            throws HyracksDataException {
+        StatisticsEntry newEntry = new StatisticsEntry(synopsis, dataverse, dataset, index, field);
+        //        if (isAntimatter) {
+        //            antimatterSynopsisMap.put(component, newEntry);
+        //        } else {
+        String[] partitions = partition.getDeviceHandle().getMount().getPath().split("/");
+        synopsisInterMap.put(component, newEntry);
+        ICcAddressedMessage msg = new ReportFlushComponentStatisticsMessage(newEntry, ncContext.getNodeId(),
+                partitions[3], new ComponentStatisticsId(component.getNumAntimatterTuples(), component.getNumTuples()),
+                isAntimatter);
+        sendMessage(msg);
+        //        }
     }
 
 }

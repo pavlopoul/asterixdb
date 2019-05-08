@@ -142,6 +142,7 @@ import org.apache.asterix.metadata.MetadataTransactionContext;
 import org.apache.asterix.metadata.bootstrap.MetadataBuiltinEntities;
 import org.apache.asterix.metadata.dataset.hints.DatasetHints;
 import org.apache.asterix.metadata.dataset.hints.DatasetHints.DatasetNodegroupCardinalityHint;
+import org.apache.asterix.metadata.dataset.hints.DatasetHints.DatasetStatisticsHint;
 import org.apache.asterix.metadata.declared.DatasetDataSource;
 import org.apache.asterix.metadata.declared.MetadataProvider;
 import org.apache.asterix.metadata.entities.BuiltinTypeMap;
@@ -159,6 +160,7 @@ import org.apache.asterix.metadata.entities.InternalDatasetDetails;
 import org.apache.asterix.metadata.entities.InternalDatasetDetails.FileStructure;
 import org.apache.asterix.metadata.entities.InternalDatasetDetails.PartitioningStrategy;
 import org.apache.asterix.metadata.entities.NodeGroup;
+import org.apache.asterix.metadata.entities.Statistics;
 import org.apache.asterix.metadata.feeds.FeedMetadataUtil;
 import org.apache.asterix.metadata.lock.ExternalDatasetsRegistry;
 import org.apache.asterix.metadata.utils.DatasetUtil;
@@ -178,6 +180,7 @@ import org.apache.asterix.om.types.ATypeTag;
 import org.apache.asterix.om.types.IAType;
 import org.apache.asterix.om.types.TypeSignature;
 import org.apache.asterix.runtime.evaluators.common.ClosedRecordConstructorEvalFactory;
+import org.apache.asterix.runtime.statistics.StatisticsUtil;
 import org.apache.asterix.transaction.management.service.transaction.DatasetIdFactory;
 import org.apache.asterix.translator.AbstractLangTranslator;
 import org.apache.asterix.translator.ClientJobRequest;
@@ -255,8 +258,12 @@ import org.apache.hyracks.control.common.job.profiling.om.JobletProfile;
 import org.apache.hyracks.control.common.job.profiling.om.TaskProfile;
 import org.apache.hyracks.dataflow.std.connectors.OneToOneConnectorDescriptor;
 import org.apache.hyracks.dataflow.std.join.OptimizedHybridHashJoinOperatorDescriptor;
-import org.apache.hyracks.dataflow.std.misc.IncrementalSinkOperatorDescriptor;
 import org.apache.hyracks.storage.am.lsm.common.api.ILSMMergePolicyFactory;
+import org.apache.hyracks.storage.am.lsm.common.api.IStatisticsManagerProvider;
+import org.apache.hyracks.storage.am.lsm.common.api.ISynopsis.SynopsisType;
+import org.apache.hyracks.storage.am.statistics.common.IFieldExtractor;
+import org.apache.hyracks.storage.am.statistics.common.StatisticsFactory;
+import org.apache.hyracks.storage.am.statistics.dataflow.IncrementalSinkOperatorDescriptor;
 import org.apache.logging.log4j.Level;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -2884,6 +2891,33 @@ public class QueryTranslator extends AbstractLangTranslator implements IStatemen
                         mp.getApplicationContext().getClusterStateManager().getClusterLocations().getLocations();
                 PartitionConstraintHelper.addAbsoluteLocationConstraint(jobSpec, amod, readerLocations);
 
+                ((IncrementalSinkOperatorDescriptor) jobSpec.getOperatorMap().get(id)).setRecDesc(projectDesc2);
+                String statisticsFieldsHint = dataSource1.getDataset().getHints().get(DatasetStatisticsHint.NAME);
+                List<List<String>> indexKeys = new ArrayList<>();
+
+                final MetadataTransactionContext writeTxn = MetadataManager.INSTANCE.beginTransaction();
+                mp.setMetadataTxnContext(writeTxn);
+                List<Statistics> stats = MetadataManager.INSTANCE.getFieldStatistics(writeTxn,
+                        dataSource1.getDataset().getDataverseName(), dataSource1.getDataset().getDatasetName(),
+                        dataSource1.getDataset().getDatasetName(), statisticsFieldsHint.split(",")[0], false);
+                int statsSize = stats.get(0).getSynopsis().getSize();
+                List<IFieldExtractor> extractors = StatisticsUtil.computeStatisticsFieldExtractors(
+                        mp.getStorageComponentProvider().getTypeTraitProvider(), recType, indexKeys, true, false,
+                        statisticsFieldsHint.split(","));
+
+                ((IncrementalSinkOperatorDescriptor) jobSpec.getOperatorMap().get(id)).setFields(extractors);
+                StatisticsFactory statisticsFactory = new StatisticsFactory(SynopsisType.QuantileSketch,
+                        /*dataSource1.getDataset().getDataverseName()*/"newdata",
+                        recordTypeName + String.valueOf(queries), recordTypeName + String.valueOf(queries), extractors,
+                        statsSize, mp.getApplicationContext().getStatisticsProperties().getSketchFanout(),
+                        mp.getApplicationContext().getStatisticsProperties().getSketchFailureProbability(),
+                        mp.getApplicationContext().getStatisticsProperties().getSketchAccuracy(),
+                        mp.getApplicationContext().getStatisticsProperties().getSketchEnergyAccuracy());
+                ((IncrementalSinkOperatorDescriptor) jobSpec.getOperatorMap().get(id)).setStats(statisticsFactory);
+                IStatisticsManagerProvider statisticsManagerProvider =
+                        mp.getStorageComponentProvider().getStatisticsManagerProvider();
+                ((IncrementalSinkOperatorDescriptor) jobSpec.getOperatorMap().get(id))
+                        .setManagerProvider(statisticsManagerProvider);
                 for (Entry<ConnectorDescriptorId, org.apache.commons.lang3.tuple.Pair<org.apache.commons.lang3.tuple.Pair<IOperatorDescriptor, Integer>, org.apache.commons.lang3.tuple.Pair<IOperatorDescriptor, Integer>>> entry : jobSpec
                         .getConnectorOperatorMap().entrySet()) {
                     if (entry.getValue().getLeft().getKey() instanceof IncrementalSinkOperatorDescriptor
@@ -2960,7 +2994,6 @@ public class QueryTranslator extends AbstractLangTranslator implements IStatemen
             DatasetDataSource dataSource, IAType newRecordType, MetadataProvider mp, List<List<String>> primKey,
             List<IAType> strType, List<String> datasources, Query newQuery)
             throws AlgebricksException, ACIDException, RemoteException {
-        //        Query newQuery = null;
         VarIdentifier fromVarId = new VarIdentifier(varexpr.getVariableReference().toString().substring(1));
         VariableExpr fromTermLeftExpr = new VariableExpr(fromVarId);
         Dataset newSet = new Dataset("newdata", recordTypeName, "newdata", recordTypeName, null, null,

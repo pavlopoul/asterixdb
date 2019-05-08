@@ -16,9 +16,11 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.hyracks.dataflow.std.misc;
+
+package org.apache.hyracks.storage.am.statistics.dataflow;
 
 import java.nio.ByteBuffer;
+import java.util.List;
 
 import org.apache.hyracks.api.context.IHyracksTaskContext;
 import org.apache.hyracks.api.dataflow.ActivityId;
@@ -26,20 +28,38 @@ import org.apache.hyracks.api.dataflow.IActivityGraphBuilder;
 import org.apache.hyracks.api.dataflow.IOperatorNodePushable;
 import org.apache.hyracks.api.dataflow.TaskId;
 import org.apache.hyracks.api.dataflow.value.IRecordDescriptorProvider;
+import org.apache.hyracks.api.dataflow.value.RecordDescriptor;
 import org.apache.hyracks.api.exceptions.HyracksDataException;
 import org.apache.hyracks.api.job.IOperatorDescriptorRegistry;
 import org.apache.hyracks.api.job.IOperatorEnvironment;
 import org.apache.hyracks.api.job.JobId;
+import org.apache.hyracks.dataflow.common.comm.io.FrameTupleAccessor;
 import org.apache.hyracks.dataflow.std.base.AbstractActivityNode;
 import org.apache.hyracks.dataflow.std.base.AbstractOperatorDescriptor;
 import org.apache.hyracks.dataflow.std.base.AbstractStateObject;
 import org.apache.hyracks.dataflow.std.base.AbstractUnaryInputSinkOperatorNodePushable;
+import org.apache.hyracks.dataflow.std.misc.MaterializerTaskState;
+import org.apache.hyracks.storage.am.common.tuples.PermutingFrameTupleReference;
+import org.apache.hyracks.storage.am.lsm.common.api.IStatisticsManagerProvider;
+import org.apache.hyracks.storage.am.lsm.common.api.ISynopsisBuilder;
+import org.apache.hyracks.storage.am.lsm.common.impls.ComponentStatistics;
+import org.apache.hyracks.storage.am.statistics.common.IFieldExtractor;
+import org.apache.hyracks.storage.am.statistics.common.StatisticsFactory;
 
 public class IncrementalSinkOperatorDescriptor extends AbstractOperatorDescriptor {
     private static final long serialVersionUID = 1L;
+    private StatisticsFactory statisticsFactory;
+    private List<IFieldExtractor> fields;
+    private RecordDescriptor recDesc;
+    private IStatisticsManagerProvider statsManagerProvider;
 
-    public IncrementalSinkOperatorDescriptor(IOperatorDescriptorRegistry spec) {
+    public IncrementalSinkOperatorDescriptor(IOperatorDescriptorRegistry spec, StatisticsFactory statisticsFactory,
+            List<IFieldExtractor> fields, RecordDescriptor recDesc, IStatisticsManagerProvider statsManagerProvider) {
         super(spec, 1, 0);
+        this.fields = fields;
+        this.statisticsFactory = statisticsFactory;
+        this.recDesc = recDesc;
+        this.statsManagerProvider = statsManagerProvider;
     }
 
     @Override
@@ -48,6 +68,22 @@ public class IncrementalSinkOperatorDescriptor extends AbstractOperatorDescripto
         IncrementalActivityNode jc = new IncrementalActivityNode(iId);
         builder.addActivity(this, jc);
         builder.addSourceEdge(0, jc, 0);
+    }
+
+    public void setFields(List<IFieldExtractor> fields) {
+        this.fields = fields;
+    }
+
+    public void setRecDesc(RecordDescriptor recDesc) {
+        this.recDesc = recDesc;
+    }
+
+    public void setStats(StatisticsFactory statisticsFactory) {
+        this.statisticsFactory = statisticsFactory;
+    }
+
+    public void setManagerProvider(IStatisticsManagerProvider statsManagerProvider) {
+        this.statsManagerProvider = statsManagerProvider;
     }
 
     public static class IncrementalTaskState extends AbstractStateObject {
@@ -70,18 +106,38 @@ public class IncrementalSinkOperatorDescriptor extends AbstractOperatorDescripto
                 IOperatorEnvironment pastEnv) throws HyracksDataException {
             return new AbstractUnaryInputSinkOperatorNodePushable() {
                 private MaterializerTaskState state;
+                protected FrameTupleAccessor accessor;
+                protected final PermutingFrameTupleReference tuple = new PermutingFrameTupleReference();
+                protected ISynopsisBuilder builder;
+                protected ComponentStatistics component;
 
                 @Override
                 public void open() throws HyracksDataException {
+                    accessor = new FrameTupleAccessor(recDesc);
                     state = new MaterializerTaskState(ctx.getJobletContext().getJobId(),
                             new TaskId(getActivityId(), partition));
                     state.open(ctx);
-
+                    int[] fieldPermutation = new int[fields.size() + 1];
+                    fieldPermutation[0] = 1;
+                    for (int i = 1; i < fields.size(); i++) {
+                        fieldPermutation[i] = i - 1;
+                    }
+                    tuple.setFieldPermutation(fieldPermutation);
                 }
 
                 @Override
                 public void nextFrame(ByteBuffer buffer) throws HyracksDataException {
                     state.appendFrame(buffer);
+                    component = new ComponentStatistics(0l, 0l);
+                    builder =
+                            IncrementalSinkOperatorDescriptor.this.statisticsFactory.createStatistics(component, true);
+                    accessor.reset(buffer);
+                    int tupleCount = accessor.getTupleCount();
+
+                    for (int i = 0; i < tupleCount; i++) {
+                        tuple.reset(accessor, i);
+                        builder.add(tuple);
+                    }
 
                 }
 
@@ -94,6 +150,13 @@ public class IncrementalSinkOperatorDescriptor extends AbstractOperatorDescripto
                 @Override
                 public void close() throws HyracksDataException {
                     state.close();
+                    if (builder != null) {
+                        builder.end();
+                        builder.gatherIntermediateStatistics(
+                                statsManagerProvider.getStatisticsManager(ctx.getJobletContext().getServiceContext()),
+                                component, state.getOut().getFileReference());
+                    }
+                    //                    statsManagerProvider.getStatisticsManager(ctx.getJobletContext().getServiceContext()).
 
                     ctx.setStateObject(state);
 

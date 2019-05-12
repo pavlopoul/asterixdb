@@ -99,17 +99,25 @@ public abstract class HistogramSynopsis<T extends HistogramBucket> extends Abstr
         double leftEstimate = 0.0;
         double rightEstimate = 0.0;
         double estimate = 0.0;
+        long heightl = 1;
+        long heightr = 1;
+        if (histogram.getType() == SynopsisType.ContinuousHistogram) {
+            if (getBuckets().size() != 0) {
+                heightl = getBuckets().get(0).getHeight();
+            }
+            if (histogram.getBuckets().size() != 0) {
+                heightr = histogram.getBuckets().get(0).getHeight();
+            }
+        }
         for (int i = 0; i < getBuckets().size(); i++) {
             if (getBuckets().get(i).getValue() != 0.0) {
-                leftEstimate += getBuckets().get(i).getValue();
-
+                leftEstimate += getBuckets().get(i).getValue() / heightl;
             }
         }
 
         for (int i = 0; i < histogram.getBuckets().size(); i++) {
             if (histogram.getBuckets().get(i).getValue() != 0.0) {
-                rightEstimate += histogram.getBuckets().get(i).getValue();
-
+                rightEstimate += histogram.getBuckets().get(i).getValue() / heightr;
             }
         }
         estimate = leftEstimate * rightEstimate;

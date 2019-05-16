@@ -938,8 +938,9 @@ public class QueryTranslator extends AbstractLangTranslator implements IStatemen
                     overridesFieldTypes = true;
                 }
                 if (fieldType == null) {
-                    throw new CompilationException(ErrorCode.UNKNOWN_TYPE, sourceLoc, fieldExpr.second == null
-                            ? String.valueOf(fieldExpr.first) : String.valueOf(fieldExpr.second));
+                    throw new CompilationException(ErrorCode.UNKNOWN_TYPE, sourceLoc,
+                            fieldExpr.second == null ? String.valueOf(fieldExpr.first)
+                                    : String.valueOf(fieldExpr.second));
                 }
 
                 // try to add the key & its source to the set of keys, if key couldn't be added,
@@ -2688,6 +2689,7 @@ public class QueryTranslator extends AbstractLangTranslator implements IStatemen
         RecordDescriptor[] rdesc = null;
         DatasetDataSource dataSource1 = null;
         List<LogicalVariable> evars = null;
+        List<DatasetDataSource> hints = new ArrayList<>();
         List<String> datasources = new ArrayList<>();
         RecordDescriptor[] internalRecordDescriptors = new RecordDescriptor[3];
         while (!getFinished()) {
@@ -2712,6 +2714,7 @@ public class QueryTranslator extends AbstractLangTranslator implements IStatemen
                         fieldNames = new String[vars.size()];
                         if (!datasources.isEmpty()) {
                             datasources.clear();
+                            hints.clear();
                             i = 0;
                         }
                     }
@@ -2728,6 +2731,7 @@ public class QueryTranslator extends AbstractLangTranslator implements IStatemen
                                     }
                                     DataSourceScanOperator scan = (DataSourceScanOperator) childOp;
                                     dataSource1 = (DatasetDataSource) scan.getDataSource();
+                                    hints.add(dataSource1);
                                     ARecordType recordType = (ARecordType) dataSource1.getItemType();
                                     for (Mutable<ILogicalExpression> expression : expressions) {
 
@@ -2768,6 +2772,7 @@ public class QueryTranslator extends AbstractLangTranslator implements IStatemen
                                                 .toString().substring(2))) {
                                             datasources.add(scan.getVariables().get(scan.getVariables().size() - 1)
                                                     .toString().substring(2));
+                                            hints.add(datasource);
                                             break;
                                         }
                                     }
@@ -2893,22 +2898,26 @@ public class QueryTranslator extends AbstractLangTranslator implements IStatemen
                 PartitionConstraintHelper.addAbsoluteLocationConstraint(jobSpec, amod, readerLocations);
 
                 ((IncrementalSinkOperatorDescriptor) jobSpec.getOperatorMap().get(id)).setRecDesc(projectDesc2);
-                String statisticsFieldsHint = dataSource1.getDataset().getHints().get(DatasetStatisticsHint.NAME);
+                String statisticsFieldsHint = "";
+                for (DatasetDataSource source : hints) {
+                    statisticsFieldsHint += source.getDataset().getHints().get(DatasetStatisticsHint.NAME) + ",";
+                }
+                statisticsFieldsHint = statisticsFieldsHint.substring(0, statisticsFieldsHint.length() - 1);
                 List<List<String>> indexKeys = new ArrayList<>();
 
                 final MetadataTransactionContext writeTxn = MetadataManager.INSTANCE.beginTransaction();
                 mp.setMetadataTxnContext(writeTxn);
                 List<Statistics> stats = MetadataManager.INSTANCE.getFieldStatistics(writeTxn,
                         dataSource1.getDataset().getDataverseName(), dataSource1.getDataset().getDatasetName(),
-                        dataSource1.getDataset().getDatasetName(), statisticsFieldsHint.split(",")[0], false);
+                        dataSource1.getDataset().getDatasetName(),
+                        dataSource1.getDataset().getHints().get(DatasetStatisticsHint.NAME).split(",")[0], false);
                 int statsSize = stats.get(0).getSynopsis().getSize();
                 List<IFieldExtractor> extractors = StatisticsUtil.computeStatisticsFieldExtractors(
                         mp.getStorageComponentProvider().getTypeTraitProvider(), recType, indexKeys, true, false,
                         statisticsFieldsHint.split(","));
 
                 ((IncrementalSinkOperatorDescriptor) jobSpec.getOperatorMap().get(id)).setFields(extractors);
-                StatisticsFactory statisticsFactory = new StatisticsFactory(SynopsisType.QuantileSketch,
-                        /*dataSource1.getDataset().getDataverseName()*/"newdata",
+                StatisticsFactory statisticsFactory = new StatisticsFactory(SynopsisType.QuantileSketch, "newdata",
                         recordTypeName + String.valueOf(queries), recordTypeName + String.valueOf(queries), extractors,
                         statsSize, mp.getApplicationContext().getStatisticsProperties().getSketchFanout(),
                         mp.getApplicationContext().getStatisticsProperties().getSketchFailureProbability(),
@@ -2931,6 +2940,7 @@ public class QueryTranslator extends AbstractLangTranslator implements IStatemen
                 jobSpec.connect(new OneToOneConnectorDescriptor(jobSpec), jobSpec.getOperatorMap().get(odId), 0, amod,
                         0);
                 jobSpec.connect(new OneToOneConnectorDescriptor(jobSpec), amod, 0, jobSpec.getOperatorMap().get(id), 0);
+                //  jobSpec.getUserConstraints().
                 removeFromConnectors(0, jobSpec, jobSpec.getConnectorOperatorMap());
             } else {
                 removeFromConnectors(0, jobSpec, jobSpec.getConnectorOperatorMap());

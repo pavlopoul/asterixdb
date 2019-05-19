@@ -117,20 +117,18 @@ public class IncrementalSinkOperatorDescriptor extends AbstractOperatorDescripto
                     state = new MaterializerTaskState(ctx.getJobletContext().getJobId(),
                             new TaskId(getActivityId(), partition));
                     state.open(ctx);
-                    int[] fieldPermutation = new int[fields.size() + 1];
+                    int[] fieldPermutation = new int[2];
                     fieldPermutation[0] = 1;
-                    for (int i = 1; i < fields.size(); i++) {
-                        fieldPermutation[i] = i - 1;
-                    }
                     tuple.setFieldPermutation(fieldPermutation);
+                    component = new ComponentStatistics(0l, 0l);
+                    builder =
+                            IncrementalSinkOperatorDescriptor.this.statisticsFactory.createStatistics(component, true);
+
                 }
 
                 @Override
                 public void nextFrame(ByteBuffer buffer) throws HyracksDataException {
                     state.appendFrame(buffer);
-                    component = new ComponentStatistics(0l, 0l);
-                    builder =
-                            IncrementalSinkOperatorDescriptor.this.statisticsFactory.createStatistics(component, true);
                     accessor.reset(buffer);
                     int tupleCount = accessor.getTupleCount();
 
@@ -156,7 +154,6 @@ public class IncrementalSinkOperatorDescriptor extends AbstractOperatorDescripto
                                 statsManagerProvider.getStatisticsManager(ctx.getJobletContext().getServiceContext()),
                                 component, state.getOut().getFileReference());
                     }
-                    //                    statsManagerProvider.getStatisticsManager(ctx.getJobletContext().getServiceContext()).
 
                     ctx.setStateObject(state);
 

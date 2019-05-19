@@ -2898,6 +2898,7 @@ public class QueryTranslator extends AbstractLangTranslator implements IStatemen
                 PartitionConstraintHelper.addAbsoluteLocationConstraint(jobSpec, amod, readerLocations);
 
                 ((IncrementalSinkOperatorDescriptor) jobSpec.getOperatorMap().get(id)).setRecDesc(projectDesc2);
+                //                String statisticsFieldsHint = dataSource1.getDataset().getHints().get(DatasetStatisticsHint.NAME);
                 String statisticsFieldsHint = "";
                 for (DatasetDataSource source : hints) {
                     statisticsFieldsHint += source.getDataset().getHints().get(DatasetStatisticsHint.NAME) + ",";

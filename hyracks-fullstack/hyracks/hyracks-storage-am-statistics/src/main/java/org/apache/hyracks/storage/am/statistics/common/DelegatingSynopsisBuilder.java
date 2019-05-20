@@ -87,7 +87,9 @@ public class DelegatingSynopsisBuilder implements ISynopsisBuilder {
     @Override
     public void gatherIntermediateStatistics(IStatisticsManager statisticsManager, ComponentStatistics component,
             FileReference partition) throws HyracksDataException {
-        // TODO Auto-generated method stub
+        for (ISynopsisBuilder builder : builders) {
+            builder.gatherIntermediateStatistics(statisticsManager, component, partition);
+        }
 
     }
 

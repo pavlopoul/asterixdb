@@ -20,7 +20,6 @@
 package org.apache.hyracks.storage.am.statistics.dataflow;
 
 import java.nio.ByteBuffer;
-import java.util.List;
 
 import org.apache.hyracks.api.context.IHyracksTaskContext;
 import org.apache.hyracks.api.dataflow.ActivityId;
@@ -43,20 +42,20 @@ import org.apache.hyracks.storage.am.common.tuples.PermutingFrameTupleReference;
 import org.apache.hyracks.storage.am.lsm.common.api.IStatisticsManagerProvider;
 import org.apache.hyracks.storage.am.lsm.common.api.ISynopsisBuilder;
 import org.apache.hyracks.storage.am.lsm.common.impls.ComponentStatistics;
-import org.apache.hyracks.storage.am.statistics.common.IFieldExtractor;
 import org.apache.hyracks.storage.am.statistics.common.StatisticsFactory;
 
 public class IncrementalSinkOperatorDescriptor extends AbstractOperatorDescriptor {
     private static final long serialVersionUID = 1L;
     private StatisticsFactory statisticsFactory;
-    private List<IFieldExtractor> fields;
+    //    private List<IFieldExtractor> fields;
     private RecordDescriptor recDesc;
     private IStatisticsManagerProvider statsManagerProvider;
 
     public IncrementalSinkOperatorDescriptor(IOperatorDescriptorRegistry spec, StatisticsFactory statisticsFactory,
-            List<IFieldExtractor> fields, RecordDescriptor recDesc, IStatisticsManagerProvider statsManagerProvider) {
+            /*List<IFieldExtractor> fields,*/ RecordDescriptor recDesc,
+            IStatisticsManagerProvider statsManagerProvider) {
         super(spec, 1, 0);
-        this.fields = fields;
+        //        this.fields = fields;
         this.statisticsFactory = statisticsFactory;
         this.recDesc = recDesc;
         this.statsManagerProvider = statsManagerProvider;
@@ -70,9 +69,9 @@ public class IncrementalSinkOperatorDescriptor extends AbstractOperatorDescripto
         builder.addSourceEdge(0, jc, 0);
     }
 
-    public void setFields(List<IFieldExtractor> fields) {
-        this.fields = fields;
-    }
+    //    public void setFields(List<IFieldExtractor> fields) {
+    //        this.fields = fields;
+    //    }
 
     public void setRecDesc(RecordDescriptor recDesc) {
         this.recDesc = recDesc;
@@ -141,13 +140,13 @@ public class IncrementalSinkOperatorDescriptor extends AbstractOperatorDescripto
 
                 @Override
                 public void fail() throws HyracksDataException {
-                    // TODO Auto-generated method stub
 
                 }
 
                 @Override
                 public void close() throws HyracksDataException {
                     state.close();
+
                     if (builder != null) {
                         builder.end();
                         builder.gatherIntermediateStatistics(

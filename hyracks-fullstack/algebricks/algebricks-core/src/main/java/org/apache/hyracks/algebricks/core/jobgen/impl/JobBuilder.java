@@ -318,7 +318,7 @@ public class JobBuilder implements IHyracksJobBuilder {
                 if (inOp.getOperatorTag() != LogicalOperatorTag.INNERJOIN) {
                     continue;
                 }
-                outOpDesc = new IncrementalSinkOperatorDescriptor(jobSpec, null, null, null, null);
+                outOpDesc = new IncrementalSinkOperatorDescriptor(jobSpec, null, /*null,*/ null, null);
             }
             Pair<IConnectorDescriptor, TargetConstraint> connPair = connectors.get(exchg);
             IConnectorDescriptor conn = connPair.first;

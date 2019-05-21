@@ -645,6 +645,8 @@ public abstract class AbstractLSMIndex implements ILSMIndex {
     public abstract ILSMIOOperationCallback getStatisticsAwareIOOperationCallback(
             ILSMIOOperationCallback ioOpCallback2);
 
+    public abstract boolean hasStatistics();
+
     @Override
     public IBufferCache getBufferCache() {
         return diskBufferCache;

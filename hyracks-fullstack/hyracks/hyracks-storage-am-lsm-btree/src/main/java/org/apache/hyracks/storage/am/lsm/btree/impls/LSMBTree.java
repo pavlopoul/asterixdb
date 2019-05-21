@@ -424,6 +424,13 @@ public class LSMBTree extends AbstractLSMIndex implements ITreeIndex {
         }
     }
 
+    public boolean hasStatistics() {
+        if (hasStatistics) {
+            return true;
+        }
+        return false;
+    }
+
     @Override
     public LSMBTreeOpContext createOpContext(IIndexAccessParameters iap) {
         int numBloomFilterKeyFields = hasBloomFilter

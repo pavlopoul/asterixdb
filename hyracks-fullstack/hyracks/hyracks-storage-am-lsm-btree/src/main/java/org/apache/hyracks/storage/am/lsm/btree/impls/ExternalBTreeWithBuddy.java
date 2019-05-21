@@ -690,4 +690,9 @@ public class ExternalBTreeWithBuddy extends AbstractLSMIndex implements ITreeInd
         // TODO Auto-generated method stub
         return null;
     }
+
+    @Override
+    public boolean hasStatistics() {
+        return false;
+    }
 }

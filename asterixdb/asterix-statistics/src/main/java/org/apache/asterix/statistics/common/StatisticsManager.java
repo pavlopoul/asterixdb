@@ -216,16 +216,12 @@ public class StatisticsManager implements IStatisticsManager {
             String field, boolean isAntimatter, ComponentStatistics component, FileReference partition)
             throws HyracksDataException {
         StatisticsEntry newEntry = new StatisticsEntry(synopsis, dataverse, dataset, index, field);
-        //        if (isAntimatter) {
-        //            antimatterSynopsisMap.put(component, newEntry);
-        //        } else {
         String[] partitions = partition.getDeviceHandle().getMount().getPath().split("/");
         synopsisInterMap.put(component, newEntry);
         ICcAddressedMessage msg = new ReportFlushComponentStatisticsMessage(newEntry, ncContext.getNodeId(),
-                partitions[3], new ComponentStatisticsId(component.getNumAntimatterTuples(), component.getNumTuples()),
-                isAntimatter);
+                partitions[partitions.length - 2],
+                new ComponentStatisticsId(component.getNumAntimatterTuples(), component.getNumTuples()), isAntimatter);
         sendMessage(msg);
-        //        }
     }
 
 }

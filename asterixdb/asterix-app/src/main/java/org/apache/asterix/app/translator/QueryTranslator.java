@@ -938,9 +938,8 @@ public class QueryTranslator extends AbstractLangTranslator implements IStatemen
                     overridesFieldTypes = true;
                 }
                 if (fieldType == null) {
-                    throw new CompilationException(ErrorCode.UNKNOWN_TYPE, sourceLoc,
-                            fieldExpr.second == null ? String.valueOf(fieldExpr.first)
-                                    : String.valueOf(fieldExpr.second));
+                    throw new CompilationException(ErrorCode.UNKNOWN_TYPE, sourceLoc, fieldExpr.second == null
+                            ? String.valueOf(fieldExpr.first) : String.valueOf(fieldExpr.second));
                 }
 
                 // try to add the key & its source to the set of keys, if key couldn't be added,
@@ -2917,7 +2916,7 @@ public class QueryTranslator extends AbstractLangTranslator implements IStatemen
                         mp.getStorageComponentProvider().getTypeTraitProvider(), recType, indexKeys, true, false,
                         statisticsFieldsHint.split(","));
 
-                ((IncrementalSinkOperatorDescriptor) jobSpec.getOperatorMap().get(id)).setFields(extractors);
+                //((IncrementalSinkOperatorDescriptor) jobSpec.getOperatorMap().get(id)).setFields(extractors);
                 StatisticsFactory statisticsFactory = new StatisticsFactory(SynopsisType.QuantileSketch, "newdata",
                         recordTypeName + String.valueOf(queries), recordTypeName + String.valueOf(queries), extractors,
                         statsSize, mp.getApplicationContext().getStatisticsProperties().getSketchFanout(),

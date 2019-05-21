@@ -506,4 +506,9 @@ public class LSMInvertedIndex extends AbstractLSMIndex implements IInvertedIndex
         // TODO Auto-generated method stub
         return null;
     }
+
+    @Override
+    public boolean hasStatistics() {
+        return false;
+    }
 }

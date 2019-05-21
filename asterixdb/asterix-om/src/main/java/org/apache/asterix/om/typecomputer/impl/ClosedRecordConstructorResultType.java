@@ -66,6 +66,7 @@ public class ClosedRecordConstructorResultType implements IResultTypeComputer {
             ILogicalExpression e1 = argIter.next().getValue();
             ILogicalExpression e2 = argIter.next().getValue();
             IAType e2Type = (IAType) env.getType(e2);
+            System.out.println(e2);
             if (e2Type.getTypeTag() == ATypeTag.UNION) {
                 AUnionType unionType = (AUnionType) e2Type;
                 e2Type = AUnionType.createUnknownableType(unionType.getActualType());

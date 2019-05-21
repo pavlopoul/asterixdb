@@ -164,6 +164,9 @@ public class JoinReOrderRule implements IAlgebraicRewriteRule {
             it.next();
             map.lastEntry().getValue().getValue().getInputs().set(0, mut);
             ListIterator<Mutable<ILogicalOperator>> list = joinRoots.listIterator();
+            System.out.println(map.firstEntry().getKey());
+            System.out.println(map.lastEntry().getKey());
+            System.out.println(((AssignOperator) mut.getValue()).getExpressions().get(0));
             while (it.hasNext()) {
                 while (list.hasNext()) {
                     Mutable<ILogicalOperator> root = list.next();
@@ -218,6 +221,7 @@ public class JoinReOrderRule implements IAlgebraicRewriteRule {
                 alo.getInputs().clear();
                 alo.getInputs().add(new MutableObject<ILogicalOperator>(outerJoin));
             }
+            map.clear();
             return true;
         }
         return false;

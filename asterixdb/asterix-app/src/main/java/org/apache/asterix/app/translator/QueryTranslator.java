@@ -938,8 +938,9 @@ public class QueryTranslator extends AbstractLangTranslator implements IStatemen
                     overridesFieldTypes = true;
                 }
                 if (fieldType == null) {
-                    throw new CompilationException(ErrorCode.UNKNOWN_TYPE, sourceLoc, fieldExpr.second == null
-                            ? String.valueOf(fieldExpr.first) : String.valueOf(fieldExpr.second));
+                    throw new CompilationException(ErrorCode.UNKNOWN_TYPE, sourceLoc,
+                            fieldExpr.second == null ? String.valueOf(fieldExpr.first)
+                                    : String.valueOf(fieldExpr.second));
                 }
 
                 // try to add the key & its source to the set of keys, if key couldn't be added,
@@ -3055,9 +3056,12 @@ public class QueryTranslator extends AbstractLangTranslator implements IStatemen
             if (!oldterm.getLeftVariable().toString().substring(1).equals(datasources.get(0))
                     && !oldterm.getLeftVariable().toString().substring(1).equals(datasources.get(1))) {
                 fromTermNew.add(oldterm);
+            } else if (oldterm.getLeftVariable().toString().substring(1)
+                    .equals(fromterm.getLeftVariable().toString().substring(1))) {
+                fromTermNew.add(fromterm);
             }
         }
-        fromTermNew.add(0, fromterm);
+        //        fromTermNew.add(0, fromterm);
         FromClause fromClause = new FromClause(fromTermNew);
         Dataverse newDataverse = new Dataverse("newdata", "", 0);
         Datatype newDatatype = new Datatype("newdata", recordTypeName, newRecordType, false);

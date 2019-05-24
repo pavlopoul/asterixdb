@@ -93,32 +93,6 @@ public class JoinReOrderRule implements IAlgebraicRewriteRule {
                     DatasetDataSource datasourcer = null;
                     AssignOperator assignr = null;
                     populateMap(childop.getInputs(), datasourcer, assignr, context);
-                    //                    for (Mutable<ILogicalOperator> child : childop.getInputs()) {
-                    //                        if (child.getValue().getOperatorTag() == LogicalOperatorTag.INNERJOIN) {
-                    //                            InnerJoinOperator join = (InnerJoinOperator) child.getValue();
-                    //                            Mutable<ILogicalExpression> condition = join.getCondition();
-                    //                            ScalarFunctionCallExpression sfce = (ScalarFunctionCallExpression) condition.getValue();
-                    //                            LogicalVariable lvl = ((VariableReferenceExpression) sfce.getArguments().get(0).getValue())
-                    //                                    .getVariableReference();
-                    //                            DatasetDataSource datasourcel = findDataSource(join, lvl);
-                    //                            AssignOperator assignl = subOp;
-                    //                            LogicalVariable lvr = ((VariableReferenceExpression) sfce.getArguments().get(1).getValue())
-                    //                                    .getVariableReference();
-                    //                            datasourcer = findDataSource(join, lvr);
-                    //                            assignr = subOp;
-                    //                            long key = inferCardinality((AbstractLogicalOperator) child.getValue(), context,
-                    //                                    datasourcel, datasourcer, assignl, assignr);
-                    //                            if (map.containsKey(key)) {
-                    //                                map.get(key).add(child);
-                    //                            } else {
-                    //                                map.put(key, new ArrayList<>());
-                    //                                map.get(key).add(child);
-                    //                            }
-                    //                            //                            map.put(inferCardinality((AbstractLogicalOperator) child.getValue(), context, datasourcel,
-                    //                            //                                    datasourcer, assignl, assignr), child);
-                    //                            childop = child.getValue();
-                    //                        }
-                    //                    }
                     long key = inferCardinality(joinout, context, datasourcerf, datasource, assignrf, assignout);
                     if (map.containsKey(key)) {
                         map.get(key).add(mutalele);
@@ -126,7 +100,6 @@ public class JoinReOrderRule implements IAlgebraicRewriteRule {
                         map.put(key, new ArrayList<>());
                         map.get(key).add(mutalele);
                     }
-                    //                    map.put(inferCardinality(joinout, context, datasourcer, datasource, assignr, assignout), mutalele);
                 } else {
                     return false;
                 }
@@ -167,9 +140,6 @@ public class JoinReOrderRule implements IAlgebraicRewriteRule {
                     map.put(key, new ArrayList<>());
                     map.get(key).add(child);
                 }
-                //                            map.put(inferCardinality((AbstractLogicalOperator) child.getValue(), context, datasourcel,
-                //                                    datasourcer, assignl, assignr), child);
-                //childop = child.getValue();
                 populateMap(child.getValue().getInputs(), datasourcer, assignr, context);
             }
         }
@@ -223,8 +193,6 @@ public class JoinReOrderRule implements IAlgebraicRewriteRule {
             while (it.hasNext()) {
                 allJoins.addAll(map.get(it.next()));
             }
-            //it.next();
-            //map.lastEntry().getValue().getValue().getInputs().set(0, mut);
             ScalarFunctionCallExpression sfcebest =
                     (ScalarFunctionCallExpression) ((InnerJoinOperator) allJoins.get(allJoins.size() - 1).getValue())
                             .getCondition().getValue();
@@ -237,81 +205,13 @@ public class JoinReOrderRule implements IAlgebraicRewriteRule {
             while (list.hasNext()) {
                 Mutable<ILogicalOperator> root = list.next();
                 for (Mutable<ILogicalOperator> mutJoin : allJoins) {
-                    //list = joinRoots.listIterator();
-                    //                while (list.hasNext()) {
-                    //Mutable<ILogicalOperator> root = list.next();
-                    // long child = it.next();
 
                     InnerJoinOperator join = (InnerJoinOperator) root.getValue();
-                    //                    ScalarFunctionCallExpression sfce = (ScalarFunctionCallExpression) join.getCondition().getValue();
-                    //                    LogicalVariable lvl = ((VariableReferenceExpression) sfce.getArguments().get(0).getValue())
-                    //                            .getVariableReference();
-                    //                    LogicalVariable lvr = ((VariableReferenceExpression) sfce.getArguments().get(1).getValue())
-                    //                            .getVariableReference();
-                    //
-                    //                    //                    InnerJoinOperator joinChild = (InnerJoinOperator) map.get(child).getValue();
                     InnerJoinOperator joinChild = (InnerJoinOperator) mutJoin.getValue();
                     matched = false;
                     traversePlan(join, joinChild, list, mutJoin);
-                    //                    ScalarFunctionCallExpression sfcechild =
-                    //                            (ScalarFunctionCallExpression) joinChild.getCondition().getValue();
-                    //                    LogicalVariable lvchildl =
-                    //                            ((VariableReferenceExpression) sfcechild.getArguments().get(0).getValue())
-                    //                                    .getVariableReference();
-                    //                    LogicalVariable lvchildr =
-                    //                            ((VariableReferenceExpression) sfcechild.getArguments().get(1).getValue())
-                    //                                    .getVariableReference();
-                    //
-                    //                    if (findDataSource(join, lvl) == findDataSource(joinChild, lvchildl)
-                    //                            || findDataSource(join, lvl) == findDataSource(joinChild, lvchildr)) {
-                    //                        //                        join.getInputs().set(0, map.get(child));
-                    //                        join.getInputs().set(0, mutJoin);
-                    //                        joinChild.getInputs().set(0, mut);
-                    //                    } else if (findDataSource(join, lvr) == findDataSource(joinChild, lvchildl)
-                    //                            || findDataSource(join, lvr) == findDataSource(joinChild, lvchildr)) {
-                    //                        //                        join.getInputs().set(1, map.get(child));
-                    //                        join.getInputs().set(1, mutJoin);
-                    //                        joinChild.getInputs().set(0, mut);
-                    //                    } else {
-                    //                        //                        list.add(map.get(child));
-                    //                        list.add(mutJoin);
-                    //                        //list.previous();
-                    //                        list.previous();
-                    //                    }
                 }
             }
-            //            while (it.hasNext()) {
-            //                while (list.hasNext()) {
-            //                    Mutable<ILogicalOperator> root = list.next();
-            //                    long child = it.next();
-            //                    InnerJoinOperator join = (InnerJoinOperator) root.getValue();
-            //                    ScalarFunctionCallExpression sfce = (ScalarFunctionCallExpression) join.getCondition().getValue();
-            //                    LogicalVariable lvl = ((VariableReferenceExpression) sfce.getArguments().get(0).getValue())
-            //                            .getVariableReference();
-            //                    LogicalVariable lvr = ((VariableReferenceExpression) sfce.getArguments().get(1).getValue())
-            //                            .getVariableReference();
-            //
-            //                    InnerJoinOperator joinChild = (InnerJoinOperator) map.get(child).getValue();
-            //                    ScalarFunctionCallExpression sfcechild =
-            //                            (ScalarFunctionCallExpression) joinChild.getCondition().getValue();
-            //                    LogicalVariable lvchildl =
-            //                            ((VariableReferenceExpression) sfcechild.getArguments().get(0).getValue())
-            //                                    .getVariableReference();
-            //                    LogicalVariable lvchildr =
-            //                            ((VariableReferenceExpression) sfcechild.getArguments().get(1).getValue())
-            //                                    .getVariableReference();
-            //
-            //                    if (findDataSource(join, lvl) == findDataSource(joinChild, lvchildl)
-            //                            || findDataSource(join, lvl) == findDataSource(joinChild, lvchildr)) {
-            //                        join.getInputs().set(0, map.get(child));
-            //                    } else if (findDataSource(join, lvr) == findDataSource(joinChild, lvchildl)
-            //                            || findDataSource(join, lvr) == findDataSource(joinChild, lvchildr)) {
-            //                        join.getInputs().set(1, map.get(child));
-            //                    } else {
-            //                        list.add(map.get(child));
-            //                    }
-            //                }
-            //            }
             if (joinRoots.size() > 1) {
                 InnerJoinOperator joinA = (InnerJoinOperator) joinRoots.get(0).getValue();
                 Mutable<ILogicalExpression> conditionA = joinA.getCondition();
@@ -360,7 +260,6 @@ public class JoinReOrderRule implements IAlgebraicRewriteRule {
                 traversePlan((InnerJoinOperator) rootJoin.getInputs().get(1).getValue(), searchJoin, list, mutJoin);
             }
         }
-        //            else {
         if (findDataSource(rootJoin, rootl) == findDataSource(searchJoin, searchl)
                 || findDataSource(rootJoin, rootl) == findDataSource(searchJoin, searchr)) {
             matched = true;
@@ -375,7 +274,6 @@ public class JoinReOrderRule implements IAlgebraicRewriteRule {
             list.add(mutJoin);
             list.previous();
         }
-        //        }
     }
 
     private long inferCardinality(AbstractLogicalOperator op, IOptimizationContext context,

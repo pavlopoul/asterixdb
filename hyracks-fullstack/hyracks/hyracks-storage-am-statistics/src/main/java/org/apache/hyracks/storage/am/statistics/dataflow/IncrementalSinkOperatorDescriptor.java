@@ -47,15 +47,12 @@ import org.apache.hyracks.storage.am.statistics.common.StatisticsFactory;
 public class IncrementalSinkOperatorDescriptor extends AbstractOperatorDescriptor {
     private static final long serialVersionUID = 1L;
     private StatisticsFactory statisticsFactory;
-    //    private List<IFieldExtractor> fields;
     private RecordDescriptor recDesc;
     private IStatisticsManagerProvider statsManagerProvider;
 
     public IncrementalSinkOperatorDescriptor(IOperatorDescriptorRegistry spec, StatisticsFactory statisticsFactory,
-            /*List<IFieldExtractor> fields,*/ RecordDescriptor recDesc,
-            IStatisticsManagerProvider statsManagerProvider) {
+            RecordDescriptor recDesc, IStatisticsManagerProvider statsManagerProvider) {
         super(spec, 1, 0);
-        //        this.fields = fields;
         this.statisticsFactory = statisticsFactory;
         this.recDesc = recDesc;
         this.statsManagerProvider = statsManagerProvider;
@@ -68,10 +65,6 @@ public class IncrementalSinkOperatorDescriptor extends AbstractOperatorDescripto
         builder.addActivity(this, jc);
         builder.addSourceEdge(0, jc, 0);
     }
-
-    //    public void setFields(List<IFieldExtractor> fields) {
-    //        this.fields = fields;
-    //    }
 
     public void setRecDesc(RecordDescriptor recDesc) {
         this.recDesc = recDesc;

@@ -2900,8 +2900,11 @@ public class QueryTranslator extends AbstractLangTranslator implements IStatemen
                 ((IncrementalSinkOperatorDescriptor) jobSpec.getOperatorMap().get(id)).setRecDesc(projectDesc2);
                 //                String statisticsFieldsHint = dataSource1.getDataset().getHints().get(DatasetStatisticsHint.NAME);
                 String statisticsFieldsHint = "";
-                for (DatasetDataSource source : hints) {
-                    statisticsFieldsHint += source.getDataset().getHints().get(DatasetStatisticsHint.NAME) + ",";
+                //                for (DatasetDataSource source : hints) {
+                //                    statisticsFieldsHint += source.getDataset().getHints().get(DatasetStatisticsHint.NAME) + ",";
+                //                }
+                for (String source : fieldNames) {
+                    statisticsFieldsHint += source + ",";
                 }
                 statisticsFieldsHint = statisticsFieldsHint.substring(0, statisticsFieldsHint.length() - 1);
                 List<List<String>> indexKeys = new ArrayList<>();
@@ -2917,7 +2920,6 @@ public class QueryTranslator extends AbstractLangTranslator implements IStatemen
                         mp.getStorageComponentProvider().getTypeTraitProvider(), recType, indexKeys, true, false,
                         statisticsFieldsHint.split(","));
 
-                //((IncrementalSinkOperatorDescriptor) jobSpec.getOperatorMap().get(id)).setFields(extractors);
                 StatisticsFactory statisticsFactory = new StatisticsFactory(SynopsisType.QuantileSketch, "newdata",
                         recordTypeName + String.valueOf(queries), recordTypeName + String.valueOf(queries), extractors,
                         statsSize, mp.getApplicationContext().getStatisticsProperties().getSketchFanout(),
@@ -3012,7 +3014,7 @@ public class QueryTranslator extends AbstractLangTranslator implements IStatemen
                 "newdata." + recordTypeName, "prefix", dataSource.getDataset().getCompactionPolicyProperties(),
                 new InternalDatasetDetails(FileStructure.BTREE, PartitioningStrategy.HASH, new ArrayList<>(),
                         new ArrayList<>(), new ArrayList<>(), new ArrayList<>(), false, new ArrayList<>()),
-                new HashMap<>(), DatasetType.READER, 1, 0, 0, "none");
+                /*new HashMap<>()*/dataSource.getDataset().getHints(), DatasetType.READER, 1, 0, 0, "none");
         List<Expression> exprList = addArgs(newSet.getDataverseName() + "." + newSet.getDatasetName());
         CallExpr datasrouceCallFunction = new CallExpr(new FunctionSignature(BuiltinFunctions.DATASET), exprList);
         FromTerm fromterm = new FromTerm(datasrouceCallFunction, fromTermLeftExpr, null, null);

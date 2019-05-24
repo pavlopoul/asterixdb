@@ -88,6 +88,7 @@ public class CardinalityEstimator implements ICardinalityEstimator {
                 getFieldStats(metadataProvider, innerDataverseName, innerDatasetName, innerFieldName);
         List<Statistics> outerStats =
                 getFieldStats(metadataProvider, outerDataverseName, outerDatasetName, outerFieldName);
+
         double result = 0.0;
         long innerUniqueValues =
                 getUniqueCardinality(metadataProvider, innerDataverseName, innerDatasetName, innerFieldName);

@@ -87,6 +87,8 @@ public interface IHyracksClientConnection extends IClusterInfoCollector {
      */
     JobId startJob(JobSpecification jobSpec, EnumSet<JobFlag> jobFlags) throws Exception;
 
+    JobId startJobs(JobSpecification[] jobSpecs, EnumSet<JobFlag> jobFlags) throws Exception;
+
     /**
      * Distribute the specified Job.
      *
@@ -129,6 +131,9 @@ public interface IHyracksClientConnection extends IClusterInfoCollector {
      */
     JobId startJob(DeployedJobSpecId deployedJobSpecId, Map<byte[], byte[]> jobParameters) throws Exception;
 
+    public JobId[] startJobs(DeploymentId deploymentId, IActivityClusterGraphGeneratorFactory acggf1,
+            IActivityClusterGraphGeneratorFactory acggf2, EnumSet<JobFlag> jobFlags) throws Exception;
+
     /**
      * Start the specified Job.
      *
@@ -139,6 +144,9 @@ public interface IHyracksClientConnection extends IClusterInfoCollector {
      * @throws Exception
      */
     JobId startJob(IActivityClusterGraphGeneratorFactory acggf, EnumSet<JobFlag> jobFlags) throws Exception;
+
+    public JobId[] startJobs(IActivityClusterGraphGeneratorFactory acggf1, IActivityClusterGraphGeneratorFactory acggf2,
+            EnumSet<JobFlag> jobFlags) throws Exception;
 
     /**
      * Gets the IP Address and port for the ResultDirectoryService wrapped in NetworkAddress

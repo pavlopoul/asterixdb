@@ -18,8 +18,6 @@
  */
 package org.apache.asterix.runtime.job.listener;
 
-import static org.apache.hyracks.api.constraints.expressions.ConstraintExpression.ExpressionTag;
-
 import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
@@ -33,6 +31,7 @@ import org.apache.asterix.common.api.INodeJobTracker;
 import org.apache.hyracks.api.config.IOption;
 import org.apache.hyracks.api.constraints.Constraint;
 import org.apache.hyracks.api.constraints.expressions.ConstantExpression;
+import org.apache.hyracks.api.constraints.expressions.ConstraintExpression.ExpressionTag;
 import org.apache.hyracks.api.job.JobId;
 import org.apache.hyracks.api.job.JobSpecification;
 import org.apache.hyracks.api.job.JobStatus;

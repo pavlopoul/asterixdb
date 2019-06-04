@@ -231,7 +231,12 @@ import org.apache.hyracks.algebricks.runtime.serializer.ResultSerializerFactoryP
 import org.apache.hyracks.algebricks.runtime.writers.PrinterBasedWriterFactory;
 import org.apache.hyracks.api.client.IClusterInfoCollector;
 import org.apache.hyracks.api.client.IHyracksClientConnection;
+import org.apache.hyracks.api.constraints.Constraint;
 import org.apache.hyracks.api.constraints.PartitionConstraintHelper;
+import org.apache.hyracks.api.constraints.expressions.ConstraintExpression;
+import org.apache.hyracks.api.constraints.expressions.ConstraintExpression.ExpressionTag;
+import org.apache.hyracks.api.constraints.expressions.LValueConstraintExpression;
+import org.apache.hyracks.api.constraints.expressions.PartitionCountExpression;
 import org.apache.hyracks.api.dataflow.ConnectorDescriptorId;
 import org.apache.hyracks.api.dataflow.IConnectorDescriptor;
 import org.apache.hyracks.api.dataflow.IOperatorDescriptor;
@@ -2692,6 +2697,7 @@ public class QueryTranslator extends AbstractLangTranslator implements IStatemen
         List<DatasetDataSource> hints = new ArrayList<>();
         List<String> datasources = new ArrayList<>();
         RecordDescriptor[] internalRecordDescriptors = new RecordDescriptor[3];
+        String[] readerLocations = null;
         while (!getFinished()) {
             locker.lock();
             jobSpec = compiler.compile(operators, first, newQuery);
@@ -2893,7 +2899,7 @@ public class QueryTranslator extends AbstractLangTranslator implements IStatemen
                 outPositions[0] = 0;
                 AlgebricksMetaOperatorDescriptor amod = new AlgebricksMetaOperatorDescriptor(jobSpec, 1, 1,
                         runtimeFactories, internalRecordDescriptors, outRuntimeFactories, outPositions);
-                String[] readerLocations =
+                readerLocations =
                         mp.getApplicationContext().getClusterStateManager().getClusterLocations().getLocations();
                 PartitionConstraintHelper.addAbsoluteLocationConstraint(jobSpec, amod, readerLocations);
 
@@ -2943,12 +2949,73 @@ public class QueryTranslator extends AbstractLangTranslator implements IStatemen
                 jobSpec.connect(new OneToOneConnectorDescriptor(jobSpec), jobSpec.getOperatorMap().get(odId), 0, amod,
                         0);
                 jobSpec.connect(new OneToOneConnectorDescriptor(jobSpec), amod, 0, jobSpec.getOperatorMap().get(id), 0);
+
                 //  jobSpec.getUserConstraints().
                 removeFromConnectors(0, jobSpec, jobSpec.getConnectorOperatorMap());
             } else {
                 removeFromConnectors(0, jobSpec, jobSpec.getConnectorOperatorMap());
             }
-            final JobId jobId = JobUtils.runJob(hcc, jobSpec, jobFlags, false);
+
+            JobSpecification job2 = new JobSpecification();
+            for (IOperatorDescriptor op : jobSpec.getOperatorMap().values()) {
+                job2.createOperatorDescriptorId(op);
+            }
+            for (IConnectorDescriptor conn : jobSpec.getConnectorMap().values()) {
+                job2.createConnectorDescriptor(conn);
+                job2.connect(conn, jobSpec.getProducer(conn), 0, jobSpec.getConsumer(conn), 0);
+            }
+            for (OperatorDescriptorId oid : jobSpec.getRoots()) {
+                job2.addRoot(jobSpec.getOperatorMap().get(oid));
+            }
+            for (ResultSetId rsId : jobSpec.getResultSetIds()) {
+                job2.addResultSetId(rsId);
+            }
+
+            Set<String> participantNodes = mp.getApplicationContext().getClusterStateManager().getParticipantNodes();
+            Set<String> firstHalf = new HashSet<>();
+            Set<String> secondHalf = new HashSet<>();
+            Set<String> copySet = participantNodes;
+            int i = 0;
+            for (Iterator<String> it = participantNodes.iterator(); i < participantNodes.size() / 2;) {
+                i++;
+                String curr = it.next();
+                firstHalf.add(curr);
+                copySet.remove(curr);
+            }
+            for (Iterator<String> it = copySet.iterator(); it.hasNext();) {
+                secondHalf.add(it.next());
+            }
+            for (Constraint constraint : new ArrayList<>(jobSpec.getUserConstraints())) {
+                for (String key : firstHalf) {
+                    ConstraintExpression cexpr = constraint.getRValue();
+                    org.apache.hyracks.api.constraints.expressions.ConstantExpression sexpr =
+                            (org.apache.hyracks.api.constraints.expressions.ConstantExpression) cexpr;
+                    LValueConstraintExpression lexpr = constraint.getLValue();
+                    if (lexpr.getTag() == ExpressionTag.PARTITION_LOCATION) {
+                        if (!((String) sexpr.getValue()).equals(key)) {
+                            jobSpec.getUserConstraints().remove(constraint);
+                            job2.addUserConstraint(constraint);
+                        }
+                    } else {
+                        PartitionConstraintHelper.addPartitionCountConstraint(jobSpec,
+                                jobSpec.getOperatorMap()
+                                        .get(((PartitionCountExpression) lexpr).getOperatorDescriptorId()),
+                                mp.getApplicationContext().getClusterStateManager().getClusterLocations()
+                                        .getLocations().length / 2);
+                        PartitionConstraintHelper.addPartitionCountConstraint(job2,
+                                job2.getOperatorMap().get(((PartitionCountExpression) lexpr).getOperatorDescriptorId()),
+                                mp.getApplicationContext().getClusterStateManager().getClusterLocations()
+                                        .getLocations().length / 2);
+                        jobSpec.getUserConstraints().remove(constraint);
+
+                    }
+                }
+            }
+            JobSpecification[] jobs = new JobSpecification[2];
+            jobs[0] = jobSpec;
+            jobs[1] = job2;
+            final JobId jobId = JobUtils.runJobs(hcc, jobs, jobFlags, false);
+            //            final JobId jobId = JobUtils.runJob(hcc, jobSpec, jobFlags, false);
             if (ctx != null && clientContextId != null) {
                 req = new ClientJobRequest(ctx, clientContextId, jobId);
                 ctx.put(clientContextId, req); // Adds the running job into the context.

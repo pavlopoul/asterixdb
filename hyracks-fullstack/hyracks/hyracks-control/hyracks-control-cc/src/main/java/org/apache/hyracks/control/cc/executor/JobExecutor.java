@@ -661,6 +661,7 @@ public class JobExecutor {
             }
             ta.setStatus(TaskAttempt.TaskStatus.COMPLETED, null);
             ta.setEndTime(System.currentTimeMillis());
+            //startRunnableActivityClusters();
             if (lastAttempt.decrementPendingTasksCounter() == 0) {
                 lastAttempt.setStatus(TaskClusterAttempt.TaskClusterStatus.COMPLETED);
                 lastAttempt.setEndTime(System.currentTimeMillis());

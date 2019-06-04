@@ -25,8 +25,10 @@ import org.apache.hyracks.api.application.ICCServiceContext;
 import org.apache.hyracks.api.exceptions.HyracksException;
 
 public interface IActivityClusterGraphGeneratorFactory extends Serializable {
-    public IActivityClusterGraphGenerator createActivityClusterGraphGenerator(ICCServiceContext ccServiceCtx,
+    public IActivityClusterGraphGenerator[] createActivityClusterGraphGenerator(ICCServiceContext ccServiceCtx,
             Set<JobFlag> jobFlags) throws HyracksException;
 
     public JobSpecification getJobSpecification();
+
+    public JobSpecification[] getJobSpecifications();
 }

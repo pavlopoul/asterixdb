@@ -45,6 +45,7 @@ public class JobStartWork extends SynchronizableWork {
     private final JobIdFactory jobIdFactory;
     private final DeployedJobSpecId deployedJobSpecId;
     private final Map<byte[], byte[]> jobParameters;
+    private boolean first = true;
 
     public JobStartWork(ClusterControllerService ccs, DeploymentId deploymentId, byte[] acggfBytes,
             Set<JobFlag> jobFlags, JobIdFactory jobIdFactory, Map<byte[], byte[]> jobParameters,
@@ -65,22 +66,42 @@ public class JobStartWork extends SynchronizableWork {
         try {
             final CCServiceContext ccServiceCtx = ccs.getContext();
             JobId jobId;
+            JobId jobId2 = null;
             JobRun run;
+            JobRun run2 = null;
             jobId = jobIdFactory.create();
+
             if (deployedJobSpecId == null) {
+
                 //Need to create the ActivityClusterGraph
                 IActivityClusterGraphGeneratorFactory acggf = (IActivityClusterGraphGeneratorFactory) DeploymentUtils
                         .deserialize(acggfBytes, deploymentId, ccServiceCtx);
-                IActivityClusterGraphGenerator acgg = acggf.createActivityClusterGraphGenerator(ccServiceCtx, jobFlags);
-                run = new JobRun(ccs, deploymentId, jobId, acggf, acgg, jobFlags);
+                IActivityClusterGraphGenerator[] acggs =
+                        acggf.createActivityClusterGraphGenerator(ccServiceCtx, jobFlags);
+                run = new JobRun(ccs, deploymentId, jobId, acggf, acggs[0], jobFlags, 0, first);
+                if (acggs[1] != null) {
+                    jobId2 = jobIdFactory.create();
+                    first = false;
+                    run2 = new JobRun(ccs, deploymentId, jobId2, acggf, acggs[1], jobFlags, 1, first);
+                }
             } else {
                 //ActivityClusterGraph has already been distributed
                 run = new JobRun(ccs, deploymentId, jobId, jobFlags,
                         ccs.getDeployedJobSpecStore().getDeployedJobSpecDescriptor(deployedJobSpecId), jobParameters,
                         deployedJobSpecId);
+
+                //                run2 = new JobRun(ccs, deploymentId, jobId2, jobFlags,
+                //                        ccs.getDeployedJobSpecStore().getDeployedJobSpecDescriptor(deployedJobSpecId), jobParameters,
+                //                        deployedJobSpecId);
             }
             jobManager.add(run);
+            if (run2 != null) {
+                jobManager.add(run2);
+            }
             callback.setValue(jobId);
+            if (jobId2 != null) {
+                callback.setValue(jobId2);
+            }
         } catch (Exception e) {
             callback.setException(e);
         }

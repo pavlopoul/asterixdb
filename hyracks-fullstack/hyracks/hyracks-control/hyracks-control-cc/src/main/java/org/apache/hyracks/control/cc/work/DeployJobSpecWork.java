@@ -59,19 +59,22 @@ public class DeployJobSpecWork extends SynchronizableWork {
             }
             IActivityClusterGraphGeneratorFactory acggf =
                     (IActivityClusterGraphGeneratorFactory) DeploymentUtils.deserialize(acggfBytes, null, ccServiceCtx);
-            IActivityClusterGraphGenerator acgg =
+            IActivityClusterGraphGenerator acggs[] =
                     acggf.createActivityClusterGraphGenerator(ccServiceCtx, EnumSet.noneOf(JobFlag.class));
-            ActivityClusterGraph acg = acgg.initialize();
-            ccs.getDeployedJobSpecStore().addDeployedJobSpecDescriptor(deployedJobSpecId, acg,
-                    acggf.getJobSpecification(), acgg.getConstraints());
+            int i = 0;
+            for (IActivityClusterGraphGenerator acgg : acggs) {
+                ActivityClusterGraph acg = acgg.initialize();
+                ccs.getDeployedJobSpecStore().addDeployedJobSpecDescriptor(deployedJobSpecId, acg,
+                        acggf.getJobSpecifications()[i], acgg.getConstraints());
+                i++;
+                byte[] acgBytes = JavaSerializationUtils.serialize(acg);
 
-            byte[] acgBytes = JavaSerializationUtils.serialize(acg);
-
-            INodeManager nodeManager = ccs.getNodeManager();
-            for (NodeControllerState node : nodeManager.getAllNodeControllerStates()) {
-                node.getNodeController().deployJobSpec(deployedJobSpecId, acgBytes, upsert);
+                INodeManager nodeManager = ccs.getNodeManager();
+                for (NodeControllerState node : nodeManager.getAllNodeControllerStates()) {
+                    node.getNodeController().deployJobSpec(deployedJobSpecId, acgBytes, upsert);
+                }
+                callback.setValue(deployedJobSpecId);
             }
-            callback.setValue(deployedJobSpecId);
         } catch (Exception e) {
             callback.setException(e);
         }

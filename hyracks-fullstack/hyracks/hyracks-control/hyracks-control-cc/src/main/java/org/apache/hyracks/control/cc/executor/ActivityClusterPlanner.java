@@ -54,7 +54,6 @@ import org.apache.logging.log4j.Logger;
 
 class ActivityClusterPlanner {
     private static final Logger LOGGER = LogManager.getLogger();
-
     private final JobExecutor executor;
 
     private final Map<PartitionId, TaskCluster> partitionProducingTaskClusterMap;
@@ -66,14 +65,19 @@ class ActivityClusterPlanner {
 
     ActivityClusterPlan planActivityCluster(ActivityCluster ac) throws HyracksException {
         JobRun jobRun = executor.getJobRun();
+
         Map<ActivityId, ActivityPartitionDetails> pcMap = computePartitionCounts(ac);
 
-        Map<ActivityId, ActivityPlan> activityPlanMap = buildActivityPlanMap(ac, jobRun, pcMap);
-
+        Map<ActivityId, ActivityPlan> activityPlanMap = null;
+        for (ActivityId aid : pcMap.keySet()) {
+            activityPlanMap = buildActivityPlanMap(ac, jobRun, pcMap,
+                    // (jobRun.getJobId().equals(new JobId(1))) ? 0 : pcMap.get(aid).getPartitionCount());
+                    (jobRun.getFirst()) ? 0 : pcMap.get(aid).getPartitionCount());
+            break;
+        }
         assignConnectorPolicy(ac, activityPlanMap);
 
         TaskCluster[] taskClusters = computeTaskClusters(ac, jobRun, activityPlanMap);
-
         if (LOGGER.isTraceEnabled()) {
             LOGGER.trace("Plan for " + ac);
             LOGGER.trace("Built " + taskClusters.length + " Task Clusters");
@@ -86,7 +90,7 @@ class ActivityClusterPlanner {
     }
 
     private Map<ActivityId, ActivityPlan> buildActivityPlanMap(ActivityCluster ac, JobRun jobRun,
-            Map<ActivityId, ActivityPartitionDetails> pcMap) {
+            Map<ActivityId, ActivityPartitionDetails> pcMap, int length) {
         Map<ActivityId, ActivityPlan> activityPlanMap = new HashMap<>();
         Set<ActivityId> depAnIds = new HashSet<>();
         for (ActivityId anId : ac.getActivityMap().keySet()) {
@@ -95,9 +99,15 @@ class ActivityClusterPlanner {
             ActivityPartitionDetails apd = pcMap.get(anId);
             Task[] tasks = new Task[apd.getPartitionCount()];
             ActivityPlan activityPlan = new ActivityPlan(apd);
-            for (int i = 0; i < tasks.length; ++i) {
+            int limit;
+            if (length == 0) {
+                limit = tasks.length;
+            } else {
+                limit = tasks.length * 2;
+            }
+            for (int i = length; i < limit; ++i) {
                 TaskId tid = new TaskId(anId, i);
-                tasks[i] = new Task(tid, activityPlan);
+                tasks[i - length] = new Task(tid, activityPlan);
                 for (ActivityId danId : depAnIds) {
                     ActivityCluster dAC = ac.getActivityClusterGraph().getActivityMap().get(danId);
                     ActivityClusterPlan dACP = jobRun.getActivityClusterPlanMap().get(dAC.getId());
@@ -108,9 +118,9 @@ class ActivityClusterPlanner {
                             + " dependency AC: Encountered no plan for ActivityID " + danId;
                     assert dATasks.length == tasks.length : "Dependency activity partitioned differently from "
                             + "dependent: " + dATasks.length + " != " + tasks.length;
-                    Task dTask = dATasks[i];
+                    Task dTask = dATasks[i - length];
                     TaskId dTaskId = dTask.getTaskId();
-                    tasks[i].getDependencies().add(dTaskId);
+                    tasks[i - length].getDependencies().add(dTaskId);
                     dTask.getDependents().add(tid);
                 }
             }

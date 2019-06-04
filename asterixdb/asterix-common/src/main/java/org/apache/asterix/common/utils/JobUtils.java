@@ -53,4 +53,20 @@ public class JobUtils {
         }
         return jobId;
     }
+
+    public static JobId runJobs(IHyracksClientConnection hcc, JobSpecification[] specs, EnumSet<JobFlag> jobFlags,
+            boolean waitForCompletion) throws Exception {
+        specs[0].setMaxReattempts(0);
+        final JobId jobId = hcc.startJobs(specs, jobFlags);
+        if (waitForCompletion) {
+            String nameBefore = Thread.currentThread().getName();
+            try {
+                Thread.currentThread().setName(nameBefore + " : WaitForCompletionForJobId: " + jobId);
+                hcc.waitForCompletion(jobId);
+            } finally {
+                Thread.currentThread().setName(nameBefore);
+            }
+        }
+        return null;
+    }
 }

@@ -38,10 +38,15 @@ import org.apache.hyracks.api.rewriter.ActivityClusterGraphRewriter;
 public class JobSpecificationActivityClusterGraphGeneratorFactory implements IActivityClusterGraphGeneratorFactory {
     private static final long serialVersionUID = 1L;
 
-    private final JobSpecification spec;
+    private JobSpecification spec;
+    private JobSpecification[] specs;
 
     public JobSpecificationActivityClusterGraphGeneratorFactory(JobSpecification jobSpec) {
         this.spec = jobSpec;
+    }
+
+    public JobSpecificationActivityClusterGraphGeneratorFactory(JobSpecification[] jobSpecs) {
+        this.specs = jobSpecs;
     }
 
     @Override
@@ -50,65 +55,80 @@ public class JobSpecificationActivityClusterGraphGeneratorFactory implements IAc
     }
 
     @Override
-    public IActivityClusterGraphGenerator createActivityClusterGraphGenerator(final ICCServiceContext ccServiceCtx,
+    public JobSpecification[] getJobSpecifications() {
+        return specs;
+    }
+
+    @Override
+    public IActivityClusterGraphGenerator[] createActivityClusterGraphGenerator(final ICCServiceContext ccServiceCtx,
             Set<JobFlag> jobFlags) throws HyracksException {
-        final JobActivityGraphBuilder builder = new JobActivityGraphBuilder(spec, jobFlags);
-        PlanUtils.visit(spec, new IConnectorDescriptorVisitor() {
-            @Override
-            public void visit(IConnectorDescriptor conn) throws HyracksException {
-                builder.addConnector(conn);
-            }
-        });
-        PlanUtils.visit(spec, new IOperatorDescriptorVisitor() {
-            @Override
-            public void visit(IOperatorDescriptor op) {
-                op.contributeActivities(builder);
-            }
-        });
-        builder.finish();
-        final JobActivityGraph jag = builder.getActivityGraph();
-        ActivityClusterGraphBuilder acgb = new ActivityClusterGraphBuilder();
+        IActivityClusterGraphGenerator[] acgs = new IActivityClusterGraphGenerator[2];
+        int i = 0;
+        if (specs == null) {
+            specs = new JobSpecification[1];
+            specs[0] = spec;
+        }
+        for (JobSpecification spec : specs) {
+            final JobActivityGraphBuilder builder = new JobActivityGraphBuilder(spec, jobFlags);
+            PlanUtils.visit(spec, new IConnectorDescriptorVisitor() {
+                @Override
+                public void visit(IConnectorDescriptor conn) throws HyracksException {
+                    builder.addConnector(conn);
+                }
+            });
+            PlanUtils.visit(spec, new IOperatorDescriptorVisitor() {
+                @Override
+                public void visit(IOperatorDescriptor op) {
+                    op.contributeActivities(builder);
+                }
+            });
+            builder.finish();
+            final JobActivityGraph jag = builder.getActivityGraph();
+            ActivityClusterGraphBuilder acgb = new ActivityClusterGraphBuilder();
 
-        final ActivityClusterGraph acg = acgb.inferActivityClusters(jag);
-        acg.setFrameSize(spec.getFrameSize());
-        acg.setMaxReattempts(spec.getMaxReattempts());
-        acg.setJobletEventListenerFactory(spec.getJobletEventListenerFactory());
-        acg.setGlobalJobDataFactory(spec.getGlobalJobDataFactory());
-        acg.setConnectorPolicyAssignmentPolicy(spec.getConnectorPolicyAssignmentPolicy());
-        acg.setUseConnectorPolicyForScheduling(spec.isUseConnectorPolicyForScheduling());
-        final Set<Constraint> constraints = new HashSet<>();
-        final IConstraintAcceptor acceptor = new IConstraintAcceptor() {
-            @Override
-            public void addConstraint(Constraint constraint) {
-                constraints.add(constraint);
-            }
-        };
-        PlanUtils.visit(spec, new IOperatorDescriptorVisitor() {
-            @Override
-            public void visit(IOperatorDescriptor op) {
-                op.contributeSchedulingConstraints(acceptor, ccServiceCtx);
-            }
-        });
-        PlanUtils.visit(spec, new IConnectorDescriptorVisitor() {
-            @Override
-            public void visit(IConnectorDescriptor conn) {
-                conn.contributeSchedulingConstraints(acceptor, acg.getConnectorMap().get(conn.getConnectorId()),
-                        ccServiceCtx);
-            }
-        });
-        constraints.addAll(spec.getUserConstraints());
-        return new IActivityClusterGraphGenerator() {
-            @Override
-            public ActivityClusterGraph initialize() {
-                ActivityClusterGraphRewriter rewriter = new ActivityClusterGraphRewriter();
-                rewriter.rewrite(acg);
-                return acg;
-            }
+            final ActivityClusterGraph acg = acgb.inferActivityClusters(jag);
+            acg.setFrameSize(spec.getFrameSize());
+            acg.setMaxReattempts(spec.getMaxReattempts());
+            acg.setJobletEventListenerFactory(spec.getJobletEventListenerFactory());
+            acg.setGlobalJobDataFactory(spec.getGlobalJobDataFactory());
+            acg.setConnectorPolicyAssignmentPolicy(spec.getConnectorPolicyAssignmentPolicy());
+            acg.setUseConnectorPolicyForScheduling(spec.isUseConnectorPolicyForScheduling());
+            final Set<Constraint> constraints = new HashSet<>();
+            final IConstraintAcceptor acceptor = new IConstraintAcceptor() {
+                @Override
+                public void addConstraint(Constraint constraint) {
+                    constraints.add(constraint);
+                }
+            };
+            PlanUtils.visit(spec, new IOperatorDescriptorVisitor() {
+                @Override
+                public void visit(IOperatorDescriptor op) {
+                    op.contributeSchedulingConstraints(acceptor, ccServiceCtx);
+                }
+            });
+            PlanUtils.visit(spec, new IConnectorDescriptorVisitor() {
+                @Override
+                public void visit(IConnectorDescriptor conn) {
+                    conn.contributeSchedulingConstraints(acceptor, acg.getConnectorMap().get(conn.getConnectorId()),
+                            ccServiceCtx);
+                }
+            });
+            constraints.addAll(spec.getUserConstraints());
+            acgs[i] = new IActivityClusterGraphGenerator() {
+                @Override
+                public ActivityClusterGraph initialize() {
+                    ActivityClusterGraphRewriter rewriter = new ActivityClusterGraphRewriter();
+                    rewriter.rewrite(acg);
+                    return acg;
+                }
 
-            @Override
-            public Set<Constraint> getConstraints() {
-                return constraints;
-            }
-        };
+                @Override
+                public Set<Constraint> getConstraints() {
+                    return constraints;
+                }
+            };
+            i++;
+        }
+        return acgs;
     }
 }

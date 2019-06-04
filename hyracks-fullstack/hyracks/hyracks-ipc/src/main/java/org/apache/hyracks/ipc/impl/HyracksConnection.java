@@ -146,6 +146,15 @@ public final class HyracksConnection implements IHyracksClientConnection {
     }
 
     @Override
+    public JobId startJobs(JobSpecification[] jobSpecs, EnumSet<JobFlag> jobFlags) throws Exception {
+        //        IActivityClusterGraphGeneratorFactory jsacggf1 =
+        //                new JobSpecificationActivityClusterGraphGeneratorFactory(jobSpecs[0]);
+        IActivityClusterGraphGeneratorFactory jsacggf2 =
+                new JobSpecificationActivityClusterGraphGeneratorFactory(jobSpecs);
+        return startJob(jsacggf2, jobFlags);
+    }
+
+    @Override
     public void redeployJobSpec(DeployedJobSpecId deployedJobSpecId, JobSpecification jobSpec) throws Exception {
         JobSpecificationActivityClusterGraphGeneratorFactory jsacggf =
                 new JobSpecificationActivityClusterGraphGeneratorFactory(jobSpec);
@@ -173,6 +182,13 @@ public final class HyracksConnection implements IHyracksClientConnection {
     @Override
     public JobId startJob(IActivityClusterGraphGeneratorFactory acggf, EnumSet<JobFlag> jobFlags) throws Exception {
         return startJob(null, acggf, jobFlags);
+    }
+
+    @Override
+    public JobId[] startJobs(IActivityClusterGraphGeneratorFactory acggf1, IActivityClusterGraphGeneratorFactory acggf2,
+            EnumSet<JobFlag> jobFlags) throws Exception {
+        //return null;
+        return startJobs(null, acggf1, acggf2, jobFlags);
     }
 
     public DeployedJobSpecId deployJobSpec(IActivityClusterGraphGeneratorFactory acggf) throws Exception {
@@ -270,6 +286,14 @@ public final class HyracksConnection implements IHyracksClientConnection {
             EnumSet<JobFlag> jobFlags) throws Exception {
         StartJobRequest request = new StartJobRequest(deploymentId, acggf, jobFlags);
         return interruptiblySubmitAndExecute(request);
+    }
+
+    @Override
+    public JobId[] startJobs(DeploymentId deploymentId, IActivityClusterGraphGeneratorFactory acggf1,
+            IActivityClusterGraphGeneratorFactory acggf2, EnumSet<JobFlag> jobFlags) throws Exception {
+        //        StartJobRequest request = new StartJobRequest(deploymentId, acggf, jobFlags);
+        //        return interruptiblySubmitAndExecute(request);
+        return null;
     }
 
     @Override
@@ -486,4 +510,5 @@ public final class HyracksConnection implements IHyracksClientConnection {
             }
         }
     }
+
 }

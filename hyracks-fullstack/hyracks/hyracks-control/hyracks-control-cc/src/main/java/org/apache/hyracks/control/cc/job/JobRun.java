@@ -88,6 +88,8 @@ public class JobRun implements IJobStatusConditionVariable {
 
     private long endTime;
 
+    private boolean first;
+
     private JobStatus status;
 
     private List<Exception> exceptions;
@@ -128,9 +130,11 @@ public class JobRun implements IJobStatusConditionVariable {
 
     //Run a new job by creating an ActivityClusterGraph
     public JobRun(ClusterControllerService ccs, DeploymentId deploymentId, JobId jobId,
-            IActivityClusterGraphGeneratorFactory acggf, IActivityClusterGraphGenerator acgg, Set<JobFlag> jobFlags) {
-        this(deploymentId, jobId, jobFlags, acggf.getJobSpecification(), acgg.initialize());
+            IActivityClusterGraphGeneratorFactory acggf, IActivityClusterGraphGenerator acgg, Set<JobFlag> jobFlags,
+            int i, boolean first) {
+        this(deploymentId, jobId, jobFlags, acggf.getJobSpecifications()[i], acgg.initialize());
         this.scheduler = new JobExecutor(ccs, this, acgg.getConstraints(), null);
+        this.first = first;
     }
 
     public DeploymentId getDeploymentId() {
@@ -143,6 +147,10 @@ public class JobRun implements IJobStatusConditionVariable {
 
     public JobId getJobId() {
         return jobId;
+    }
+
+    public boolean getFirst() {
+        return first;
     }
 
     public ActivityClusterGraph getActivityClusterGraph() {

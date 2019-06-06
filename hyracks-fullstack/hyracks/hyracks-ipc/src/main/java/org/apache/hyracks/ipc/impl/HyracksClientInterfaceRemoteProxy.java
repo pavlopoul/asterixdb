@@ -66,10 +66,10 @@ public class HyracksClientInterfaceRemoteProxy implements IHyracksClientInterfac
     }
 
     @Override
-    public JobId startJob(byte[] acggfBytes, EnumSet<JobFlag> jobFlags) throws Exception {
+    public JobId[] startJob(byte[] acggfBytes, EnumSet<JobFlag> jobFlags) throws Exception {
         HyracksClientInterfaceFunctions.StartJobFunction sjf =
                 new HyracksClientInterfaceFunctions.StartJobFunction(acggfBytes, jobFlags);
-        return (JobId) rpci.call(ipcHandle, sjf);
+        return (JobId[]) rpci.call(ipcHandle, sjf);
     }
 
     @Override
@@ -80,17 +80,17 @@ public class HyracksClientInterfaceRemoteProxy implements IHyracksClientInterfac
     }
 
     @Override
-    public JobId startJob(DeployedJobSpecId deployedJobSpecId, Map<byte[], byte[]> jobParameters) throws Exception {
+    public JobId[] startJob(DeployedJobSpecId deployedJobSpecId, Map<byte[], byte[]> jobParameters) throws Exception {
         HyracksClientInterfaceFunctions.StartJobFunction sjf =
                 new HyracksClientInterfaceFunctions.StartJobFunction(deployedJobSpecId, jobParameters);
-        return (JobId) rpci.call(ipcHandle, sjf);
+        return (JobId[]) rpci.call(ipcHandle, sjf);
     }
 
     @Override
-    public JobId startJob(DeploymentId deploymentId, byte[] acggfBytes, EnumSet<JobFlag> jobFlags) throws Exception {
+    public JobId[] startJob(DeploymentId deploymentId, byte[] acggfBytes, EnumSet<JobFlag> jobFlags) throws Exception {
         HyracksClientInterfaceFunctions.StartJobFunction sjf =
                 new HyracksClientInterfaceFunctions.StartJobFunction(deploymentId, acggfBytes, jobFlags);
-        return (JobId) rpci.call(ipcHandle, sjf);
+        return (JobId[]) rpci.call(ipcHandle, sjf);
     }
 
     @Override

@@ -386,7 +386,7 @@ public class APIFramework {
             throws Exception {
         for (JobSpecification spec : specs) {
             spec.setMaxReattempts(0);
-            JobId jobId = hcc.startJob(spec);
+            JobId jobId = hcc.startJob(spec)[0];
             long startTime = System.currentTimeMillis();
             hcc.waitForCompletion(jobId);
             long endTime = System.currentTimeMillis();
@@ -400,7 +400,7 @@ public class APIFramework {
             job.getJobSpec().setMaxReattempts(0);
             long startTime = System.currentTimeMillis();
             try {
-                JobId jobId = hcc.startJob(job.getJobSpec());
+                JobId jobId = hcc.startJob(job.getJobSpec())[0];
                 if (job.getSubmissionMode() == SubmissionMode.ASYNCHRONOUS) {
                     continue;
                 }

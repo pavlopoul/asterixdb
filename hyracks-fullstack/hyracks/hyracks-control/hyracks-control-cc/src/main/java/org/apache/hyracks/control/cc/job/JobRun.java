@@ -20,6 +20,7 @@ package org.apache.hyracks.control.cc.job;
 
 import java.io.PrintWriter;
 import java.io.StringWriter;
+import java.util.Collection;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
@@ -62,9 +63,11 @@ public class JobRun implements IJobStatusConditionVariable {
 
     private final JobId jobId;
 
-    private final JobSpecification spec;
+    private JobSpecification spec;
+    private JobSpecification[] specs;
 
-    private final ActivityClusterGraph acg;
+    private ActivityClusterGraph acg;
+    private ActivityClusterGraph[] acgs = new ActivityClusterGraph[2];
 
     private JobExecutor scheduler;
 
@@ -137,12 +140,40 @@ public class JobRun implements IJobStatusConditionVariable {
         this.first = first;
     }
 
+    public JobRun(ClusterControllerService ccs, DeploymentId deploymentId, JobId jobId,
+            IActivityClusterGraphGeneratorFactory acggf, IActivityClusterGraphGenerator[] acggs, Set<JobFlag> jobFlags,
+            int i, boolean first) {
+        // this(deploymentId, jobId, jobFlags, acggf.getJobSpecifications(), acggs[0].initialize());
+        this.deploymentId = deploymentId;
+        this.jobId = jobId;
+        this.jobFlags = jobFlags;
+        this.specs = acggf.getJobSpecifications();
+        this.acgs[0] = acggs[0].initialize();
+        this.acgs[1] = acggs[1].initialize();
+        Collection<Constraint> constraints = acggs[0].getConstraints();
+        constraints.addAll(acggs[1].getConstraints());
+        this.scheduler = new JobExecutor(ccs, this, constraints, null);
+        this.first = first;
+        activityClusterPlanMap = new HashMap<>();
+        pmm = new PartitionMatchMaker();
+        participatingNodeIds = new HashSet<>();
+        cleanupPendingNodeIds = new HashSet<>();
+        profile = new JobProfile(jobId);
+        connectorPolicyMap = new HashMap<>();
+        operatorLocations = new HashMap<>();
+        createTime = System.currentTimeMillis();
+    }
+
     public DeploymentId getDeploymentId() {
         return deploymentId;
     }
 
     public JobSpecification getJobSpecification() {
         return spec;
+    }
+
+    public JobSpecification[] getJobSpecifications() {
+        return specs;
     }
 
     public JobId getJobId() {

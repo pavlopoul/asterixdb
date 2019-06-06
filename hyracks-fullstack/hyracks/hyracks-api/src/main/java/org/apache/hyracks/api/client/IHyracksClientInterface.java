@@ -38,9 +38,9 @@ public interface IHyracksClientInterface {
 
     public JobStatus getJobStatus(JobId jobId) throws Exception;
 
-    public JobId startJob(byte[] acggfBytes, EnumSet<JobFlag> jobFlags) throws Exception;
+    public JobId[] startJob(byte[] acggfBytes, EnumSet<JobFlag> jobFlags) throws Exception;
 
-    public JobId startJob(DeployedJobSpecId deployedJobSpecId, Map<byte[], byte[]> jobParameters) throws Exception;
+    public JobId[] startJob(DeployedJobSpecId deployedJobSpecId, Map<byte[], byte[]> jobParameters) throws Exception;
 
     public void cancelJob(JobId jobId) throws Exception;
 
@@ -62,7 +62,7 @@ public interface IHyracksClientInterface {
 
     public void unDeployBinary(DeploymentId deploymentId) throws Exception;
 
-    public JobId startJob(DeploymentId deploymentId, byte[] acggfBytes, EnumSet<JobFlag> jobFlags) throws Exception;
+    public JobId[] startJob(DeploymentId deploymentId, byte[] acggfBytes, EnumSet<JobFlag> jobFlags) throws Exception;
 
     public JobInfo getJobInfo(JobId jobId) throws Exception;
 

@@ -41,7 +41,7 @@ public class JobStartWork extends SynchronizableWork {
     private final byte[] acggfBytes;
     private final Set<JobFlag> jobFlags;
     private final DeploymentId deploymentId;
-    private final IResultCallback<JobId> callback;
+    private final IResultCallback<JobId[]> callback;
     private final JobIdFactory jobIdFactory;
     private final DeployedJobSpecId deployedJobSpecId;
     private final Map<byte[], byte[]> jobParameters;
@@ -49,7 +49,7 @@ public class JobStartWork extends SynchronizableWork {
 
     public JobStartWork(ClusterControllerService ccs, DeploymentId deploymentId, byte[] acggfBytes,
             Set<JobFlag> jobFlags, JobIdFactory jobIdFactory, Map<byte[], byte[]> jobParameters,
-            IResultCallback<JobId> callback, DeployedJobSpecId deployedJobSpecId) {
+            IResultCallback<JobId[]> callback, DeployedJobSpecId deployedJobSpecId) {
         this.deploymentId = deploymentId;
         this.ccs = ccs;
         this.acggfBytes = acggfBytes;
@@ -78,7 +78,9 @@ public class JobStartWork extends SynchronizableWork {
                         .deserialize(acggfBytes, deploymentId, ccServiceCtx);
                 IActivityClusterGraphGenerator[] acggs =
                         acggf.createActivityClusterGraphGenerator(ccServiceCtx, jobFlags);
+                //                if (acggs[1] == null) {
                 run = new JobRun(ccs, deploymentId, jobId, acggf, acggs[0], jobFlags, 0, first);
+                //                } else {
                 if (acggs[1] != null) {
                     jobId2 = jobIdFactory.create();
                     first = false;
@@ -94,14 +96,18 @@ public class JobStartWork extends SynchronizableWork {
                 //                        ccs.getDeployedJobSpecStore().getDeployedJobSpecDescriptor(deployedJobSpecId), jobParameters,
                 //                        deployedJobSpecId);
             }
+            JobId[] ids = new JobId[2];
+            ids[0] = jobId;
+            ids[1] = jobId2;
             jobManager.add(run);
             if (run2 != null) {
                 jobManager.add(run2);
             }
-            callback.setValue(jobId);
-            if (jobId2 != null) {
-                callback.setValue(jobId2);
-            }
+            callback.setValue(ids);
+            //            callback.setValue(jobId);
+            //            if (jobId2 != null) {
+            //                callback.setValue(jobId2);
+            //            }
         } catch (Exception e) {
             callback.setException(e);
         }

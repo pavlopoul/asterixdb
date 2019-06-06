@@ -41,7 +41,7 @@ public class JobUtils {
     public static JobId runJob(IHyracksClientConnection hcc, JobSpecification spec, EnumSet<JobFlag> jobFlags,
             boolean waitForCompletion) throws Exception {
         spec.setMaxReattempts(0);
-        final JobId jobId = hcc.startJob(spec, jobFlags);
+        final JobId jobId = hcc.startJob(spec, jobFlags)[0];
         if (waitForCompletion) {
             String nameBefore = Thread.currentThread().getName();
             try {
@@ -57,7 +57,7 @@ public class JobUtils {
     public static JobId runJobs(IHyracksClientConnection hcc, JobSpecification[] specs, EnumSet<JobFlag> jobFlags,
             boolean waitForCompletion) throws Exception {
         specs[0].setMaxReattempts(0);
-        final JobId jobId = hcc.startJobs(specs, jobFlags);
+        final JobId jobId = hcc.startJobs(specs, jobFlags)[0];
         if (waitForCompletion) {
             String nameBefore = Thread.currentThread().getName();
             try {

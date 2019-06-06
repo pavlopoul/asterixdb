@@ -134,19 +134,19 @@ public final class HyracksConnection implements IHyracksClientConnection {
     }
 
     @Override
-    public JobId startJob(JobSpecification jobSpec) throws Exception {
+    public JobId[] startJob(JobSpecification jobSpec) throws Exception {
         return startJob(jobSpec, EnumSet.noneOf(JobFlag.class));
     }
 
     @Override
-    public JobId startJob(JobSpecification jobSpec, EnumSet<JobFlag> jobFlags) throws Exception {
+    public JobId[] startJob(JobSpecification jobSpec, EnumSet<JobFlag> jobFlags) throws Exception {
         IActivityClusterGraphGeneratorFactory jsacggf =
                 new JobSpecificationActivityClusterGraphGeneratorFactory(jobSpec);
         return startJob(jsacggf, jobFlags);
     }
 
     @Override
-    public JobId startJobs(JobSpecification[] jobSpecs, EnumSet<JobFlag> jobFlags) throws Exception {
+    public JobId[] startJobs(JobSpecification[] jobSpecs, EnumSet<JobFlag> jobFlags) throws Exception {
         //        IActivityClusterGraphGeneratorFactory jsacggf1 =
         //                new JobSpecificationActivityClusterGraphGeneratorFactory(jobSpecs[0]);
         IActivityClusterGraphGeneratorFactory jsacggf2 =
@@ -174,13 +174,13 @@ public final class HyracksConnection implements IHyracksClientConnection {
     }
 
     @Override
-    public JobId startJob(DeployedJobSpecId deployedJobSpecId, Map<byte[], byte[]> jobParameters) throws Exception {
+    public JobId[] startJob(DeployedJobSpecId deployedJobSpecId, Map<byte[], byte[]> jobParameters) throws Exception {
         StartDeployedJobRequest request = new StartDeployedJobRequest(deployedJobSpecId, jobParameters);
         return interruptiblySubmitAndExecute(request);
     }
 
     @Override
-    public JobId startJob(IActivityClusterGraphGeneratorFactory acggf, EnumSet<JobFlag> jobFlags) throws Exception {
+    public JobId[] startJob(IActivityClusterGraphGeneratorFactory acggf, EnumSet<JobFlag> jobFlags) throws Exception {
         return startJob(null, acggf, jobFlags);
     }
 
@@ -269,12 +269,12 @@ public final class HyracksConnection implements IHyracksClientConnection {
     }
 
     @Override
-    public JobId startJob(DeploymentId deploymentId, JobSpecification jobSpec) throws Exception {
+    public JobId[] startJob(DeploymentId deploymentId, JobSpecification jobSpec) throws Exception {
         return startJob(deploymentId, jobSpec, EnumSet.noneOf(JobFlag.class));
     }
 
     @Override
-    public JobId startJob(DeploymentId deploymentId, JobSpecification jobSpec, EnumSet<JobFlag> jobFlags)
+    public JobId[] startJob(DeploymentId deploymentId, JobSpecification jobSpec, EnumSet<JobFlag> jobFlags)
             throws Exception {
         IActivityClusterGraphGeneratorFactory jsacggf =
                 new JobSpecificationActivityClusterGraphGeneratorFactory(jobSpec);
@@ -282,7 +282,7 @@ public final class HyracksConnection implements IHyracksClientConnection {
     }
 
     @Override
-    public JobId startJob(DeploymentId deploymentId, IActivityClusterGraphGeneratorFactory acggf,
+    public JobId[] startJob(DeploymentId deploymentId, IActivityClusterGraphGeneratorFactory acggf,
             EnumSet<JobFlag> jobFlags) throws Exception {
         StartJobRequest request = new StartJobRequest(deploymentId, acggf, jobFlags);
         return interruptiblySubmitAndExecute(request);
@@ -407,7 +407,7 @@ public final class HyracksConnection implements IHyracksClientConnection {
 
     }
 
-    private class StartDeployedJobRequest extends UnInterruptibleRequest<JobId> {
+    private class StartDeployedJobRequest extends UnInterruptibleRequest<JobId[]> {
 
         private final DeployedJobSpecId deployedJobSpecId;
         private final Map<byte[], byte[]> jobParameters;
@@ -418,13 +418,13 @@ public final class HyracksConnection implements IHyracksClientConnection {
         }
 
         @Override
-        protected JobId doHandle() throws Exception {
+        protected JobId[] doHandle() throws Exception {
             return hci.startJob(deployedJobSpecId, jobParameters);
         }
 
     }
 
-    private class StartJobRequest extends UnInterruptibleRequest<JobId> {
+    private class StartJobRequest extends UnInterruptibleRequest<JobId[]> {
         private final DeploymentId deploymentId;
         private final IActivityClusterGraphGeneratorFactory acggf;
         private final EnumSet<JobFlag> jobFlags;
@@ -437,7 +437,7 @@ public final class HyracksConnection implements IHyracksClientConnection {
         }
 
         @Override
-        protected JobId doHandle() throws Exception {
+        protected JobId[] doHandle() throws Exception {
             if (deploymentId == null) {
                 return hci.startJob(JavaSerializationUtils.serialize(acggf), jobFlags);
             } else {

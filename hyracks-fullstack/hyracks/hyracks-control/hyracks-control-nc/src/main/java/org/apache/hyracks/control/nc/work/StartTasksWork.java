@@ -158,9 +158,9 @@ public class StartTasksWork extends AbstractWork {
                 task = new Task(joblet, flags, taId, han.getClass().getName(), ncs.getExecutor(), ncs,
                         createInputChannels(td, inputs));
                 IOperatorEnvironment env = null;
-                if (jobId.getId() != 1) {
-                    env = ncs.getPastJobletMap().get(new JobId(jobId.getId() - 1)).getEnvironment();
-                }
+                //                if (jobId.getId() != 1) {
+                //                    env = ncs.getPastJobletMap().get(new JobId(jobId.getId() - 1)).getEnvironment();
+                //                }
                 IOperatorNodePushable operator =
                         han.createPushRuntime(task, rdp, partition, td.getPartitionCount(), env);
                 pastTask = task;

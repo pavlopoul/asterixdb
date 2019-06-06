@@ -106,9 +106,16 @@ public class JobManager implements IJobManager {
     @Override
     public void add(JobRun jobRun) throws HyracksException {
         checkJob(jobRun);
-        JobSpecification job = jobRun.getJobSpecification();
+        JobSpecification job;
+        if (jobRun.getJobSpecification() != null) {
+            job = jobRun.getJobSpecification();
+        } else {
+            job = jobRun.getJobSpecifications()[0];
+        }
         IJobCapacityController.JobSubmissionStatus status = jobCapacityController.allocate(job);
         CCServiceContext serviceCtx = ccs.getContext();
+        //        serviceCtx.notifyJobCreation(jobRun.getJobId(), jobRun.getJobSpecifications()[0]);
+        //        serviceCtx.notifyJobCreation(jobRun.getJobId(), jobRun.getJobSpecifications()[1]);
         serviceCtx.notifyJobCreation(jobRun.getJobId(), job);
         switch (status) {
             case QUEUE:

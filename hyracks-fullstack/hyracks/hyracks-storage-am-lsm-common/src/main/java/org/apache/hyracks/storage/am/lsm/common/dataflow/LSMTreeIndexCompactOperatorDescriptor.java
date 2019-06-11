@@ -45,4 +45,10 @@ public class LSMTreeIndexCompactOperatorDescriptor extends AbstractSingleActivit
             throws HyracksDataException {
         return new LSMIndexCompactOperatorNodePushable(ctx, partition, indexHelperFactory);
     }
+
+    @Override
+    public int getLocalIntermediateResultId() {
+        // TODO Auto-generated method stub
+        return 0;
+    }
 }

@@ -131,4 +131,10 @@ public class ExternalLookupOperatorDescriptor extends AbstractSingleActivityOper
             }
         };
     }
+
+    @Override
+    public int getLocalIntermediateResultId() {
+        // TODO Auto-generated method stub
+        return 0;
+    }
 }

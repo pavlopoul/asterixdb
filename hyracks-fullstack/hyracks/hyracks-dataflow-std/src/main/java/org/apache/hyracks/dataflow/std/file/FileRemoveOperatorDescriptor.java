@@ -103,4 +103,10 @@ public class FileRemoveOperatorDescriptor extends AbstractSingleActivityOperator
         };
     }
 
+    @Override
+    public int getLocalIntermediateResultId() {
+        // TODO Auto-generated method stub
+        return 0;
+    }
+
 }

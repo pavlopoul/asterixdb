@@ -143,6 +143,8 @@ public class NodeControllerService implements IControllerService {
 
     private Map<JobId, Joblet> pastJobletMap;
 
+    private JobId firstJobId;
+
     private final Map<Long, ActivityClusterGraph> deployedJobSpecActivityClusterGraphMap;
 
     private final Map<JobId, JobParameterByteStore> jobParameterByteStoreMap = new HashMap<>();
@@ -556,6 +558,14 @@ public class NodeControllerService implements IControllerService {
 
     public void setPastJobletMap(Map<JobId, Joblet> pastJobletMap) {
         this.pastJobletMap = pastJobletMap;
+    }
+
+    public void setFirstJobId(JobId jobId) {
+        this.firstJobId = jobId;
+    }
+
+    public JobId getFirstJobId() {
+        return this.firstJobId;
     }
 
     public void removeJobParameterByteStore(JobId jobId) {

@@ -145,4 +145,10 @@ public class ExceptionOnCreatePushRuntimeOperatorDescriptor extends AbstractSing
         return "Failure: CreatePushRuntime:" + createPushRuntime.get() + ", InitializeCounter:"
                 + initializeCounter.get() + ", OpenCloseCounter:" + openCloseCounter.get();
     }
+
+    @Override
+    public int getLocalIntermediateResultId() {
+        // TODO Auto-generated method stub
+        return 0;
+    }
 }

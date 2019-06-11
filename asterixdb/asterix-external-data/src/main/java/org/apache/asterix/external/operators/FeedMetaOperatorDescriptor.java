@@ -120,4 +120,10 @@ public class FeedMetaOperatorDescriptor extends AbstractSingleActivityOperatorDe
         return runtimeType;
     }
 
+    @Override
+    public int getLocalIntermediateResultId() {
+        // TODO Auto-generated method stub
+        return 0;
+    }
+
 }

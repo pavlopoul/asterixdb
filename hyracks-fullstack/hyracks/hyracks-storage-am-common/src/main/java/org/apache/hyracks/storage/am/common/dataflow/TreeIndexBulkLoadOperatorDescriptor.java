@@ -60,4 +60,10 @@ public class TreeIndexBulkLoadOperatorDescriptor extends AbstractSingleActivityO
                 verifyInput, numElementsHint, checkIfEmptyIndex,
                 recordDescProvider.getInputRecordDescriptor(this.getActivityId(), 0));
     }
+
+    @Override
+    public int getLocalIntermediateResultId() {
+        // TODO Auto-generated method stub
+        return 0;
+    }
 }

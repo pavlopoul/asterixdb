@@ -300,6 +300,12 @@ class SleepSourceOperatorDescriptor extends AbstractSingleActivityOperatorDescri
             }
         };
     }
+
+    @Override
+    public int getLocalIntermediateResultId() {
+        // TODO Auto-generated method stub
+        return 0;
+    }
 }
 
 class SleepOperatorDescriptor extends AbstractSingleActivityOperatorDescriptor {
@@ -344,4 +350,16 @@ class SleepOperatorDescriptor extends AbstractSingleActivityOperatorDescriptor {
             }
         };
     }
+
+    @Override
+    public int getLocalIntermediateResultId() {
+        // TODO Auto-generated method stub
+        return 0;
+    }
+
+    //    @Override
+    //    public int getLocalIntermediateResultId() {
+    //        // TODO Auto-generated method stub
+    //        return 0;
+    //    }
 }

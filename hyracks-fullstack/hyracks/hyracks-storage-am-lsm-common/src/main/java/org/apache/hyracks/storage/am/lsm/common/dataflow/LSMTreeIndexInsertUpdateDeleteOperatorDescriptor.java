@@ -63,4 +63,10 @@ public class LSMTreeIndexInsertUpdateDeleteOperatorDescriptor extends AbstractSi
                 recordDescProvider.getInputRecordDescriptor(getActivityId(), 0), op, modCallbackFactory,
                 tupleFilterFactory);
     }
+
+    @Override
+    public int getLocalIntermediateResultId() {
+        // TODO Auto-generated method stub
+        return 0;
+    }
 }

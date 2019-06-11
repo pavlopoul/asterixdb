@@ -52,4 +52,10 @@ public class LSMBTreeDiskComponentScanOperatorDescriptor extends AbstractSingleA
                 recordDescProvider.getInputRecordDescriptor(getActivityId(), 0), indexHelperFactory,
                 searchCallbackFactory);
     }
+
+    @Override
+    public int getLocalIntermediateResultId() {
+        // TODO Auto-generated method stub
+        return 0;
+    }
 }

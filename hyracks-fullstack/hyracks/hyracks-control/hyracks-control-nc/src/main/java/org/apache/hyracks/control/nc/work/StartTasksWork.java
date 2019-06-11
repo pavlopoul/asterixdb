@@ -58,6 +58,7 @@ import org.apache.hyracks.api.job.IOperatorEnvironment;
 import org.apache.hyracks.api.job.JobFlag;
 import org.apache.hyracks.api.job.JobId;
 import org.apache.hyracks.api.partitions.PartitionId;
+import org.apache.hyracks.api.rewriter.runtime.SuperActivity;
 import org.apache.hyracks.api.util.ExceptionUtils;
 import org.apache.hyracks.comm.channels.NetworkInputChannel;
 import org.apache.hyracks.control.common.deployment.DeploymentUtils;
@@ -151,6 +152,8 @@ public class StartTasksWork extends AbstractWork {
                 ActivityId aid = tid.getActivityId();
                 ActivityCluster ac = acg.getActivityMap().get(aid);
                 IActivity han = ac.getActivityMap().get(aid);
+                SuperActivity san = (SuperActivity) han;
+                IActivity id = san.getActivityMap().get(aid);
                 LOGGER.trace("Initializing {} -> {} for {}", taId, han, jobId);
                 final int partition = tid.getPartition();
                 List<IConnectorDescriptor> inputs = ac.getActivityInputMap().get(aid);
@@ -158,8 +161,13 @@ public class StartTasksWork extends AbstractWork {
                 task = new Task(joblet, flags, taId, han.getClass().getName(), ncs.getExecutor(), ncs,
                         createInputChannels(td, inputs));
                 IOperatorEnvironment env = null;
-                if (jobId.getId() != 1) {
-                    env = ncs.getPastJobletMap().get(new JobId(jobId.getId() - 1)).getEnvironment();
+                if (id.getLocalIntermediateResultId() > 0) {
+                    //   env = ncs.getPastJobletMap().get(new JobId(jobId.getId() - 1)).getEnvironment();
+                    env = ncs.getPastJobletMap()
+                            .get(new JobId((ncs.getFirstJobId().getId() > 1)
+                                    ? jobId.getId() - id.getLocalIntermediateResultId()
+                                    : id.getLocalIntermediateResultId()))
+                            .getEnvironment();
                 }
                 IOperatorNodePushable operator =
                         han.createPushRuntime(task, rdp, partition, td.getPartitionCount(), env);
@@ -215,8 +223,8 @@ public class StartTasksWork extends AbstractWork {
         Map<JobId, Joblet> jobletMap = ncs.getJobletMap();
         Map<JobId, Joblet> pastJobletMap = ncs.getPastJobletMap();
         if (pastJobletMap == null) {
+            ncs.setFirstJobId(jobId);
             ncs.setPastJobletMap(new HashMap<>());
-
         }
         pastJobletMap = ncs.getPastJobletMap();
         Joblet ji = jobletMap.get(jobId);

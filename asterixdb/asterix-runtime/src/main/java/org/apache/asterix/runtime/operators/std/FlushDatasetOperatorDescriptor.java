@@ -100,4 +100,10 @@ public class FlushDatasetOperatorDescriptor extends AbstractSingleActivityOperat
 
         };
     }
+
+    //    @Override
+    //    public int getLocalIntermediateResultId() {
+    //        // TODO Auto-generated method stub
+    //        return 0;
+    //    }
 }

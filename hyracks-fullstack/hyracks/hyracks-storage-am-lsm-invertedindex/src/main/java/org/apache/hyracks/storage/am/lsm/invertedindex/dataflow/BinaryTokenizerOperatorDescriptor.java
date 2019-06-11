@@ -76,4 +76,10 @@ public class BinaryTokenizerOperatorDescriptor extends AbstractSingleActivityOpe
                 tokenizerFactory.createTokenizer(), docField, keyFields, addNumTokensKey, writeKeyFieldsFirst,
                 writeMissing, missingWriterFactory);
     }
+
+    @Override
+    public int getLocalIntermediateResultId() {
+        // TODO Auto-generated method stub
+        return 0;
+    }
 }

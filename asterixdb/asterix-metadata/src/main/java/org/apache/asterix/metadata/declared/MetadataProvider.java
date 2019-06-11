@@ -531,7 +531,7 @@ public class MetadataProvider implements IMetadataProvider<DataSourceId, String>
                     context.getMissingWriterFactory(), searchCallbackFactory, minFilterFieldIndexes,
                     maxFilterFieldIndexes, ExternalDatasetsRegistry.INSTANCE.getAndLockDatasetVersion(dataset, this));
         } else {
-            btreeSearchOp = new ReaderJobOperatorDescriptor(jobSpec, outputRecDesc);
+            btreeSearchOp = new ReaderJobOperatorDescriptor(jobSpec, outputRecDesc, dataset.getDatasetId());
         }
         return new Pair<>(btreeSearchOp, spPc.second);
     }

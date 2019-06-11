@@ -177,4 +177,9 @@ public class AlgebricksMetaOperatorDescriptor extends AbstractSingleActivityOper
             }
         };
     }
+
+    @Override
+    public int getLocalIntermediateResultId() {
+        return 0;
+    }
 }

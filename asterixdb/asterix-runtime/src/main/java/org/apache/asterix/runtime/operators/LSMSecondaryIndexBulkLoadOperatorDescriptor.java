@@ -68,4 +68,5 @@ public class LSMSecondaryIndexBulkLoadOperatorDescriptor extends AbstractSingleA
                 secondaryIndexHelperFactory, fieldPermutation, numTagFields, numSecondaryKeys, numPrimaryKeys,
                 hasBuddyBTree);
     }
+
 }

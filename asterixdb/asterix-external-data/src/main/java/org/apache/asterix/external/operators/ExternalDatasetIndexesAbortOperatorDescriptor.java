@@ -48,4 +48,10 @@ public class ExternalDatasetIndexesAbortOperatorDescriptor extends AbstractExter
         fileManager.deleteTransactionFiles();
     }
 
+    @Override
+    public int getLocalIntermediateResultId() {
+        // TODO Auto-generated method stub
+        return 0;
+    }
+
 }

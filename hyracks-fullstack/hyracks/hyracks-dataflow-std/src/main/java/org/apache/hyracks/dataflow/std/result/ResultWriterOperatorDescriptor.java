@@ -148,4 +148,10 @@ public class ResultWriterOperatorDescriptor extends AbstractSingleActivityOperat
             }
         };
     }
+
+    @Override
+    public int getLocalIntermediateResultId() {
+        // TODO Auto-generated method stub
+        return 0;
+    }
 }

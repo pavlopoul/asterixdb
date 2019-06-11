@@ -50,4 +50,10 @@ public class TreeIndexDiskOrderScanOperatorDescriptor extends AbstractSingleActi
         return new TreeIndexDiskOrderScanOperatorNodePushable(ctx, partition, indexHelperFactory,
                 searchCallbackFactory);
     }
+
+    @Override
+    public int getLocalIntermediateResultId() {
+        // TODO Auto-generated method stub
+        return 0;
+    }
 }

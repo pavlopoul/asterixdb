@@ -85,4 +85,10 @@ class WaitingOperatorDescriptor extends AbstractSingleActivityOperatorDescriptor
         } finally {
         }
     }
+
+    @Override
+    public int getLocalIntermediateResultId() {
+        // TODO Auto-generated method stub
+        return 0;
+    }
 }

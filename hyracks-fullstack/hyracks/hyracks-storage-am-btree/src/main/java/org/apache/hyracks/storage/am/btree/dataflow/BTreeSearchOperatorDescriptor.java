@@ -103,4 +103,10 @@ public class BTreeSearchOperatorDescriptor extends AbstractSingleActivityOperato
                 searchCallbackProceedResultTrueValue);
     }
 
+    @Override
+    public int getLocalIntermediateResultId() {
+        // TODO Auto-generated method stub
+        return 0;
+    }
+
 }

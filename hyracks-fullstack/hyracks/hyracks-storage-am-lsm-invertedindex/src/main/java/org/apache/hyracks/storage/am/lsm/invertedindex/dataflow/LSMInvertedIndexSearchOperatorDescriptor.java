@@ -89,4 +89,10 @@ public class LSMInvertedIndexSearchOperatorDescriptor extends AbstractSingleActi
                 searchCallbackFactory, searchModifier, queryTokenizerFactory, queryField, isFullTextSearchQuery,
                 numOfFields, appendIndexFilter, frameLimit);
     }
+
+    @Override
+    public int getLocalIntermediateResultId() {
+        // TODO Auto-generated method stub
+        return 0;
+    }
 }

@@ -938,9 +938,8 @@ public class QueryTranslator extends AbstractLangTranslator implements IStatemen
                     overridesFieldTypes = true;
                 }
                 if (fieldType == null) {
-                    throw new CompilationException(ErrorCode.UNKNOWN_TYPE, sourceLoc,
-                            fieldExpr.second == null ? String.valueOf(fieldExpr.first)
-                                    : String.valueOf(fieldExpr.second));
+                    throw new CompilationException(ErrorCode.UNKNOWN_TYPE, sourceLoc, fieldExpr.second == null
+                            ? String.valueOf(fieldExpr.first) : String.valueOf(fieldExpr.second));
                 }
 
                 // try to add the key & its source to the set of keys, if key couldn't be added,
@@ -3014,7 +3013,7 @@ public class QueryTranslator extends AbstractLangTranslator implements IStatemen
                 "newdata." + recordTypeName, "prefix", dataSource.getDataset().getCompactionPolicyProperties(),
                 new InternalDatasetDetails(FileStructure.BTREE, PartitioningStrategy.HASH, new ArrayList<>(),
                         new ArrayList<>(), new ArrayList<>(), new ArrayList<>(), false, new ArrayList<>()),
-                /*new HashMap<>()*/dataSource.getDataset().getHints(), DatasetType.READER, 1, 0, 0, "none");
+                /*new HashMap<>()*/dataSource.getDataset().getHints(), DatasetType.READER, /*1*/queries, 0, 0, "none");
         List<Expression> exprList = addArgs(newSet.getDataverseName() + "." + newSet.getDatasetName());
         CallExpr datasrouceCallFunction = new CallExpr(new FunctionSignature(BuiltinFunctions.DATASET), exprList);
         FromTerm fromterm = new FromTerm(datasrouceCallFunction, fromTermLeftExpr, null, null);

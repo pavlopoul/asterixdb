@@ -52,4 +52,10 @@ public class TreeIndexStatsOperatorDescriptor extends AbstractSingleActivityOper
             throws HyracksDataException {
         return new TreeIndexStatsOperatorNodePushable(ctx, partition, indexHelperFactory, storageManager);
     }
+
+    @Override
+    public int getLocalIntermediateResultId() {
+        // TODO Auto-generated method stub
+        return 0;
+    }
 }

@@ -38,15 +38,19 @@ import org.apache.hyracks.dataflow.std.misc.MaterializerTaskState;
 
 public class ReaderJobOperatorDescriptor extends AbstractOperatorDescriptor {
     private static final long serialVersionUID = 1L;
+    private int localIntermediateResultId;
 
-    public ReaderJobOperatorDescriptor(IOperatorDescriptorRegistry spec, RecordDescriptor rDesc) {
+    public ReaderJobOperatorDescriptor(IOperatorDescriptorRegistry spec, RecordDescriptor rDesc,
+            int localIntermediateResultId) {
         super(spec, 0, 1);
         this.outRecDescs[0] = rDesc;
+        this.localIntermediateResultId = localIntermediateResultId;
     }
 
     @Override
     public void contributeActivities(IActivityGraphBuilder builder) {
-        ReaderActivityNode ra = new ReaderActivityNode(new ActivityId(odId, 1));
+        //ReaderActivityNode ra = new ReaderActivityNode(new ActivityId(odId, 1));
+        ReaderActivityNode ra = new ReaderActivityNode(new ActivityId(odId, 1), this.localIntermediateResultId);
         builder.addActivity(this, ra);
         builder.addTargetEdge(0, ra, 0);
     }
@@ -56,6 +60,11 @@ public class ReaderJobOperatorDescriptor extends AbstractOperatorDescriptor {
 
         public ReaderActivityNode(ActivityId id) {
             super(id);
+        }
+
+        public ReaderActivityNode(ActivityId id, int localIntermediateResultId) {
+            super(id);
+            this.localIntermediateResultId = localIntermediateResultId;
         }
 
         @Override

@@ -39,4 +39,10 @@ public class SinkOperatorDescriptor extends AbstractSingleActivityOperatorDescri
             IOperatorEnvironment pastEnv) {
         return new SinkOperatorNodePushable();
     }
+
+    @Override
+    public int getLocalIntermediateResultId() {
+        // TODO Auto-generated method stub
+        return 0;
+    }
 }

@@ -80,4 +80,10 @@ public class FileScanOperatorDescriptor extends AbstractSingleActivityOperatorDe
             }
         };
     }
+
+    @Override
+    public int getLocalIntermediateResultId() {
+        // TODO Auto-generated method stub
+        return 0;
+    }
 }

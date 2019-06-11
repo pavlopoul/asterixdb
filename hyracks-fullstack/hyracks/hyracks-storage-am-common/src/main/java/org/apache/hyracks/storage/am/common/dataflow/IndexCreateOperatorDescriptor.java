@@ -44,4 +44,10 @@ public class IndexCreateOperatorDescriptor extends AbstractSingleActivityOperato
             throws HyracksDataException {
         return new IndexCreateOperatorNodePushable(indexBuilderFactory.create(ctx, partition));
     }
+
+    @Override
+    public int getLocalIntermediateResultId() {
+        // TODO Auto-generated method stub
+        return 0;
+    }
 }

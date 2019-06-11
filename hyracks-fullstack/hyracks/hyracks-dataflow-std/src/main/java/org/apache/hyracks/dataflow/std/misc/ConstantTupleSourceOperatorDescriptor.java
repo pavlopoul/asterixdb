@@ -50,4 +50,10 @@ public class ConstantTupleSourceOperatorDescriptor extends AbstractSingleActivit
             throws HyracksDataException {
         return new ConstantTupleSourceOperatorNodePushable(ctx, fieldSlots, tupleData, tupleSize);
     }
+
+    @Override
+    public int getLocalIntermediateResultId() {
+        // TODO Auto-generated method stub
+        return 0;
+    }
 }

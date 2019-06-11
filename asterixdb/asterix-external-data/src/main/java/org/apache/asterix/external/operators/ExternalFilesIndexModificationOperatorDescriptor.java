@@ -127,4 +127,10 @@ public class ExternalFilesIndexModificationOperatorDescriptor extends AbstractSi
 
         };
     }
+
+    @Override
+    public int getLocalIntermediateResultId() {
+        // TODO Auto-generated method stub
+        return 0;
+    }
 }

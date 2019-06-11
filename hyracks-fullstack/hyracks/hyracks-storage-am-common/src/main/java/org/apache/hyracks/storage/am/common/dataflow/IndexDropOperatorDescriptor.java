@@ -59,4 +59,10 @@ public class IndexDropOperatorDescriptor extends AbstractSingleActivityOperatorD
             throws HyracksDataException {
         return new IndexDropOperatorNodePushable(dataflowHelperFactory, options, ctx, partition);
     }
+
+    @Override
+    public int getLocalIntermediateResultId() {
+        // TODO Auto-generated method stub
+        return 0;
+    }
 }

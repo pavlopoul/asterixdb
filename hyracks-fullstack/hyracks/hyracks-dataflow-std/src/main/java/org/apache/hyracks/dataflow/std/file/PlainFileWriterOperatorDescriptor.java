@@ -138,4 +138,10 @@ public class PlainFileWriterOperatorDescriptor extends AbstractSingleActivityOpe
         };
     }
 
+    @Override
+    public int getLocalIntermediateResultId() {
+        // TODO Auto-generated method stub
+        return 0;
+    }
+
 }

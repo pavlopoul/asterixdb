@@ -61,4 +61,10 @@ public class TreeIndexInsertUpdateDeleteOperatorDescriptor extends AbstractSingl
                 recordDescProvider.getInputRecordDescriptor(getActivityId(), 0), op, modificationOpCallbackFactory,
                 tupleFilterFactory);
     }
+
+    @Override
+    public int getLocalIntermediateResultId() {
+        // TODO Auto-generated method stub
+        return 0;
+    }
 }

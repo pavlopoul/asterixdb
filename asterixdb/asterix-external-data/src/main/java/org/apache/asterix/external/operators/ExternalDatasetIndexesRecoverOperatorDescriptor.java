@@ -47,4 +47,10 @@ public class ExternalDatasetIndexesRecoverOperatorDescriptor extends AbstractExt
         AbortRecoverLSMIndexFileManager fileManager = new AbortRecoverLSMIndexFileManager(ctx.getIoManager(), file);
         fileManager.recoverTransaction();
     }
+
+    @Override
+    public int getLocalIntermediateResultId() {
+        // TODO Auto-generated method stub
+        return 0;
+    }
 }

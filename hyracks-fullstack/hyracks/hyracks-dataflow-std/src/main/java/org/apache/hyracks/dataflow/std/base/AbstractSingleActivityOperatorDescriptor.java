@@ -48,6 +48,12 @@ public abstract class AbstractSingleActivityOperatorDescriptor extends AbstractO
     }
 
     @Override
+    public int getLocalIntermediateResultId() {
+        return 0;
+
+    };
+
+    @Override
     public final void contributeActivities(IActivityGraphBuilder builder) {
         builder.addActivity(this, this);
         for (int i = 0; i < getInputArity(); ++i) {

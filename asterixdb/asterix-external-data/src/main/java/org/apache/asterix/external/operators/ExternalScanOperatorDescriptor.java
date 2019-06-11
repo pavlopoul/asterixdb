@@ -72,4 +72,10 @@ public class ExternalScanOperatorDescriptor extends AbstractSingleActivityOperat
 
     }
 
+    @Override
+    public int getLocalIntermediateResultId() {
+        // TODO Auto-generated method stub
+        return 0;
+    }
+
 }

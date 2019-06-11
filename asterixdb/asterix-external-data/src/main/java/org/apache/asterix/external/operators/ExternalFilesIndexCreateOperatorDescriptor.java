@@ -118,4 +118,10 @@ public class ExternalFilesIndexCreateOperatorDescriptor extends AbstractSingleAc
 
         };
     }
+
+    @Override
+    public int getLocalIntermediateResultId() {
+        // TODO Auto-generated method stub
+        return 0;
+    }
 }

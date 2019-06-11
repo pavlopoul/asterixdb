@@ -178,4 +178,10 @@ public class SuperActivity extends OneToOneConnectedActivityCluster implements I
     public String toString() {
         return getActivityMap().values().toString();
     }
+
+    @Override
+    public int getLocalIntermediateResultId() {
+        // TODO Auto-generated method stub
+        return 0;
+    }
 }

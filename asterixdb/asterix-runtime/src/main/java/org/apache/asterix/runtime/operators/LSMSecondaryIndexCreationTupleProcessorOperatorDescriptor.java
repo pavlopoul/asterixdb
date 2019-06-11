@@ -62,4 +62,10 @@ public class LSMSecondaryIndexCreationTupleProcessorOperatorDescriptor
                 recordDescProvider.getInputRecordDescriptor(getActivityId(), 0), missingWriterFactory, numTagFields,
                 numSecondaryKeys, numPrimaryKeys, hasBuddyBTree);
     }
+
+    @Override
+    public int getLocalIntermediateResultId() {
+        // TODO Auto-generated method stub
+        return 0;
+    }
 }

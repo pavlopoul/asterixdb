@@ -77,4 +77,10 @@ public class PrinterOperatorDescriptor extends AbstractSingleActivityOperatorDes
         return new DeserializedOperatorNodePushable(ctx, new PrinterOperator(),
                 recordDescProvider.getInputRecordDescriptor(getActivityId(), 0));
     }
+
+    @Override
+    public int getLocalIntermediateResultId() {
+        // TODO Auto-generated method stub
+        return 0;
+    }
 }

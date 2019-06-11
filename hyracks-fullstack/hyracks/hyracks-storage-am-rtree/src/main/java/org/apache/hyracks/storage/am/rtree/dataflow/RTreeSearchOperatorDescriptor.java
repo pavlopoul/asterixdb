@@ -93,4 +93,10 @@ public class RTreeSearchOperatorDescriptor extends AbstractSingleActivityOperato
                 searchCallbackFactory, appendIndexFilter, appendOpCallbackProceedResult,
                 searchCallbackProceedResultFalseValue, searchCallbackProceedResultTrueValue);
     }
+
+    @Override
+    public int getLocalIntermediateResultId() {
+        // TODO Auto-generated method stub
+        return 0;
+    }
 }

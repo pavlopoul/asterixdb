@@ -90,4 +90,10 @@ public class FeedCollectOperatorDescriptor extends AbstractSingleActivityOperato
     public FeedRuntimeType getSubscriptionLocation() {
         return subscriptionLocation;
     }
+
+    @Override
+    public int getLocalIntermediateResultId() {
+        // TODO Auto-generated method stub
+        return 0;
+    }
 }

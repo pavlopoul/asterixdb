@@ -97,6 +97,12 @@ class DummySourceOperatorDescriptor extends AbstractSingleActivityOperatorDescri
         };
     }
 
+    @Override
+    public int getLocalIntermediateResultId() {
+        // TODO Auto-generated method stub
+        return 0;
+    }
+
 }
 
 class ThreadCountingOperatorDescriptor extends AbstractOperatorDescriptor {

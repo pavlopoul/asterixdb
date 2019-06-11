@@ -112,6 +112,12 @@ class TestSourceOperatorDescriptor extends AbstractSingleActivityOperatorDescrip
         };
     }
 
+    @Override
+    public int getLocalIntermediateResultId() {
+        // TODO Auto-generated method stub
+        return 0;
+    }
+
 }
 
 class ExceptionRaisingOperatorDescriptor extends AbstractOperatorDescriptor {

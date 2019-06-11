@@ -154,4 +154,10 @@ public class FeedIntakeOperatorDescriptor extends AbstractSingleActivityOperator
         return this.adaptorFactoryClassName;
     }
 
+    @Override
+    public int getLocalIntermediateResultId() {
+        // TODO Auto-generated method stub
+        return 0;
+    }
+
 }

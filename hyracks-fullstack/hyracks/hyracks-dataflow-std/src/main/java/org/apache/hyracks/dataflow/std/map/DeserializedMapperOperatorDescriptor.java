@@ -87,4 +87,10 @@ public class DeserializedMapperOperatorDescriptor extends AbstractSingleActivity
         return new DeserializedOperatorNodePushable(ctx, new MapperOperator(),
                 recordDescProvider.getInputRecordDescriptor(getActivityId(), 0));
     }
+
+    @Override
+    public int getLocalIntermediateResultId() {
+        // TODO Auto-generated method stub
+        return 0;
+    }
 }

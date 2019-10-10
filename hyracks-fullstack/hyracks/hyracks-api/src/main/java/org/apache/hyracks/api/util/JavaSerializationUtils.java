@@ -34,6 +34,10 @@ public class JavaSerializationUtils {
         if (jobSpec instanceof byte[]) {
             return (byte[]) jobSpec;
         }
+        //        if (jobSpec instanceof JobSpecificationActivityClusterGraphGeneratorFactory) {
+        //            JobSpecificationActivityClusterGraphGeneratorFactory acgf =
+        //                    (JobSpecificationActivityClusterGraphGeneratorFactory) jobSpec;
+        //        }
         ByteArrayOutputStream baos = new ByteArrayOutputStream();
         ObjectOutputStream oos = new ObjectOutputStream(baos);
         oos.writeObject(jobSpec);

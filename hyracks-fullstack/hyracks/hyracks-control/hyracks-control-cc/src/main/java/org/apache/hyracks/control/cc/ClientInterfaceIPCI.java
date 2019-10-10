@@ -64,7 +64,14 @@ class ClientInterfaceIPCI implements IIPCI {
 
     @Override
     public void deliverIncomingMessage(IIPCHandle handle, long mid, long rmid, Object payload, Exception exception) {
-        HyracksClientInterfaceFunctions.Function fn = (HyracksClientInterfaceFunctions.Function) payload;
+        HyracksClientInterfaceFunctions.Function fn = null;
+        HyracksClientInterfaceFunctions.Function fn2 = null;
+        if (payload instanceof Object[]) {
+            fn = ((HyracksClientInterfaceFunctions.Function[]) payload)[0];
+            fn2 = ((HyracksClientInterfaceFunctions.Function[]) payload)[1];
+        } else {
+            fn = (HyracksClientInterfaceFunctions.Function) payload;
+        }
         switch (fn.getFunctionId()) {
             case GET_CLUSTER_CONTROLLER_INFO:
                 try {
@@ -112,14 +119,22 @@ class ClientInterfaceIPCI implements IIPCI {
             case START_JOB:
                 HyracksClientInterfaceFunctions.StartJobFunction sjf =
                         (HyracksClientInterfaceFunctions.StartJobFunction) fn;
+                HyracksClientInterfaceFunctions.StartJobFunction sjf2 = null;
+                if (fn2 != null) {
+                    sjf2 = (HyracksClientInterfaceFunctions.StartJobFunction) fn2;
+                }
                 DeployedJobSpecId id = sjf.getDeployedJobSpecId();
                 byte[] acggfBytes = null;
+                byte[] acggfBytes2 = null;
                 if (id == null) {
                     //The job is new
                     acggfBytes = sjf.getACGGFBytes();
+                    if (sjf2 != null) {
+                        acggfBytes2 = sjf2.getACGGFBytes();
+                    }
                 }
-                ccs.getWorkQueue().schedule(new JobStartWork(ccs, sjf.getDeploymentId(), acggfBytes, sjf.getJobFlags(),
-                        jobIdFactory, sjf.getJobParameters(), new IPCResponder<>(handle, mid), id));
+                ccs.getWorkQueue().schedule(new JobStartWork(ccs, sjf.getDeploymentId(), acggfBytes, acggfBytes2,
+                        sjf.getJobFlags(), jobIdFactory, sjf.getJobParameters(), new IPCResponder<>(handle, mid), id));
                 break;
             case GET_RESULT_DIRECTORY_ADDRESS:
                 ccs.getWorkQueue().schedule(

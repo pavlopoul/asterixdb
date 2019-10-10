@@ -345,6 +345,7 @@ public class Task implements IHyracksTaskContext, ICounterContext, Runnable {
                 throw operatorException;
             }
             ncs.getWorkQueue().schedule(new NotifyTaskCompleteWork(ncs, this));
+            System.out.println(ncs.getNodeRegistration().getNodeId());
         } catch (Throwable e) { // NOSONAR: Catch all failures
             exceptions.add(HyracksDataException.create(e));
         } finally {

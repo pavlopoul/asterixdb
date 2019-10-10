@@ -252,6 +252,8 @@ import org.apache.hyracks.api.job.JobFlag;
 import org.apache.hyracks.api.job.JobId;
 import org.apache.hyracks.api.job.JobSpecification;
 import org.apache.hyracks.api.job.JobStatus;
+import org.apache.hyracks.api.job.resource.ClusterCapacity;
+import org.apache.hyracks.api.job.resource.IClusterCapacity;
 import org.apache.hyracks.api.result.IResultSet;
 import org.apache.hyracks.api.result.ResultSetId;
 import org.apache.hyracks.control.cc.ClusterControllerService;
@@ -2902,6 +2904,8 @@ public class QueryTranslator extends AbstractLangTranslator implements IStatemen
                 readerLocations =
                         mp.getApplicationContext().getClusterStateManager().getClusterLocations().getLocations();
                 PartitionConstraintHelper.addAbsoluteLocationConstraint(jobSpec, amod, readerLocations);
+                //                PartitionConstraintHelper.addAbsoluteLocationConstraint(jobSpec, amod,
+                //                        new String[] { readerLocations[2], readerLocations[3] });
 
                 ((IncrementalSinkOperatorDescriptor) jobSpec.getOperatorMap().get(id)).setRecDesc(projectDesc2);
                 //                String statisticsFieldsHint = dataSource1.getDataset().getHints().get(DatasetStatisticsHint.NAME);
@@ -2955,14 +2959,20 @@ public class QueryTranslator extends AbstractLangTranslator implements IStatemen
             } else {
                 removeFromConnectors(0, jobSpec, jobSpec.getConnectorOperatorMap());
             }
-
             JobSpecification job2 = new JobSpecification();
             for (IOperatorDescriptor op : jobSpec.getOperatorMap().values()) {
                 job2.createOperatorDescriptorId(op);
             }
             for (IConnectorDescriptor conn : jobSpec.getConnectorMap().values()) {
+                IOperatorDescriptor producer = jobSpec.getProducer(conn);
+                int i = 0;
+                IOperatorDescriptor consumer = jobSpec.getConsumer(conn);
+                if (job2.getOperatorInputMap().containsKey(consumer.getOperatorId())) {
+                    i = 1;
+                }
                 job2.createConnectorDescriptor(conn);
-                job2.connect(conn, jobSpec.getProducer(conn), 0, jobSpec.getConsumer(conn), 0);
+                //job2.connect(conn, jobSpec.getProducer(conn), 0, jobSpec.getConsumer(conn), 0);
+                job2.connect(conn, producer, 0, consumer, i);
             }
             for (OperatorDescriptorId oid : jobSpec.getRoots()) {
                 job2.addRoot(jobSpec.getOperatorMap().get(oid));
@@ -2993,6 +3003,7 @@ public class QueryTranslator extends AbstractLangTranslator implements IStatemen
                     LValueConstraintExpression lexpr = constraint.getLValue();
                     if (lexpr.getTag() == ExpressionTag.PARTITION_LOCATION) {
                         if (!((String) sexpr.getValue()).equals(key)) {
+                            //                        if (((String) sexpr.getValue()).equals(key)) {
                             jobSpec.getUserConstraints().remove(constraint);
                             job2.addUserConstraint(constraint);
                         }
@@ -3011,25 +3022,38 @@ public class QueryTranslator extends AbstractLangTranslator implements IStatemen
                     }
                 }
             }
+
             JobSpecification[] jobs = new JobSpecification[2];
+            job2.setJobletEventListenerFactory(jobSpec.getJobletEventListenerFactory());
+            final IClusterCapacity clusterCapacity = new ClusterCapacity();
+            clusterCapacity.setAggregatedCores(jobSpec.getRequiredClusterCapacity().getAggregatedCores());
+            clusterCapacity
+                    .setAggregatedMemoryByteSize(jobSpec.getRequiredClusterCapacity().getAggregatedMemoryByteSize());
+            job2.setRequiredClusterCapacity(clusterCapacity);
+            job2.setConnectorPolicyAssignmentPolicy(jobSpec.getConnectorPolicyAssignmentPolicy());
             jobs[0] = jobSpec;
             jobs[1] = job2;
-            final JobId jobId = JobUtils.runJobs(hcc, jobs, jobFlags, false);
+            final JobId[] jobIds = JobUtils.runJobs(hcc, jobs, jobFlags, false);
             //            final JobId jobId = JobUtils.runJob(hcc, jobSpec, jobFlags, false);
             if (ctx != null && clientContextId != null) {
-                req = new ClientJobRequest(ctx, clientContextId, jobId);
+                req = new ClientJobRequest(ctx, clientContextId, jobIds[0]);
                 ctx.put(clientContextId, req); // Adds the running job into the context.
             }
             if (jId != null) {
-                jId.setValue(jobId);
+                jId.setValue(jobIds[0]);
             }
             if (ResultDelivery.ASYNC == resultDelivery) {
-                printer.print(jobId);
-                hcc.waitForCompletion(jobId);
+                printer.print(jobIds[0]);
+                JobId[] ids = { jobIds[0], null };
+                //                hcc.waitForCompletion(jobIds);
+                hcc.waitForCompletion(ids);
             } else {
-                hcc.waitForCompletion(jobId);
+                JobId[] ids = { jobIds[0], null };
+                //                hcc.waitForCompletion(jobIds);
+                hcc.waitForCompletion(ids);
+                //hcc.waitForCompletion(jobIds[1]);
                 if (getFinished()) {
-                    printer.print(jobId);
+                    printer.print(jobIds[0]);
                     locker.unlock();
                     if (req != null) {
                         req.complete();

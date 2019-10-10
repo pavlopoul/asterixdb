@@ -39,6 +39,7 @@ import org.apache.hyracks.control.common.work.SynchronizableWork;
 public class JobStartWork extends SynchronizableWork {
     private final ClusterControllerService ccs;
     private final byte[] acggfBytes;
+    private final byte[] acggfBytes2;
     private final Set<JobFlag> jobFlags;
     private final DeploymentId deploymentId;
     private final IResultCallback<JobId[]> callback;
@@ -47,12 +48,13 @@ public class JobStartWork extends SynchronizableWork {
     private final Map<byte[], byte[]> jobParameters;
     private boolean first = true;
 
-    public JobStartWork(ClusterControllerService ccs, DeploymentId deploymentId, byte[] acggfBytes,
+    public JobStartWork(ClusterControllerService ccs, DeploymentId deploymentId, byte[] acggfBytes, byte[] acggfBytes2,
             Set<JobFlag> jobFlags, JobIdFactory jobIdFactory, Map<byte[], byte[]> jobParameters,
             IResultCallback<JobId[]> callback, DeployedJobSpecId deployedJobSpecId) {
         this.deploymentId = deploymentId;
         this.ccs = ccs;
         this.acggfBytes = acggfBytes;
+        this.acggfBytes2 = acggfBytes2;
         this.jobFlags = jobFlags;
         this.callback = callback;
         this.deployedJobSpecId = deployedJobSpecId;
@@ -78,23 +80,23 @@ public class JobStartWork extends SynchronizableWork {
                         .deserialize(acggfBytes, deploymentId, ccServiceCtx);
                 IActivityClusterGraphGenerator[] acggs =
                         acggf.createActivityClusterGraphGenerator(ccServiceCtx, jobFlags);
-                //                if (acggs[1] == null) {
                 run = new JobRun(ccs, deploymentId, jobId, acggf, acggs[0], jobFlags, 0, first);
-                //                } else {
-                if (acggs[1] != null) {
+                //if (acggs[1] != null) {
+                if (acggfBytes2 != null) {
                     jobId2 = jobIdFactory.create();
                     first = false;
-                    run2 = new JobRun(ccs, deploymentId, jobId2, acggf, acggs[1], jobFlags, 1, first);
+                    IActivityClusterGraphGeneratorFactory acggf2 =
+                            (IActivityClusterGraphGeneratorFactory) DeploymentUtils.deserialize(acggfBytes2,
+                                    deploymentId, ccServiceCtx);
+                    IActivityClusterGraphGenerator[] acggs2 =
+                            acggf2.createActivityClusterGraphGenerator(ccServiceCtx, jobFlags);
+                    run2 = new JobRun(ccs, deploymentId, jobId2, acggf2, acggs2[0], jobFlags, 0, first);
                 }
             } else {
                 //ActivityClusterGraph has already been distributed
                 run = new JobRun(ccs, deploymentId, jobId, jobFlags,
                         ccs.getDeployedJobSpecStore().getDeployedJobSpecDescriptor(deployedJobSpecId), jobParameters,
                         deployedJobSpecId);
-
-                //                run2 = new JobRun(ccs, deploymentId, jobId2, jobFlags,
-                //                        ccs.getDeployedJobSpecStore().getDeployedJobSpecDescriptor(deployedJobSpecId), jobParameters,
-                //                        deployedJobSpecId);
             }
             JobId[] ids = new JobId[2];
             ids[0] = jobId;
@@ -104,10 +106,6 @@ public class JobStartWork extends SynchronizableWork {
                 jobManager.add(run2);
             }
             callback.setValue(ids);
-            //            callback.setValue(jobId);
-            //            if (jobId2 != null) {
-            //                callback.setValue(jobId2);
-            //            }
         } catch (Exception e) {
             callback.setException(e);
         }

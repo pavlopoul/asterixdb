@@ -142,13 +142,18 @@ class ActivityClusterPlanner {
 
         for (TaskCluster tc : taskClusters) {
             Set<TaskCluster> tcDependencyTaskClusters = tc.getDependencyTaskClusters();
+            int partitionSize = tc.getTasks().length / 2;
             for (Task ts : tc.getTasks()) {
                 TaskId tid = ts.getTaskId();
                 List<Pair<TaskId, ConnectorDescriptorId>> cInfoList = taskConnectivity.get(tid);
                 if (cInfoList != null) {
                     for (Pair<TaskId, ConnectorDescriptorId> p : cInfoList) {
                         Task targetTS =
-                                activityPlanMap.get(p.getLeft().getActivityId()).getTasks()[p.getLeft().getPartition()];
+                                //                                activityPlanMap.get(p.getLeft().getActivityId()).getTasks()[p.getLeft().getPartition()];
+                                activityPlanMap.get(p.getLeft().getActivityId())
+                                        .getTasks()[(p.getLeft().getPartition() >= partitionSize
+                                                ? p.getLeft().getPartition() - partitionSize
+                                                : p.getLeft().getPartition())];
                         TaskCluster targetTC = targetTS.getTaskCluster();
                         if (targetTC != tc) {
                             ConnectorDescriptorId cdId = p.getRight();
@@ -335,7 +340,20 @@ class ActivityClusterPlanner {
         ActivityCluster ac = run.getActivityClusterGraph().getActivityMap().get(tid.getActivityId());
         ActivityClusterPlan acp = run.getActivityClusterPlanMap().get(ac.getId());
         Task[] tasks = acp.getActivityPlanMap().get(tid.getActivityId()).getTasks();
-        Task task = tasks[tid.getPartition()];
+        int partition = 0;
+        try {
+            int partitions = computePartitionCounts(ac).get(tid.getActivityId()).getPartitionCount();
+            if (tid.getPartition() >= partitions) {
+                partition = tid.getPartition() - 2;
+            } else {
+                partition = tid.getPartition();
+            }
+        } catch (HyracksException e) {
+            e.printStackTrace();
+        }
+        //        if(tid.getPartition()>=ac.)
+        //        Task task = tasks[tid.getPartition()];
+        Task task = tasks[partition];
         assert task.getTaskId().equals(tid);
         return task.getTaskCluster();
     }

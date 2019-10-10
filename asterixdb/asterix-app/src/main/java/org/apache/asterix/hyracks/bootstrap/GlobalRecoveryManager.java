@@ -80,7 +80,8 @@ public class GlobalRecoveryManager implements IGlobalRecoveryManager {
     private void executeHyracksJob(JobSpecification spec) throws Exception {
         spec.setMaxReattempts(0);
         JobId jobId = hcc.startJob(spec)[0];
-        hcc.waitForCompletion(jobId);
+        JobId[] jobIds = { jobId, null };
+        hcc.waitForCompletion(jobIds);
     }
 
     @Override

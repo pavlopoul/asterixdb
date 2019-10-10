@@ -43,9 +43,11 @@ public class PartitionDataWriter implements IFrameWriter {
     private final IHyracksTaskContext ctx;
     private boolean[] allocatedFrames;
     private boolean failed = false;
+    private int index;
 
-    public PartitionDataWriter(IHyracksTaskContext ctx, int consumerPartitionCount, IPartitionWriterFactory pwFactory,
-            RecordDescriptor recordDescriptor, ITuplePartitionComputer tpc) throws HyracksDataException {
+    public PartitionDataWriter(IHyracksTaskContext ctx, int consumerPartitionCount, int index,
+            IPartitionWriterFactory pwFactory, RecordDescriptor recordDescriptor, ITuplePartitionComputer tpc)
+            throws HyracksDataException {
         this.ctx = ctx;
         this.tpc = tpc;
         this.consumerPartitionCount = consumerPartitionCount;
@@ -54,13 +56,20 @@ public class PartitionDataWriter implements IFrameWriter {
         allocatedFrames = new boolean[consumerPartitionCount];
         appenders = new FrameTupleAppender[consumerPartitionCount];
         tupleAccessor = new FrameTupleAccessor(recordDescriptor);
+        this.index = index;
         initializeAppenders(pwFactory);
+
     }
 
     protected void initializeAppenders(IPartitionWriterFactory pwFactory) throws HyracksDataException {
+
         for (int i = 0; i < consumerPartitionCount; ++i) {
             try {
-                pWriters[i] = pwFactory.createFrameWriter(i);
+                if (index >= consumerPartitionCount) {
+                    pWriters[i] = pwFactory.createFrameWriter(i + 2);
+                } else {
+                    pWriters[i] = pwFactory.createFrameWriter(i);
+                }
                 appenders[i] = createTupleAppender(ctx);
             } catch (IOException e) {
                 throw HyracksDataException.create(e);

@@ -94,7 +94,8 @@ public class HyracksUtils {
     public static void runJob(JobSpecification spec, String appName) throws Exception {
         spec.setFrameSize(FRAME_SIZE);
         JobId jobId = hcc.startJob(spec, EnumSet.of(JobFlag.PROFILE_RUNTIME))[0];
-        hcc.waitForCompletion(jobId);
+        JobId[] jobIds = { jobId, null };
+        hcc.waitForCompletion(jobIds);
     }
 
 }

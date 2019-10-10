@@ -388,7 +388,8 @@ public class APIFramework {
             spec.setMaxReattempts(0);
             JobId jobId = hcc.startJob(spec)[0];
             long startTime = System.currentTimeMillis();
-            hcc.waitForCompletion(jobId);
+            JobId[] jobIds = { jobId, null };
+            hcc.waitForCompletion(jobIds);
             long endTime = System.currentTimeMillis();
             double duration = (endTime - startTime) / 1000.00;
             out.println("<pre>Duration: " + duration + " sec</pre>");
@@ -404,7 +405,8 @@ public class APIFramework {
                 if (job.getSubmissionMode() == SubmissionMode.ASYNCHRONOUS) {
                     continue;
                 }
-                hcc.waitForCompletion(jobId);
+                JobId[] jobIds = { jobId, null };
+                hcc.waitForCompletion(jobIds);
             } catch (Exception e) {
                 e.printStackTrace();
                 continue;

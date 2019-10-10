@@ -128,8 +128,15 @@ public final class HyracksConnection implements IHyracksClientConnection {
     }
 
     @Override
-    public void cancelJob(JobId jobId) throws Exception {
-        CancelJobRequest request = new CancelJobRequest(jobId);
+    public void cancelJob1(JobId jobId) throws Exception {
+        JobId[] jobIds = { jobId, null };
+        CancelJobRequest request = new CancelJobRequest(jobIds);
+        uninterruptiblySubmitAndExecute(request);
+    }
+
+    @Override
+    public void cancelJob(JobId[] jobIds) throws Exception {
+        CancelJobRequest request = new CancelJobRequest(jobIds);
         uninterruptiblySubmitAndExecute(request);
     }
 
@@ -201,12 +208,12 @@ public final class HyracksConnection implements IHyracksClientConnection {
     }
 
     @Override
-    public void waitForCompletion(JobId jobId) throws Exception {
+    public void waitForCompletion(JobId[] jobIds) throws Exception {
         try {
-            hci.waitForCompletion(jobId);
+            hci.waitForCompletion(jobIds);
         } catch (InterruptedException e) {
             // Cancels an on-going job if the current thread gets interrupted.
-            cancelJob(jobId);
+            cancelJob(jobIds);
             throw e;
         }
     }
@@ -388,21 +395,21 @@ public final class HyracksConnection implements IHyracksClientConnection {
     }
 
     private class CancelJobRequest extends UnInterruptibleRequest<Void> {
-        final JobId jobId;
+        final JobId[] jobIds;
 
-        public CancelJobRequest(JobId jobId) {
-            this.jobId = jobId;
+        public CancelJobRequest(JobId[] jobIds) {
+            this.jobIds = jobIds;
         }
 
         @Override
         protected Void doHandle() throws Exception {
-            hci.cancelJob(jobId);
+            hci.cancelJob(jobIds);
             return null;
         }
 
         @Override
         public String toString() {
-            return "CancelJobRequest: " + jobId.toString();
+            return "CancelJobRequest: " + jobIds.toString();
         }
 
     }
@@ -419,7 +426,7 @@ public final class HyracksConnection implements IHyracksClientConnection {
 
         @Override
         protected JobId[] doHandle() throws Exception {
-            return hci.startJob(deployedJobSpecId, jobParameters);
+            return (JobId[]) hci.startJob(deployedJobSpecId, jobParameters);
         }
 
     }
@@ -439,9 +446,22 @@ public final class HyracksConnection implements IHyracksClientConnection {
         @Override
         protected JobId[] doHandle() throws Exception {
             if (deploymentId == null) {
-                return hci.startJob(JavaSerializationUtils.serialize(acggf), jobFlags);
+                if (acggf.getJobSpecification() == null) {
+                    JobSpecificationActivityClusterGraphGeneratorFactory acgf =
+                            new JobSpecificationActivityClusterGraphGeneratorFactory(
+                                    ((JobSpecificationActivityClusterGraphGeneratorFactory) acggf)
+                                            .getJobSpecifications()[0]);
+                    JobSpecificationActivityClusterGraphGeneratorFactory acgf2 =
+                            new JobSpecificationActivityClusterGraphGeneratorFactory(
+                                    ((JobSpecificationActivityClusterGraphGeneratorFactory) acggf)
+                                            .getJobSpecifications()[1]);
+                    return (JobId[]) hci.startJob(JavaSerializationUtils.serialize(acgf),
+                            JavaSerializationUtils.serialize(acgf2), jobFlags);
+                } else {
+                    return (JobId[]) hci.startJob(JavaSerializationUtils.serialize(acggf), null, jobFlags);
+                }
             } else {
-                return hci.startJob(deploymentId, JavaSerializationUtils.serialize(acggf), jobFlags);
+                return (JobId[]) hci.startJob(deploymentId, JavaSerializationUtils.serialize(acggf), jobFlags);
             }
         }
 

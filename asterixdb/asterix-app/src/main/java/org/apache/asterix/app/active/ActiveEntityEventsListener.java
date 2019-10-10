@@ -434,7 +434,8 @@ public abstract class ActiveEntityEventsListener implements IActiveEntityControl
     @SuppressWarnings("squid:S1181")
     protected void cancelJobSafely(MetadataProvider metadataProvider, Throwable e) {
         try {
-            metadataProvider.getApplicationContext().getHcc().cancelJob(jobId);
+            JobId[] jobIds = { jobId, null };
+            metadataProvider.getApplicationContext().getHcc().cancelJob(jobIds);
         } catch (Throwable th) {
             LOGGER.warn("Failed to cancel active job", th);
             e.addSuppressed(th);

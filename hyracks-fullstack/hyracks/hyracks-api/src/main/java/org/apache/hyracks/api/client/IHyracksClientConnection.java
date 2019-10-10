@@ -65,7 +65,9 @@ public interface IHyracksClientConnection extends IClusterInfoCollector {
      *            the JobId of the Job
      * @throws Exception
      */
-    void cancelJob(JobId jobId) throws Exception;
+    void cancelJob1(JobId jobId) throws Exception;
+
+    void cancelJob(JobId[] jobIds) throws Exception;
 
     /**
      * Start the specified Job.
@@ -164,7 +166,7 @@ public interface IHyracksClientConnection extends IClusterInfoCollector {
      *            JobId of the Job
      * @throws Exception
      */
-    void waitForCompletion(JobId jobId) throws Exception;
+    void waitForCompletion(JobId[] jobIds) throws Exception;
 
     /**
      * Deploy the user-defined jars to the cluster
@@ -258,4 +260,5 @@ public interface IHyracksClientConnection extends IClusterInfoCollector {
      * @return the port of the cluster controller
      */
     int getPort();
+
 }

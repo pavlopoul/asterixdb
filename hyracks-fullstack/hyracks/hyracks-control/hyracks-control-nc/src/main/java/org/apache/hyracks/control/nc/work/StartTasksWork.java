@@ -150,6 +150,7 @@ public class StartTasksWork extends AbstractWork {
                 TaskId tid = taId.getTaskId();
                 ActivityId aid = tid.getActivityId();
                 ActivityCluster ac = acg.getActivityMap().get(aid);
+
                 IActivity han = ac.getActivityMap().get(aid);
                 LOGGER.trace("Initializing {} -> {} for {}", taId, han, jobId);
                 final int partition = tid.getPartition();
@@ -183,9 +184,14 @@ public class StartTasksWork extends AbstractWork {
                         final IConnectorDescriptor conn = outputs.get(i);
                         RecordDescriptor recordDesc = ac.getConnectorRecordDescriptorMap().get(conn.getConnectorId());
                         IConnectorPolicy cPolicy = connectorPoliciesMap.get(conn.getConnectorId());
-
+                        int part = partition;
+                        if (partition >= td.getPartitionCount()) {
+                            part = partition - 2;
+                        }
+                        //                        IPartitionWriterFactory pwFactory =
+                        //                                createPartitionWriterFactory(task, cPolicy, jobId, conn, partition, taId, flags);
                         IPartitionWriterFactory pwFactory =
-                                createPartitionWriterFactory(task, cPolicy, jobId, conn, partition, taId, flags);
+                                createPartitionWriterFactory(task, cPolicy, jobId, conn, part, taId, flags);
                         LOGGER.trace("input: {}: {}", i, conn.getConnectorId());
                         IFrameWriter writer = conn.createPartitioner(task, recordDesc, pwFactory, partition,
                                 td.getPartitionCount(), td.getOutputPartitionCounts()[i]);

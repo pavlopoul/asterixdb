@@ -412,10 +412,18 @@ public class JobExecutor {
                     }
                     ActivityId producerAid = acg.getProducerActivity(cdId);
                     partitionLocations[i] = new NetworkAddress[inPartitionCounts[i]];
-                    for (int j = 0; j < inPartitionCounts[i]; ++j) {
+                    int start = 0;
+                    int end = inPartitionCounts[i];
+                    if (inPartitionCounts[i] > 1 && tid.getPartition() >= inPartitionCounts[i]) {
+                        int remainder = tid.getPartition() - inPartitionCounts[i];
+                        start = tid.getPartition() - remainder;
+                        end = start + inPartitionCounts[i];
+                    }
+                    //for (int j = 0; j < inPartitionCounts[i]; ++j) {
+                    for (int j = start; j < end; ++j) {
                         TaskId producerTaskId = new TaskId(producerAid, j);
                         String nodeId = findTaskLocation(producerTaskId);
-                        partitionLocations[i][j] = nodeManager.getNodeControllerState(nodeId).getDataPort();
+                        partitionLocations[i][j - start] = nodeManager.getNodeControllerState(nodeId).getDataPort();
                     }
                 }
                 tad.setInputPartitionLocations(partitionLocations);
@@ -479,7 +487,9 @@ public class JobExecutor {
         ActivityId aid = tid.getActivityId();
         ActivityCluster ac = jobRun.getActivityClusterGraph().getActivityMap().get(aid);
         Task[] tasks = getActivityClusterPlan(ac).getActivityPlanMap().get(aid).getTasks();
-        List<TaskClusterAttempt> tcAttempts = tasks[tid.getPartition()].getTaskCluster().getAttempts();
+        List<TaskClusterAttempt> tcAttempts =
+                tasks[(tid.getPartition() >= tasks.length ? tid.getPartition() - tasks.length : tid.getPartition())]
+                        .getTaskCluster().getAttempts();
         if (tcAttempts == null || tcAttempts.isEmpty()) {
             return null;
         }
@@ -661,7 +671,17 @@ public class JobExecutor {
             }
             ta.setStatus(TaskAttempt.TaskStatus.COMPLETED, null);
             ta.setEndTime(System.currentTimeMillis());
-            //startRunnableActivityClusters();
+            System.out.println("Task finished for: " + jobRun.getJobId());
+            Collection<JobRun> jobs = ccs.getJobManager().getRunningJobs();
+            if (ccs.getJobManager().getRunningJobs().size() > 1) {
+                JobId id = null;
+                for (JobRun job : jobs) {
+                    if (job.getJobId() != jobRun.getJobId()) {
+                        id = job.getJobId();
+                    }
+                }
+                ccs.getJobManager().cancel(id, NoOpCallback.INSTANCE);
+            }
             if (lastAttempt.decrementPendingTasksCounter() == 0) {
                 lastAttempt.setStatus(TaskClusterAttempt.TaskClusterStatus.COMPLETED);
                 lastAttempt.setEndTime(System.currentTimeMillis());

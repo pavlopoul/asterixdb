@@ -40,7 +40,8 @@ public class MToNPartitioningConnectorDescriptor extends AbstractMToNConnectorDe
     public IFrameWriter createPartitioner(IHyracksTaskContext ctx, RecordDescriptor recordDesc,
             IPartitionWriterFactory edwFactory, int index, int nProducerPartitions, int nConsumerPartitions)
             throws HyracksDataException {
-        return new PartitionDataWriter(ctx, nConsumerPartitions, edwFactory, recordDesc, tpcf.createPartitioner(ctx));
+        return new PartitionDataWriter(ctx, nConsumerPartitions, index, edwFactory, recordDesc,
+                tpcf.createPartitioner(ctx));
     }
 
     public ITuplePartitionComputerFactory getTuplePartitionComputerFactory() {

@@ -50,7 +50,8 @@ public class MToOneSequentialMergingConnectorDescriptor extends AbstractMToNConn
             IPartitionWriterFactory edwFactory, int index, int nProducerPartitions, int nConsumerPartitions)
             throws HyracksDataException {
         // TODO(ali): create a single partition data writer instead
-        return new PartitionDataWriter(ctx, nConsumerPartitions, edwFactory, recordDesc, tpcf.createPartitioner(ctx));
+        return new PartitionDataWriter(ctx, nConsumerPartitions, index, edwFactory, recordDesc,
+                tpcf.createPartitioner(ctx));
     }
 
     @Override

@@ -18,12 +18,17 @@
  */
 package org.apache.hyracks.control.cc.work;
 
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
+import org.apache.hyracks.api.constraints.expressions.LValueConstraintExpression;
+import org.apache.hyracks.api.constraints.expressions.PartitionCountExpression;
 import org.apache.hyracks.api.dataflow.ActivityId;
 import org.apache.hyracks.api.dataflow.TaskAttemptId;
 import org.apache.hyracks.api.dataflow.TaskId;
+import org.apache.hyracks.api.exceptions.HyracksException;
 import org.apache.hyracks.api.job.ActivityCluster;
 import org.apache.hyracks.api.job.JobId;
 import org.apache.hyracks.control.cc.ClusterControllerService;
@@ -57,8 +62,34 @@ public abstract class AbstractTaskLifecycleWork extends AbstractHeartbeatWork {
                 Map<ActivityId, ActivityPlan> taskStateMap =
                         run.getActivityClusterPlanMap().get(ac.getId()).getActivityPlanMap();
                 Task[] taskStates = taskStateMap.get(tid.getActivityId()).getTasks();
-                if (taskStates != null && taskStates.length > tid.getPartition()) {
-                    Task ts = taskStates[tid.getPartition()];
+                Set<LValueConstraintExpression> lValues = new HashSet<>();
+                lValues.add(new PartitionCountExpression(tid.getActivityId().getOperatorDescriptorId()));
+                run.getExecutor().getSolver().solve(lValues);
+                int nParts = 0;
+                for (LValueConstraintExpression lv : lValues) {
+                    Object value = run.getExecutor().getSolver().getValue(lv);
+                    try {
+                        if (value == null) {
+
+                            throw new HyracksException("No value found for " + lv);
+
+                        }
+                        if (!(value instanceof Number)) {
+                            throw new HyracksException("Unexpected type of value bound to " + lv + ": "
+                                    + value.getClass() + "(" + value + ")");
+                        }
+                    } catch (HyracksException e) {
+                        // TODO Auto-generated catch block
+                        e.printStackTrace();
+                    }
+                    nParts = ((Number) value).intValue();
+                }
+                int partition = tid.getPartition();
+                if (tid.getPartition() >= nParts) {
+                    partition = tid.getPartition() - 2;
+                }
+                if (taskStates != null && taskStates.length > partition) {
+                    Task ts = taskStates[partition];
                     TaskCluster tc = ts.getTaskCluster();
                     List<TaskClusterAttempt> taskClusterAttempts = tc.getAttempts();
                     if (taskClusterAttempts != null && taskClusterAttempts.size() > taId.getAttempt()) {

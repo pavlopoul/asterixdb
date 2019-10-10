@@ -35,7 +35,8 @@ public class ClientJobRequest extends BaseClientRequest {
     protected void doCancel(ICcApplicationContext appCtx) throws HyracksDataException {
         IHyracksClientConnection hcc = appCtx.getHcc();
         try {
-            hcc.cancelJob(jobId);
+            JobId[] jobIds = { jobId, null };
+            hcc.cancelJob(jobIds);
         } catch (Exception e) {
             throw HyracksDataException.create(e);
         }

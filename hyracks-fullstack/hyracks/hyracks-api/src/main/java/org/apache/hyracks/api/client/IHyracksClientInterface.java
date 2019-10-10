@@ -38,11 +38,14 @@ public interface IHyracksClientInterface {
 
     public JobStatus getJobStatus(JobId jobId) throws Exception;
 
-    public JobId[] startJob(byte[] acggfBytes, EnumSet<JobFlag> jobFlags) throws Exception;
+    public JobId[] startJob(byte[] acggfBytes, byte[] acggfBytes2, EnumSet<JobFlag> jobFlags) throws Exception;
+    //public JobId[] startJob(byte[] acggfBytes, EnumSet<JobFlag> jobFlags) throws Exception;
 
     public JobId[] startJob(DeployedJobSpecId deployedJobSpecId, Map<byte[], byte[]> jobParameters) throws Exception;
 
-    public void cancelJob(JobId jobId) throws Exception;
+    //public void cancelJob(JobId jobId) throws Exception;
+
+    public void cancelJob(JobId[] jobIds) throws Exception;
 
     public DeployedJobSpecId deployJobSpec(byte[] acggfBytes) throws Exception;
 
@@ -52,7 +55,8 @@ public interface IHyracksClientInterface {
 
     public NetworkAddress getResultDirectoryAddress() throws Exception;
 
-    public void waitForCompletion(JobId jobId) throws Exception;
+    //    public void waitForCompletion(JobId jobId) throws Exception;
+    public void waitForCompletion(JobId[] jobIds) throws Exception;
 
     public Map<String, NodeControllerInfo> getNodeControllersInfo() throws Exception;
 
@@ -73,4 +77,7 @@ public interface IHyracksClientInterface {
     public String getThreadDump(String node) throws Exception;
 
     public boolean isConnected();
+
+    void cancelJob(JobId jobId) throws Exception;
+
 }

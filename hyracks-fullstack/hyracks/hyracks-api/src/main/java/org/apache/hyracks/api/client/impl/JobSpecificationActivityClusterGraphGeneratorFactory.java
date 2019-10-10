@@ -73,7 +73,9 @@ public class JobSpecificationActivityClusterGraphGeneratorFactory implements IAc
             PlanUtils.visit(spec, new IConnectorDescriptorVisitor() {
                 @Override
                 public void visit(IConnectorDescriptor conn) throws HyracksException {
-                    builder.addConnector(conn);
+                    if (spec.getConnectorMap().containsKey(conn.getConnectorId())) {
+                        builder.addConnector(conn);
+                    }
                 }
             });
             PlanUtils.visit(spec, new IOperatorDescriptorVisitor() {

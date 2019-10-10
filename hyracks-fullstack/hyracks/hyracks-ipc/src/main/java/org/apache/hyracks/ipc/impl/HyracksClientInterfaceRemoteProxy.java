@@ -65,11 +65,33 @@ public class HyracksClientInterfaceRemoteProxy implements IHyracksClientInterfac
         return (JobStatus) rpci.call(ipcHandle, gjsf);
     }
 
+    //    @Override
+    //    public JobId[] startJob(byte[] acggfBytes, EnumSet<JobFlag> jobFlags) throws Exception {
+    //        HyracksClientInterfaceFunctions.StartJobFunction sjf =
+    //                new HyracksClientInterfaceFunctions.StartJobFunction(acggfBytes, jobFlags);
+    //        return (JobId[]) rpci.call(ipcHandle, sjf);
+    //    }
+
+    //    @Override
+    //    public JobId startJob(byte[] acggfBytes, EnumSet<JobFlag> jobFlags) throws Exception {
+    //        HyracksClientInterfaceFunctions.StartJobFunction sjf =
+    //                new HyracksClientInterfaceFunctions.StartJobFunction(acggfBytes, jobFlags);
+    //        JobId ids[] = (JobId[]) rpci.call(ipcHandle, sjf);
+    //        //        return (JobId) rpci.call(ipcHandle, sjf);
+    //        return ids[0];
+    //    }
+
     @Override
-    public JobId[] startJob(byte[] acggfBytes, EnumSet<JobFlag> jobFlags) throws Exception {
+    public JobId[] startJob(byte[] acggfBytes, byte[] acggfBytes2, EnumSet<JobFlag> jobFlags) throws Exception {
         HyracksClientInterfaceFunctions.StartJobFunction sjf =
                 new HyracksClientInterfaceFunctions.StartJobFunction(acggfBytes, jobFlags);
-        return (JobId[]) rpci.call(ipcHandle, sjf);
+        HyracksClientInterfaceFunctions.StartJobFunction sjf2 =
+                new HyracksClientInterfaceFunctions.StartJobFunction(acggfBytes2, jobFlags);
+        HyracksClientInterfaceFunctions.StartJobFunction[] sjfs = { sjf, sjf2 };
+        JobId ids[] = (JobId[]) rpci.call(ipcHandle, sjfs);
+        //JobId ids[] = (JobId[]) rpci.call(ipcHandle, sjf, sjf2);
+        //return (JobId[]) rpci.call(ipcHandle, sjf);
+        return ids;
     }
 
     @Override
@@ -77,6 +99,18 @@ public class HyracksClientInterfaceRemoteProxy implements IHyracksClientInterfac
         HyracksClientInterfaceFunctions.CancelJobFunction cjf =
                 new HyracksClientInterfaceFunctions.CancelJobFunction(jobId);
         rpci.call(ipcHandle, cjf);
+    }
+
+    @Override
+    public void cancelJob(JobId[] jobIds) throws Exception {
+        HyracksClientInterfaceFunctions.CancelJobFunction cjf =
+                new HyracksClientInterfaceFunctions.CancelJobFunction(jobIds[0]);
+        HyracksClientInterfaceFunctions.CancelJobFunction cjf2 = null;
+        if (jobIds[1] != null) {
+            cjf2 = new HyracksClientInterfaceFunctions.CancelJobFunction(jobIds[1]);
+        }
+        HyracksClientInterfaceFunctions.CancelJobFunction[] cjfs = { cjf, cjf2 };
+        rpci.call(ipcHandle, cjfs);
     }
 
     @Override
@@ -121,11 +155,22 @@ public class HyracksClientInterfaceRemoteProxy implements IHyracksClientInterfac
         return (NetworkAddress) rpci.call(ipcHandle, gddsf);
     }
 
+    //    @Override
+    //    public void waitForCompletion(JobId jobId) throws Exception {
+    //        HyracksClientInterfaceFunctions.WaitForCompletionFunction wfcf =
+    //                new HyracksClientInterfaceFunctions.WaitForCompletionFunction(jobId);
+    //        rpci.call(ipcHandle, wfcf);
+    //    }
     @Override
-    public void waitForCompletion(JobId jobId) throws Exception {
+    public void waitForCompletion(JobId[] jobIds) throws Exception {
         HyracksClientInterfaceFunctions.WaitForCompletionFunction wfcf =
-                new HyracksClientInterfaceFunctions.WaitForCompletionFunction(jobId);
-        rpci.call(ipcHandle, wfcf);
+                new HyracksClientInterfaceFunctions.WaitForCompletionFunction(jobIds[0]);
+        HyracksClientInterfaceFunctions.WaitForCompletionFunction wfcf2 = null;
+        if (jobIds[1] != null) {
+            wfcf2 = new HyracksClientInterfaceFunctions.WaitForCompletionFunction(jobIds[1]);
+        }
+        HyracksClientInterfaceFunctions.WaitForCompletionFunction[] wfcfs = { wfcf, wfcf2 };
+        rpci.call(ipcHandle, wfcfs);
     }
 
     @Override

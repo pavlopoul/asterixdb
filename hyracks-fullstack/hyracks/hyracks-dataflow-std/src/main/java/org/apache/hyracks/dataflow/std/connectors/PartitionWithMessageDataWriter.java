@@ -31,7 +31,7 @@ public class PartitionWithMessageDataWriter extends PartitionDataWriter {
     public PartitionWithMessageDataWriter(IHyracksTaskContext ctx, int consumerPartitionCount,
             IPartitionWriterFactory pwFactory, RecordDescriptor recordDescriptor, ITuplePartitionComputer tpc)
             throws HyracksDataException {
-        super(ctx, consumerPartitionCount, pwFactory, recordDescriptor, tpc);
+        super(ctx, consumerPartitionCount, 0, pwFactory, recordDescriptor, tpc);
         // since the message partition writer sends broadcast messages, we allocate frames when we create the writer
         for (int i = 0; i < consumerPartitionCount; ++i) {
             allocateFrames(i);

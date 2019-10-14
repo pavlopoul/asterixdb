@@ -86,4 +86,10 @@ public class StatisticsBulkLoader implements IChainedComponentBulkLoader {
         // TODO Auto-generated method stub
         return null;
     }
+
+    @Override
+    public void force() throws HyracksDataException {
+        // TODO Auto-generated method stub
+
+    }
 }

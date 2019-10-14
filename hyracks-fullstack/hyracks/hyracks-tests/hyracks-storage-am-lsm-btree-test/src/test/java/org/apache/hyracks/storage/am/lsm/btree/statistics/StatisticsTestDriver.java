@@ -109,7 +109,7 @@ public abstract class StatisticsTestDriver extends OrderedIndexTestDriver {
                 harness.getFileReference(), harness.getDiskBufferCache(), fieldSerdes, numKeys,
                 harness.getBoomFilterFalsePositiveRate(), harness.getMergePolicy(), harness.getOperationTracker(),
                 harness.getIOScheduler(), harness.getIOOperationCallbackFactory(),
-                harness.getMetadataPageManagerFactory(), false, false, false,
+                harness.getPageWriteCallbackFactory(), harness.getMetadataPageManagerFactory(), false, false, false,
                 new TestNoAntimatterStatisticsFactory(fieldValueExtractors), harness.getStatisticsManager());
     }
 

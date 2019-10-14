@@ -27,8 +27,6 @@ import java.nio.ByteBuffer;
 import java.util.Random;
 
 import org.apache.hyracks.api.exceptions.HyracksDataException;
-import org.apache.hyracks.storage.am.statistics.sketch.groupcount.GroupCountSketch;
-import org.apache.hyracks.storage.am.statistics.sketch.groupcount.HashGenerator;
 import org.junit.Before;
 import org.junit.Test;
 import org.mockito.invocation.InvocationOnMock;

@@ -24,11 +24,8 @@ import org.apache.hyracks.storage.am.bloomfilter.impls.BloomFilter;
 import org.apache.hyracks.storage.am.btree.impls.BTree;
 import org.apache.hyracks.storage.am.lsm.common.api.AbstractLSMWithBloomFilterDiskComponent;
 import org.apache.hyracks.storage.am.lsm.common.api.ILSMComponentFilter;
-<<<<<<< HEAD
-=======
 import org.apache.hyracks.storage.am.lsm.common.api.IStatisticsFactory;
 import org.apache.hyracks.storage.am.lsm.common.api.IStatisticsManager;
->>>>>>> christina/merged_stats
 import org.apache.hyracks.storage.am.lsm.common.impls.AbstractLSMIndex;
 import org.apache.hyracks.storage.common.buffercache.IBufferCache;
 

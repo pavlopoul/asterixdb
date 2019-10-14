@@ -178,7 +178,7 @@ public class DataflowTest extends TestCase {
 
         IHyracksClientConnection client =
                 new HyracksConnection(HyracksUtils.CC_HOST, HyracksUtils.TEST_HYRACKS_CC_CLIENT_PORT);
-        JobId jobId = client.startJob(jobSpec);
+        JobId[] jobId = client.startJob(jobSpec);
         client.waitForCompletion(jobId);
 
         Assert.assertEquals(true, checkResults());

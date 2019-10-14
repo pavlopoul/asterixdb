@@ -138,7 +138,7 @@ public class Join {
         }
 
         long start = System.currentTimeMillis();
-        JobId jobId = hcc.startJob(job,
+        JobId[] jobId = hcc.startJob(job,
                 options.profile ? EnumSet.of(JobFlag.PROFILE_RUNTIME) : EnumSet.noneOf(JobFlag.class));
         hcc.waitForCompletion(jobId);
         long end = System.currentTimeMillis();

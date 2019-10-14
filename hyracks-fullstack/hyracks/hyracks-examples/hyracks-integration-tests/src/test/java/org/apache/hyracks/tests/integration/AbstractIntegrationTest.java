@@ -138,16 +138,17 @@ public abstract class AbstractIntegrationTest {
         if (LOGGER.isInfoEnabled()) {
             LOGGER.info(spec.toJSON().asText());
         }
-        JobId jobId = hcc.startJob(spec, EnumSet.of(JobFlag.PROFILE_RUNTIME));
+        JobId[] jobId = hcc.startJob(spec, EnumSet.of(JobFlag.PROFILE_RUNTIME));
         if (LOGGER.isInfoEnabled()) {
             LOGGER.info(jobId.toString());
         }
-        return jobId;
+        return jobId[0];
     }
 
     protected void runTest(JobSpecification spec) throws Exception {
         JobId jobId = executeTest(spec);
-        hcc.waitForCompletion(jobId);
+        JobId[] ids = { jobId, null };
+        hcc.waitForCompletion(ids);
     }
 
     protected List<String> readResults(JobSpecification spec, JobId jobId, ResultSetId resultSetId) throws Exception {
@@ -209,8 +210,8 @@ public abstract class AbstractIntegrationTest {
             Assert.assertEquals(j, results.size());
             expectedFile.close();
         }
-
-        hcc.waitForCompletion(jobId);
+        JobId[] jobIds = { jobId, null };
+        hcc.waitForCompletion(jobIds);
         return true;
     }
 
@@ -226,8 +227,8 @@ public abstract class AbstractIntegrationTest {
             }
         }
         output.close();
-
-        hcc.waitForCompletion(jobId);
+        JobId[] ids = { jobId, null };
+        hcc.waitForCompletion(ids);
     }
 
     protected FileSplit createFile(NodeControllerService ncs) throws IOException {

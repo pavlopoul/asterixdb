@@ -34,10 +34,10 @@ public class JobFailureTest extends AbstractMultiNCIntegrationTest {
 
     @Test
     public void failureOnCreatePushRuntime() throws Exception {
-        JobId jobId = null;
+        JobId[] jobId = null;
         for (int i = 0; i < 20; i++) {
             JobSpecification spec = new JobSpecification();
-            JobId runJobId = runTest(spec,
+            JobId[] runJobId = runTest(spec,
                     new ExceptionOnCreatePushRuntimeOperatorDescriptor(spec, 0, 1, new int[] { 4 }, true));
             if (i == 0) {
                 jobId = runJobId;
@@ -85,11 +85,13 @@ public class JobFailureTest extends AbstractMultiNCIntegrationTest {
         connectToSinkAndRun(spec, new FailOnInitializeDeInitializeOperatorDescriptor(spec, false, false), null);
     }
 
-    private JobId runTest(JobSpecification spec, AbstractSingleActivityOperatorDescriptor sourceOpDesc)
+    private JobId[] runTest(JobSpecification spec, AbstractSingleActivityOperatorDescriptor sourceOpDesc)
             throws Exception {
         try {
-            return connectToSinkAndRun(spec, sourceOpDesc,
+            JobId id = connectToSinkAndRun(spec, sourceOpDesc,
                     ExceptionOnCreatePushRuntimeOperatorDescriptor.ERROR_MESSAGE);
+            JobId[] ids = { id, null };
+            return ids;
         } finally {
             Assert.assertTrue(
                     ExceptionOnCreatePushRuntimeOperatorDescriptor.stats()

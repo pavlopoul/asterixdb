@@ -142,7 +142,7 @@ public class DeployedJobSpecsTest {
         Assert.assertTrue(cc.getDeployedJobSpecStore().getDeployedJobSpecDescriptor(distributedId2) != null);
 
         //run the first job
-        JobId jobRunId1 = hcc.startJob(distributedId1, new HashMap<>());
+        JobId[] jobRunId1 = hcc.startJob(distributedId1, new HashMap<>());
         hcc.waitForCompletion(jobRunId1);
 
         //Make sure the job parameter map was removed
@@ -164,7 +164,7 @@ public class DeployedJobSpecsTest {
         cc.getDeployedJobSpecStore().checkForExistingDeployedJobSpecDescriptor(distributedId1);
 
         //run the second job
-        JobId jobRunId2 = hcc.startJob(distributedId2, new HashMap<>());
+        JobId[] jobRunId2 = hcc.startJob(distributedId2, new HashMap<>());
         hcc.waitForCompletion(jobRunId2);
 
         //Make sure the job parameter map was removed
@@ -173,7 +173,7 @@ public class DeployedJobSpecsTest {
         verify(nc2, Mockito.timeout(TIME_THRESHOLD).times(2)).removeJobParameterByteStore(any());
 
         //run the second job again
-        JobId jobRunId3 = hcc.startJob(distributedId2, new HashMap<>());
+        JobId[] jobRunId3 = hcc.startJob(distributedId2, new HashMap<>());
         hcc.waitForCompletion(jobRunId3);
 
         //Make sure the job parameter map was removed
@@ -202,11 +202,11 @@ public class DeployedJobSpecsTest {
 
         //Change the second job into the first job and see whether it runs
         hcc.redeployJobSpec(distributedId2, spec1);
-        JobId jobRunId4 = hcc.startJob(distributedId2, new HashMap<>());
+        JobId[] jobRunId4 = hcc.startJob(distributedId2, new HashMap<>());
         hcc.waitForCompletion(jobRunId4);
 
         //Run it one more time
-        JobId jobRunId5 = hcc.startJob(distributedId2, new HashMap<>());
+        JobId[] jobRunId5 = hcc.startJob(distributedId2, new HashMap<>());
         hcc.waitForCompletion(jobRunId5);
 
     }

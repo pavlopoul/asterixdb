@@ -95,7 +95,7 @@ public class AlgebricksHyracksIntegrationUtil {
         if (loggerInfoEnabled) {
             AlgebricksConfig.ALGEBRICKS_LOGGER.info(spec.toJSON().toString());
         }
-        JobId jobId = hcc.startJob(spec, EnumSet.of(JobFlag.PROFILE_RUNTIME));
+        JobId[] jobId = hcc.startJob(spec, EnumSet.of(JobFlag.PROFILE_RUNTIME));
         if (loggerInfoEnabled) {
             AlgebricksConfig.ALGEBRICKS_LOGGER.info(jobId.toString());
         }

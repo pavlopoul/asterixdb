@@ -66,6 +66,7 @@ import org.apache.hyracks.control.common.job.PartitionState;
 import org.apache.hyracks.control.common.job.TaskAttemptDescriptor;
 import org.apache.hyracks.control.common.work.IResultCallback;
 import org.apache.hyracks.control.common.work.NoOpCallback;
+import org.apache.hyracks.dataflow.std.join.OptimizedHybridHashJoinOperatorDescriptor;
 import org.apache.logging.log4j.Level;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -673,7 +674,8 @@ public class JobExecutor {
             ta.setEndTime(System.currentTimeMillis());
             System.out.println("Task finished for: " + jobRun.getJobId());
             Collection<JobRun> jobs = ccs.getJobManager().getRunningJobs();
-            if (ccs.getJobManager().getRunningJobs().size() > 1) {
+            if (jobRun.getJobSpecification().getOperatorMap().get(ta.getTask().getTaskId().getActivityId()
+                    .getOperatorDescriptorId()) instanceof OptimizedHybridHashJoinOperatorDescriptor) {
                 JobId id = null;
                 for (JobRun job : jobs) {
                     if (job.getJobId() != jobRun.getJobId()) {

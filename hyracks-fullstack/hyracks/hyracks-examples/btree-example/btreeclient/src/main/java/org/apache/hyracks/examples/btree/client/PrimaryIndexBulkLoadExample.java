@@ -83,7 +83,7 @@ public class PrimaryIndexBulkLoadExample {
         IHyracksClientConnection hcc = new HyracksConnection(options.host, options.port);
         JobSpecification job = createJob(options);
         long start = System.currentTimeMillis();
-        JobId jobId = hcc.startJob(job);
+        JobId[] jobId = hcc.startJob(job);
         hcc.waitForCompletion(jobId);
         long end = System.currentTimeMillis();
         System.err.println(start + " " + end + " " + (end - start));

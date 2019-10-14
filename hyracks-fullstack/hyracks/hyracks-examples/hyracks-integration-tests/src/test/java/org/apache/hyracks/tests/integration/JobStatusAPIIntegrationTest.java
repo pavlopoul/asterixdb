@@ -104,7 +104,8 @@ public class JobStatusAPIIntegrationTest extends AbstractIntegrationTest {
             WaitingOperatorDescriptor.CONTINUE_RUNNING.setTrue();
             WaitingOperatorDescriptor.CONTINUE_RUNNING.notify();
         }
-        hcc.waitForCompletion(jId);
+        JobId[] ids = { jId, null };
+        hcc.waitForCompletion(ids);
     }
 
     private int countJobs(String status) throws IOException, URISyntaxException {

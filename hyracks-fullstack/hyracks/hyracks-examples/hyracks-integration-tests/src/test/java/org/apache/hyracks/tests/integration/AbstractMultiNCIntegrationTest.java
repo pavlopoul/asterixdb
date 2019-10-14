@@ -129,11 +129,12 @@ public abstract class AbstractMultiNCIntegrationTest {
     }
 
     protected JobId startJob(JobSpecification spec) throws Exception {
-        return hcc.startJob(spec);
+        return hcc.startJob(spec)[0];
     }
 
     protected void waitForCompletion(JobId jobId) throws Exception {
-        hcc.waitForCompletion(jobId);
+        JobId[] ids = { jobId, null };
+        hcc.waitForCompletion(ids);
     }
 
     protected JobStatus getJobStatus(JobId jobId) throws Exception {
@@ -141,14 +142,15 @@ public abstract class AbstractMultiNCIntegrationTest {
     }
 
     protected void cancelJob(JobId jobId) throws Exception {
-        hcc.cancelJob(jobId);
+        JobId[] ids = { jobId, null };
+        hcc.cancelJob(ids);
     }
 
     protected JobId runTest(JobSpecification spec, String expectedErrorMessage) throws Exception {
         if (LOGGER.isInfoEnabled()) {
             LOGGER.info(spec.toJSON().asText());
         }
-        JobId jobId = hcc.startJob(spec, EnumSet.of(JobFlag.PROFILE_RUNTIME));
+        JobId[] jobId = hcc.startJob(spec, EnumSet.of(JobFlag.PROFILE_RUNTIME));
         if (LOGGER.isInfoEnabled()) {
             LOGGER.info(jobId.toString());
         }
@@ -163,7 +165,7 @@ public abstract class AbstractMultiNCIntegrationTest {
         if (!spec.getResultSetIds().isEmpty()) {
             IResultSet resultSet =
                     new ResultSet(hcc, PlainSocketChannelFactory.INSTANCE, spec.getFrameSize(), nReaders);
-            IResultSetReader reader = resultSet.createReader(jobId, spec.getResultSetIds().get(0));
+            IResultSetReader reader = resultSet.createReader(jobId[0], spec.getResultSetIds().get(0));
 
             ObjectMapper om = new ObjectMapper();
             ArrayNode resultRecords = om.createArrayNode();
@@ -197,10 +199,10 @@ public abstract class AbstractMultiNCIntegrationTest {
         // Waiting a second time should lead to the same behavior
         waitForCompletion(jobId, expectedErrorMessage);
         dumpOutputFiles();
-        return jobId;
+        return jobId[0];
     }
 
-    protected void waitForCompletion(JobId jobId, String expectedErrorMessage) throws Exception {
+    protected void waitForCompletion(JobId[] jobId, String expectedErrorMessage) throws Exception {
         boolean expectedExceptionThrown = false;
         try {
             hcc.waitForCompletion(jobId);

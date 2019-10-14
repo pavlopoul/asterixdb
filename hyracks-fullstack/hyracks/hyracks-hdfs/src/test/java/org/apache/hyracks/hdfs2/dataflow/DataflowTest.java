@@ -126,7 +126,7 @@ public class DataflowTest extends org.apache.hyracks.hdfs.dataflow.DataflowTest 
 
         IHyracksClientConnection client =
                 new HyracksConnection(HyracksUtils.CC_HOST, HyracksUtils.TEST_HYRACKS_CC_CLIENT_PORT);
-        JobId jobId = client.startJob(jobSpec);
+        JobId[] jobId = client.startJob(jobSpec);
         client.waitForCompletion(jobId);
 
         Assert.assertEquals(true, checkResults());

@@ -117,7 +117,7 @@ public class Groupby {
         if (job != null) {
             System.out.print("CreateJobTime:" + (System.currentTimeMillis() - start));
             start = System.currentTimeMillis();
-            JobId jobId = hcc.startJob(job);
+            JobId[] jobId = hcc.startJob(job);
             hcc.waitForCompletion(jobId);
             System.out.println("JobExecuteTime:" + (System.currentTimeMillis() - start));
         }

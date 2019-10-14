@@ -95,7 +95,7 @@ public class LSMBTreePageWriteCallbackTest extends OrderedIndexTestDriver {
                 harness.getFileReference(), harness.getDiskBufferCache(), fieldSerdes, numKeys,
                 harness.getBoomFilterFalsePositiveRate(), harness.getMergePolicy(), harness.getOperationTracker(),
                 harness.getIOScheduler(), harness.getIOOperationCallbackFactory(), pageWriteCallbackFactory,
-                harness.getMetadataPageManagerFactory(), false, true, false);
+                harness.getMetadataPageManagerFactory(), false, true, false, null, null);
     }
 
     @Override

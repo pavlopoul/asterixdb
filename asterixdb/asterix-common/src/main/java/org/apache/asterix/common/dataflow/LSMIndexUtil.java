@@ -25,6 +25,7 @@ import org.apache.asterix.common.transactions.ILogManager;
 import org.apache.hyracks.api.exceptions.HyracksDataException;
 import org.apache.hyracks.storage.am.lsm.common.api.ILSMIOOperation;
 import org.apache.hyracks.storage.am.lsm.common.impls.AbstractLSMIndex;
+import org.apache.hyracks.storage.am.lsm.common.impls.StatisticsMessageIOOperationCallbackWrapper;
 
 public class LSMIndexUtil {
 
@@ -38,8 +39,15 @@ public class LSMIndexUtil {
             //prevent transactions from incorrectly setting the first LSN on a modified component by checking the index is still empty
             synchronized (lsmIndex.getOperationTracker()) {
                 if (lsmIndex.isCurrentMutableComponentEmpty()) {
-                    LSMIOOperationCallback ioOpCallback = (LSMIOOperationCallback) lsmIndex.getIOOperationCallback();
-                    ioOpCallback.setFirstLsnForCurrentMemoryComponent(logManager.getAppendLSN());
+                    LSMIOOperationCallback ioCallback = null;
+                    if (lsmIndex.getIOOperationCallback() instanceof StatisticsMessageIOOperationCallbackWrapper) {
+                        ioCallback = (LSMIOOperationCallback) ((StatisticsMessageIOOperationCallbackWrapper) lsmIndex
+                                .getIOOperationCallback()).getWrapper();
+                    } else {
+                        ioCallback = (LSMIOOperationCallback) lsmIndex.getIOOperationCallback();
+                    }
+                    //LSMIOOperationCallback ioOpCallback = (LSMIOOperationCallback) lsmIndex.getIOOperationCallback();
+                    ioCallback.setFirstLsnForCurrentMemoryComponent(logManager.getAppendLSN());
                 }
             }
         }

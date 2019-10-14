@@ -832,15 +832,11 @@ public class BTreeAccessMethod implements IAccessMethod {
         return -1;
     }
 
-<<<<<<< HEAD
     private static boolean keyMatches(List<Integer> keySources, int keyIndex, int fieldSource) {
         return keySources == null ? fieldSource == 0 : keySources.get(keyIndex) == fieldSource;
     }
 
-    private LimitType getLimitType(IOptimizableFuncExpr optFuncExpr, OptimizableOperatorSubTree probeSubTree) {
-=======
     public static LimitType getLimitType(IOptimizableFuncExpr optFuncExpr, OptimizableOperatorSubTree probeSubTree) {
->>>>>>> christina/merged_stats
         ComparisonKind ck =
                 AlgebricksBuiltinFunctions.getComparisonType(optFuncExpr.getFuncExpr().getFunctionIdentifier());
         LimitType limit = null;

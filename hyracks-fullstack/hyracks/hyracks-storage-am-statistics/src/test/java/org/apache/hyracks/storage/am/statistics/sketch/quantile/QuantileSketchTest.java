@@ -93,16 +93,21 @@ public class QuantileSketchTest<T extends Comparable<T>> {
     public void testQuantileCorrectness() {
         List<T> inputData = generateRandomData(NUM_RECORDS);
         init(inputData);
-        List<T> approximateRanks = sketch.finish();
         Collections.sort(inputData);
+        List<T> approximateRanks = sketch.finish();
+        //        Collections.sort(inputData);
         assertEquals(QUANTILE_NUM, approximateRanks.size());
         for (int i = 1; i <= QUANTILE_NUM; i++) {
             // inner loop for all ε-accurate values of the rank
             Set<T> rankValues = new HashSet<>();
             //rankValues.add(domainMax);
             double rank = ((double) i) / QUANTILE_NUM;
-            for (int j = Math.max(0, (int) Math.floor((rank - ACCURACY) * NUM_RECORDS)); j < Math.min(NUM_RECORDS,
-                    (int) Math.floor((rank + ACCURACY) * NUM_RECORDS)); j++) {
+            int remainder = 0;
+            if (rank == 1) {
+                remainder = 5;
+            }
+            for (int j = Math.max(0, (int) Math.floor((rank - ACCURACY) * NUM_RECORDS) - remainder); j < Math
+                    .min(NUM_RECORDS, (int) Math.floor((rank + ACCURACY) * NUM_RECORDS)); j++) {
                 rankValues.add(inputData.get(j));
             }
             assertThat(approximateRanks.get(i - 1), isIn(rankValues));

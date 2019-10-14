@@ -786,15 +786,9 @@ public abstract class AbstractIntroduceAccessMethodRule implements IAlgebraicRew
      *
      * @throws AlgebricksException
      */
-<<<<<<< HEAD
     protected List<String> getFieldNameFromSubTree(IOptimizableFuncExpr optFuncExpr, OptimizableOperatorSubTree subTree,
             int opIndex, int assignVarIndex, ARecordType recordType, int funcVarIndex,
             ILogicalExpression parentFuncExpr, ARecordType metaType, LogicalVariable metaVar, MutableInt fieldSource)
-=======
-    public static List<String> getFieldNameFromSubTree(IOptimizableFuncExpr optFuncExpr,
-            OptimizableOperatorSubTree subTree, int opIndex, int assignVarIndex, ARecordType recordType,
-            int funcVarIndex, ILogicalExpression parentFuncExpr, ARecordType metaType, LogicalVariable metaVar)
->>>>>>> christina/merged_stats
             throws AlgebricksException {
         // Get expression corresponding to opVar at varIndex.
         AbstractLogicalExpression expr = null;

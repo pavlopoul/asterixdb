@@ -77,6 +77,12 @@ public class BTreeUtils {
     // Creates a new MultiComparator by constructing new IBinaryComparators.
     public static MultiComparator getSearchMultiComparator(IBinaryComparatorFactory[] cmpFactories,
             ITupleReference searchKey) {
+        //        if (searchKey instanceof FrameTupleReference) {
+        //            IFrameTupleAccessor accessor = ((FrameTupleReference) searchKey).getFrameTupleAccessor();
+        //            if (((FrameTupleReference) searchKey).isFrame() && accessor == null) {
+        //                return MultiComparator.create(cmpFactories);
+        //            }
+        //        }
         if (searchKey == null || cmpFactories.length == searchKey.getFieldCount()) {
             return MultiComparator.create(cmpFactories);
         }

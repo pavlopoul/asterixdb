@@ -182,6 +182,10 @@ public class QuantileSketch<T extends Comparable<T>> implements ISketch<T, T> {
         return elements.size();
     }
 
+    public int length() {
+        return size;
+    }
+
     @Override
     public void insert(T v) {
         QuantileSketchElement newElement;
@@ -277,6 +281,9 @@ public class QuantileSketch<T extends Comparable<T>> implements ISketch<T, T> {
             prev = e;
             e = it.next();
             rMin += e.g;
+        }
+        if (quantile == 1) {
+            ranks.add(prev.value);
         }
         // edge case for last quantile
         if (quantile == quantileNum) {

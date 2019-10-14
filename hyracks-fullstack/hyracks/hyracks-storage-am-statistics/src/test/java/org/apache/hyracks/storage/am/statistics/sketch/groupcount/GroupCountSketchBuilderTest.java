@@ -22,7 +22,6 @@ import java.util.PriorityQueue;
 
 import org.apache.hyracks.api.exceptions.HyracksDataException;
 import org.apache.hyracks.storage.am.lsm.common.impls.ComponentStatistics;
-import org.apache.hyracks.storage.am.statistics.sketch.groupcount.GroupCountSketchBuilder;
 import org.apache.hyracks.storage.am.statistics.wavelet.WaveletCoefficient;
 import org.apache.hyracks.storage.am.statistics.wavelet.WaveletSynopsis;
 import org.junit.Before;

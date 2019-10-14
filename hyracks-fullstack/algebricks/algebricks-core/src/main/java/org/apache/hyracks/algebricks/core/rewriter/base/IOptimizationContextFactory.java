@@ -32,11 +32,7 @@ public interface IOptimizationContextFactory {
             IExpressionEvalSizeComputer expressionEvalSizeComputer,
             IMergeAggregationExpressionFactory mergeAggregationExpressionFactory,
             IExpressionTypeComputer expressionTypeComputer, IMissableTypeComputer missableTypeComputer,
-<<<<<<< HEAD
-            IConflictingTypeResolver conflictintTypeResolver, PhysicalOptimizationConfig physicalOptimizationConfig,
-            AlgebricksPartitionConstraint clusterLocations, IWarningCollector warningCollector);
-=======
             IConflictingTypeResolver conflictintTypeResolver, ICardinalityEstimator cardinalityEstimator,
-            PhysicalOptimizationConfig physicalOptimizationConfig, AlgebricksPartitionConstraint clusterLocations);
->>>>>>> christina/merged_stats
+            PhysicalOptimizationConfig physicalOptimizationConfig, AlgebricksPartitionConstraint clusterLocations,
+            IWarningCollector warningCollector);
 }

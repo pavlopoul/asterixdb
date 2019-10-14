@@ -90,6 +90,8 @@ import org.apache.asterix.metadata.valueextractors.MetadataEntityValueExtractor;
 import org.apache.asterix.metadata.valueextractors.TupleCopyValueExtractor;
 import org.apache.asterix.om.base.ABoolean;
 import org.apache.asterix.om.base.AInt32;
+import org.apache.asterix.om.base.AInt64;
+import org.apache.asterix.om.base.AMutableInt64;
 import org.apache.asterix.om.base.AMutableString;
 import org.apache.asterix.om.base.AString;
 import org.apache.asterix.om.types.ARecordType;
@@ -2103,8 +2105,11 @@ public class MetadataNode implements IMetadataNode {
                 SerializerDeserializerProvider.INSTANCE.getSerializerDeserializer(BuiltinType.ASTRING);
         ISerializerDeserializer<ABoolean> boolSerde =
                 SerializerDeserializerProvider.INSTANCE.getSerializerDeserializer(BuiltinType.ABOOLEAN);
+        ISerializerDeserializer<AInt64> int64Serde =
+                SerializerDeserializerProvider.INSTANCE.getSerializerDeserializer(BuiltinType.AINT64);
 
         AMutableString aString = new AMutableString("");
+        AMutableInt64 aInt64 = new AMutableInt64(0);
         ArrayTupleBuilder tupleBuilder = new ArrayTupleBuilder(8);
 
         //dataverse field
@@ -2142,9 +2147,9 @@ public class MetadataNode implements IMetadataNode {
         tupleBuilder.addFieldEndOffset();
 
         //minComponentId field
-        //        aString.setValue(AbstractLSMIndexFileManager.FORMATTER.format(componentId.getMinTimestamp()));
-        //        stringSerde.serialize(aString, tupleBuilder.getDataOutput());
-        //        tupleBuilder.addFieldEndOffset();
+        aInt64.setValue(componentId.getMinTimestamp());
+        int64Serde.serialize(aInt64, tupleBuilder.getDataOutput());
+        tupleBuilder.addFieldEndOffset();
 
         ArrayTupleReference tuple = new ArrayTupleReference();
         tuple.reset(tupleBuilder.getFieldEndOffsets(), tupleBuilder.getByteArray());

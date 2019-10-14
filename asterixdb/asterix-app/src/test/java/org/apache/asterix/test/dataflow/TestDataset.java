@@ -45,14 +45,16 @@ public class TestDataset extends Dataset {
 
     private static final long serialVersionUID = 1L;
     private final boolean hasStatistics;
+    private final boolean updateAware;
 
     public TestDataset(String dataverseName, String datasetName, String recordTypeDataverseName, String recordTypeName,
             String nodeGroupName, String compactionPolicy, Map<String, String> compactionPolicyProperties,
             IDatasetDetails datasetDetails, Map<String, String> hints, DatasetType datasetType, int datasetId,
-            int pendingOp, boolean hasStatistics) {
+            int pendingOp, boolean hasStatistics, boolean updateAware) {
         super(dataverseName, datasetName, recordTypeDataverseName, recordTypeName, nodeGroupName, compactionPolicy,
                 compactionPolicyProperties, datasetDetails, hints, datasetType, datasetId, pendingOp);
         this.hasStatistics = hasStatistics;
+        this.updateAware = updateAware;
     }
 
     @Override
@@ -75,9 +77,9 @@ public class TestDataset extends Dataset {
         ITypeTraits[] filterTypeTraits = DatasetUtil.computeFilterTypeTraits(this, recordType);
         IBinaryComparatorFactory[] filterCmpFactories = DatasetUtil.computeFilterBinaryComparatorFactories(this,
                 recordType, mdProvider.getStorageComponentProvider().getComparatorFactoryProvider());
-        IResourceFactory resourceFactory = new TestLsmBTreeResourceFactoryProvider(hasStatistics).getResourceFactory(
-                mdProvider, this, index, recordType, metaType, mergePolicyFactory, mergePolicyProperties,
-                filterTypeTraits, filterCmpFactories);
+        IResourceFactory resourceFactory = new TestLsmBTreeResourceFactoryProvider(hasStatistics, updateAware)
+                .getResourceFactory(mdProvider, this, index, recordType, metaType, mergePolicyFactory,
+                        mergePolicyProperties, filterTypeTraits, filterCmpFactories);
         return new DatasetLocalResourceFactory(getDatasetId(), resourceFactory);
     }
 

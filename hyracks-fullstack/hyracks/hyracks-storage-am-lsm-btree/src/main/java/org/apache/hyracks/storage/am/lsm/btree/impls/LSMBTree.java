@@ -423,7 +423,7 @@ public class LSMBTree extends AbstractLSMIndex implements ITreeIndex {
                 getIndexIdentifier());
     }
 
-    private ILSMIOOperationCallback getStatisticsAwareIOOperationCallback(ILSMIOOperationCallback callback) {
+    public ILSMIOOperationCallback getStatisticsAwareIOOperationCallback(ILSMIOOperationCallback callback) {
         if (hasStatistics) {
             return new StatisticsMessageIOOperationCallbackWrapper(callback, statisticsManager);
         } else {
@@ -431,11 +431,17 @@ public class LSMBTree extends AbstractLSMIndex implements ITreeIndex {
         }
     }
 
+    public boolean hasStatistics() {
+        if (!hasStatistics) {
+            return false;
+        }
+        return true;
+    }
+
     @Override
     public LSMBTreeOpContext createOpContext(IIndexAccessParameters iap) {
         int numBloomFilterKeyFields = hasBloomFilter
-                ? ((LSMBTreeWithBloomFilterDiskComponentFactory) componentFactory).getBloomFilterKeyFields().length
-                : 0;
+                ? ((LSMBTreeWithBloomFilterDiskComponentFactory) componentFactory).getBloomFilterKeyFields().length : 0;
         return new LSMBTreeOpContext(this, memoryComponents, insertLeafFrameFactory, deleteLeafFrameFactory,
                 (IExtendedModificationOperationCallback) iap.getModificationCallback(),
                 iap.getSearchOperationCallback(), numBloomFilterKeyFields, getTreeFields(), getFilterFields(),

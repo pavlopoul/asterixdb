@@ -696,8 +696,10 @@ public class Dataset implements IMetadataEntity<Dataset>, IDataset {
         return ((InternalDatasetDetails) getDatasetDetails()).getPartitioningKey();
     }
 
-    public ITypeTraits[] getPrimaryTypeTraits(ITypeTraitProvider ttProvider, ARecordType recordType,
+    public ITypeTraits[] getPrimaryTypeTraits(MetadataProvider metadataProvider, ARecordType recordType,
             ARecordType metaType) throws AlgebricksException {
+        IStorageComponentProvider storageComponentProvider = metadataProvider.getStorageComponentProvider();
+        ITypeTraitProvider ttProvider = storageComponentProvider.getTypeTraitProvider();
         List<List<String>> partitioningKeys = getPrimaryKeys();
         int numPrimaryKeys = partitioningKeys.size();
         ITypeTraits[] typeTraits = new ITypeTraits[numPrimaryKeys + 1 + (hasMetaPart() ? 1 : 0)];

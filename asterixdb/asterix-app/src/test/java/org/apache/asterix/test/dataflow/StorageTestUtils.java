@@ -60,9 +60,11 @@ import org.apache.hyracks.api.job.JobId;
 import org.apache.hyracks.api.test.CountAnswer;
 import org.apache.hyracks.api.test.FrameWriterTestUtils;
 import org.apache.hyracks.api.test.FrameWriterTestUtils.FrameWriterOperation;
+import org.apache.hyracks.storage.am.common.impls.NoOpIndexAccessParameters;
 import org.apache.hyracks.storage.am.lsm.btree.impl.AllowTestOpCallback;
 import org.apache.hyracks.storage.am.lsm.btree.impl.ITestOpCallback;
 import org.apache.hyracks.storage.am.lsm.btree.impl.TestLsmBtree;
+import org.apache.hyracks.storage.am.lsm.common.api.ILSMDiskComponent;
 import org.apache.hyracks.storage.am.lsm.common.api.ILSMIndex;
 import org.apache.hyracks.storage.am.lsm.common.impls.NoMergePolicyFactory;
 import org.junit.Assert;
@@ -92,11 +94,11 @@ public class StorageTestUtils {
     public static final StorageComponentProvider STORAGE_MANAGER = new StorageComponentProvider();
     public static final List<List<String>> PARTITIONING_KEYS =
             new ArrayList<>(Collections.singletonList(Collections.singletonList(RECORD_TYPE.getFieldNames()[0])));
-    public static final TestDataset DATASET =
-            new TestDataset(DATAVERSE_NAME, DATASET_NAME, DATAVERSE_NAME, DATA_TYPE_NAME, NODE_GROUP_NAME,
-                    NoMergePolicyFactory.NAME, null, new InternalDatasetDetails(null, PartitioningStrategy.HASH,
-                            PARTITIONING_KEYS, null, null, null, false, null),
-                    Collections.EMPTY_MAP, DatasetType.INTERNAL, DATASET_ID, 0, false);
+    public static final TestDataset DATASET = new TestDataset(DATAVERSE_NAME, DATASET_NAME, DATAVERSE_NAME,
+            DATA_TYPE_NAME, NODE_GROUP_NAME,
+            NoMergePolicyFactory.NAME, null, new InternalDatasetDetails(null, PartitioningStrategy.HASH,
+                    PARTITIONING_KEYS, null, null, null, false, null),
+            Collections.EMPTY_MAP, DatasetType.INTERNAL, DATASET_ID, 0, false, false);
 
     private StorageTestUtils() {
     }
@@ -259,20 +261,19 @@ public class StorageTestUtils {
         dsLifecycleMgr.flushDataset(dataset.getDatasetId(), async);
     }
 
-    //    public static void fullMerge(IDatasetLifecycleManager dsLifecycleMgr, TestLsmBtree lsmBtree, Dataset dataset)
-    //            throws HyracksDataException {
-    //        DatasetInfo dsInfo = dsLifecycleMgr.getDatasetInfo(dataset.getDatasetId());
-    //        lsmBtree.createAccessor(NoOpIndexAccessParameters.INSTANCE)
-    //                .scheduleFullMerge();
-    //        dsInfo.waitForIO();
-    //    }
-    //
-    //    public static void merge(List<ILSMDiskComponent> components, IDatasetLifecycleManager dsLifecycleMgr,
-    //            TestLsmBtree lsmBtree, Dataset dataset) throws HyracksDataException {
-    //        DatasetInfo dsInfo = dsLifecycleMgr.getDatasetInfo(dataset.getDatasetId());
-    //        lsmBtree.createAccessor(NoOpIndexAccessParameters.INSTANCE).scheduleMerge(components);
-    //        dsInfo.waitForIO();
-    //    }
+    public static void fullMerge(IDatasetLifecycleManager dsLifecycleMgr, TestLsmBtree lsmBtree, Dataset dataset)
+            throws HyracksDataException {
+        DatasetInfo dsInfo = dsLifecycleMgr.getDatasetInfo(dataset.getDatasetId());
+        lsmBtree.createAccessor(NoOpIndexAccessParameters.INSTANCE).scheduleFullMerge();
+        dsInfo.waitForIO();
+    }
+
+    public static void merge(List<ILSMDiskComponent> components, IDatasetLifecycleManager dsLifecycleMgr,
+            TestLsmBtree lsmBtree, Dataset dataset) throws HyracksDataException {
+        DatasetInfo dsInfo = dsLifecycleMgr.getDatasetInfo(dataset.getDatasetId());
+        lsmBtree.createAccessor(NoOpIndexAccessParameters.INSTANCE).scheduleMerge(components);
+        dsInfo.waitForIO();
+    }
 
     public static void waitForOperations(ILSMIndex index) throws InterruptedException {
         // wait until number of activeOperation reaches 0

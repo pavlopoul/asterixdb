@@ -1857,13 +1857,8 @@ public class QueryTranslator extends AbstractLangTranslator implements IStatemen
                     new CompiledLoadFromFileStatement(dataverseName, loadStmt.getDatasetName().getValue(),
                             loadStmt.getAdapter(), loadStmt.getProperties(), loadStmt.dataIsAlreadySorted());
             cls.setSourceLocation(stmt.getSourceLocation());
-<<<<<<< HEAD
             JobSpecification spec = apiFramework.compileQuery(hcc, metadataProvider, null, 0, null, sessionOutput, cls,
-                    null, responsePrinter, warningCollector);
-=======
-            JobSpecification spec =
-                    apiFramework.compileQuery(hcc, metadataProvider, null, 0, null, sessionOutput, cls, null, null);
->>>>>>> christina/merged_stats
+                    null, responsePrinter, warningCollector, null);
             afterCompile();
             MetadataManager.INSTANCE.commitTransaction(mdTxnCtx);
             bActiveTxn = false;
@@ -1995,11 +1990,7 @@ public class QueryTranslator extends AbstractLangTranslator implements IStatemen
         // Query Compilation (happens under the same ongoing metadata transaction)
         return apiFramework.compileQuery(clusterInfoCollector, metadataProvider, (Query) rewrittenResult.first,
                 rewrittenResult.second, stmt == null ? null : stmt.getDatasetName(), sessionOutput, stmt, externalVars,
-<<<<<<< HEAD
-                responsePrinter, warningCollector);
-=======
-                stats);
->>>>>>> christina/merged_stats
+                responsePrinter, warningCollector, stats);
     }
 
     private JobSpecification rewriteCompileInsertUpsert(IClusterInfoCollector clusterInfoCollector,
@@ -2037,12 +2028,8 @@ public class QueryTranslator extends AbstractLangTranslator implements IStatemen
         // Insert/upsert statement compilation (happens under the same ongoing metadata
         // transaction)
         return apiFramework.compileQuery(clusterInfoCollector, metadataProvider, rewrittenInsertUpsert.getQuery(),
-<<<<<<< HEAD
                 rewrittenResult.second, datasetName, sessionOutput, clfrqs, externalVars, responsePrinter,
-                warningCollector);
-=======
-                rewrittenResult.second, datasetName, sessionOutput, clfrqs, externalVars, null);
->>>>>>> christina/merged_stats
+                warningCollector, null);
     }
 
     protected void handleCreateFeedStatement(MetadataProvider metadataProvider, Statement stmt) throws Exception {
@@ -2160,6 +2147,7 @@ public class QueryTranslator extends AbstractLangTranslator implements IStatemen
                     throw new CompilationException(ErrorCode.COMPILATION_ERROR, sourceLoc,
                             "There is no feed with this name " + feedName + ".");
                 }
+                return;
             }
             doDropFeed(hcc, metadataProvider, feed, sourceLoc);
             MetadataManager.INSTANCE.commitTransaction(mdTxnCtx);
@@ -2508,13 +2496,9 @@ public class QueryTranslator extends AbstractLangTranslator implements IStatemen
             metadataProvider.setMetadataTxnContext(mdTxnCtx);
             try {
                 final JobSpecification jobSpec =
-<<<<<<< HEAD
-                        rewriteCompileQuery(hcc, metadataProvider, query, null, stmtParams, stmtRewriter);
+                        rewriteCompileQuery(hcc, metadataProvider, query, null, stmtParams, stmtRewriter, stats);
                 // update stats with count of compile-time warnings. needs to be adapted for multi-statement.
                 stats.updateTotalWarningsCount(warningCollector.getTotalWarningsCount());
-=======
-                        rewriteCompileQuery(hcc, metadataProvider, query, null, stmtParams, stmtRewriter, stats);
->>>>>>> christina/merged_stats
                 afterCompile();
                 MetadataManager.INSTANCE.commitTransaction(mdTxnCtx);
                 bActiveTxn = false;

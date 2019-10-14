@@ -126,7 +126,7 @@ public class SearchCursorComponentSwitchTest {
         dataset = new TestDataset(DATAVERSE_NAME, DATASET_NAME, DATAVERSE_NAME, DATA_TYPE_NAME, NODE_GROUP_NAME,
                 NoMergePolicyFactory.NAME, null, new InternalDatasetDetails(null, PartitioningStrategy.HASH,
                         partitioningKeys, null, null, null, false, null),
-                Collections.EMPTY_MAP, DatasetType.INTERNAL, DATASET_ID, 0, false);
+                Collections.EMPTY_MAP, DatasetType.INTERNAL, DATASET_ID, 0, false, false);
         PrimaryIndexInfo primaryIndexInfo = nc.createPrimaryIndex(dataset, KEY_TYPES, RECORD_TYPE, META_TYPE, null,
                 storageManager, KEY_INDEXES, KEY_INDICATORS_LIST, 0);
         IndexDataflowHelperFactory iHelperFactory =

@@ -71,12 +71,9 @@ public abstract class AbstractCompilerFactoryBuilder {
     protected IMergeAggregationExpressionFactory mergeAggregationExpressionFactory;
     protected PhysicalOptimizationConfig physicalOptimizationConfig = new PhysicalOptimizationConfig();
     protected AlgebricksAbsolutePartitionConstraint clusterLocations;
-<<<<<<< HEAD
     protected IWarningCollector warningCollector;
     protected long maxWarnings;
-=======
     protected ICardinalityEstimator cardinalityEstimator;
->>>>>>> christina/merged_stats
 
     public abstract ICompilerFactory create();
 
@@ -250,7 +247,6 @@ public abstract class AbstractCompilerFactoryBuilder {
         return conflictingTypeResolver;
     }
 
-<<<<<<< HEAD
     public void setWarningCollector(IWarningCollector warningCollector) {
         this.warningCollector = warningCollector;
     }
@@ -266,7 +262,7 @@ public abstract class AbstractCompilerFactoryBuilder {
     public long getMaxWarnings() {
         return maxWarnings;
     }
-=======
+
     public ICardinalityEstimator getCardinalityEstimator() {
         return cardinalityEstimator;
     }
@@ -275,5 +271,4 @@ public abstract class AbstractCompilerFactoryBuilder {
         this.cardinalityEstimator = cardinalityEstimator;
     }
 
->>>>>>> christina/merged_stats
 }

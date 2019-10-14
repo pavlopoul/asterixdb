@@ -75,4 +75,10 @@ public class GroupCountSketchBuilder extends AbstractIntegerSynopsisBuilder<Wave
         // TODO Auto-generated method stub
         return null;
     }
+
+    @Override
+    public void force() throws HyracksDataException {
+        // TODO Auto-generated method stub
+
+    }
 }

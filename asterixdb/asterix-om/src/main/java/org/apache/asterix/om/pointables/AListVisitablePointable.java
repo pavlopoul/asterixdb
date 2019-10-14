@@ -31,10 +31,10 @@ import org.apache.asterix.om.types.ATypeTag;
 import org.apache.asterix.om.types.AbstractCollectionType;
 import org.apache.asterix.om.types.EnumDeserializer;
 import org.apache.asterix.om.types.IAType;
+import org.apache.asterix.om.util.container.IObjectFactory;
 import org.apache.asterix.om.utils.NonTaggedFormatUtil;
 import org.apache.asterix.om.utils.ResettableByteArrayOutputStream;
 import org.apache.hyracks.api.exceptions.HyracksDataException;
-import org.apache.hyracks.util.objectpool.IObjectFactory;
 
 /**
  * This class interprets the binary data representation of a list, one can

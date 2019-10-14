@@ -53,7 +53,7 @@ public class LSMBTreeBulkloadEmptyStatisticsTest extends StatisticsTestDriver {
         }
         for (int i = 0; i < fieldSerdes.length; i++) {
             checkStatistics((TestStatisticsManager) harness.getStatisticsManager(),
-                    new ArrayList<>(ctx.getCheckTuples()), 1, i);
+                    new ArrayList<>(ctx.getCheckTuples()), 0, i);
         }
         ctx.getIndex().validate();
         ctx.getIndex().deactivate();

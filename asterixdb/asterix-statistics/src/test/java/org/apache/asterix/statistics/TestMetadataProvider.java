@@ -48,6 +48,7 @@ import org.apache.hyracks.algebricks.runtime.base.IPushRuntimeFactory;
 import org.apache.hyracks.api.dataflow.IOperatorDescriptor;
 import org.apache.hyracks.api.dataflow.value.RecordDescriptor;
 import org.apache.hyracks.api.job.JobSpecification;
+import org.apache.hyracks.api.result.IResultMetadata;
 import org.apache.hyracks.storage.am.common.api.ITupleFilterFactory;
 import org.apache.hyracks.storage.am.lsm.common.api.ISynopsis;
 import org.apache.hyracks.storage.am.lsm.common.api.ISynopsisElement;
@@ -215,8 +216,8 @@ public class TestMetadataProvider implements IMetadataProvider<DataSourceId, Str
 
     @Override
     public Pair<IOperatorDescriptor, AlgebricksPartitionConstraint> getResultHandleRuntime(IDataSink sink,
-            int[] printColumns, IPrinterFactory[] printerFactories, RecordDescriptor inputDesc, boolean ordered,
-            JobSpecification spec) throws AlgebricksException {
+            int[] printColumns, IPrinterFactory[] printerFactories, RecordDescriptor inputDesc,
+            IResultMetadata metadata, JobSpecification spec) throws AlgebricksException {
         throw new UnsupportedOperationException();
     }
 

@@ -69,4 +69,10 @@ public class TestSynopsisBuilder extends AbstractSynopsisBuilder<TestSynopsis> {
         // TODO Auto-generated method stub
         return null;
     }
+
+    @Override
+    public void force() throws HyracksDataException {
+        // TODO Auto-generated method stub
+
+    }
 }

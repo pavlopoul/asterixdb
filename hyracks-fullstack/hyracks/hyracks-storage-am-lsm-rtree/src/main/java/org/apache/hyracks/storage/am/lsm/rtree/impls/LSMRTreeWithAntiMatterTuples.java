@@ -296,4 +296,14 @@ public class LSMRTreeWithAntiMatterTuples extends AbstractLSMRTree {
         return new LSMRTreeMergeOperation(accessor, cursor, stats, mergeFileRefs.getInsertIndexFileReference(), null,
                 null, callback, getIndexIdentifier());
     }
+
+    @Override
+    public ILSMIOOperationCallback getStatisticsAwareIOOperationCallback(ILSMIOOperationCallback ioOpCallback) {
+        return ioOpCallback;
+    }
+
+    @Override
+    public boolean hasStatistics() {
+        return false;
+    }
 }

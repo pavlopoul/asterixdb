@@ -295,7 +295,6 @@ public class CcApplicationContext implements ICcApplicationContext {
         return compressionManager;
     }
 
-<<<<<<< HEAD
     @Override
     public IReceptionist getReceptionist() {
         return receptionist;
@@ -309,9 +308,9 @@ public class CcApplicationContext implements ICcApplicationContext {
     @Override
     public IRequestTracker getRequestTracker() {
         return requestTracker;
-=======
+    }
+
     public StatisticsProperties getStatisticsProperties() {
         return statisticsProperties;
->>>>>>> christina/merged_stats
     }
 }

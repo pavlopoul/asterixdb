@@ -39,6 +39,8 @@ import org.apache.hyracks.algebricks.core.algebra.expressions.IVariableEvalSizeE
 import org.apache.hyracks.algebricks.core.algebra.expressions.IVariableTypeEnvironment;
 import org.apache.hyracks.algebricks.core.algebra.metadata.IMetadataProvider;
 import org.apache.hyracks.algebricks.core.algebra.prettyprint.IPlanPrettyPrinter;
+import org.apache.hyracks.algebricks.core.algebra.prettyprint.LogicalOperatorPrettyPrintVisitor;
+import org.apache.hyracks.algebricks.core.algebra.prettyprint.PlanPrettyPrinter;
 import org.apache.hyracks.algebricks.core.algebra.properties.DefaultNodeGroupDomain;
 import org.apache.hyracks.algebricks.core.algebra.properties.FunctionalDependency;
 import org.apache.hyracks.algebricks.core.algebra.properties.ILogicalPropertiesVector;
@@ -88,9 +90,7 @@ public class AlgebricksOptimizationContext implements IOptimizationContext {
     private final INodeDomain defaultNodeDomain;
     private final IPlanPrettyPrinter prettyPrinter;
     private final IConflictingTypeResolver conflictingTypeResovler;
-<<<<<<< HEAD
     private final IWarningCollector warningCollector;
-=======
     private final ICardinalityEstimator cardinalityEstimator;
 
     public AlgebricksOptimizationContext(int varCounter, IExpressionEvalSizeComputer expressionEvalSizeComputer,
@@ -100,22 +100,15 @@ public class AlgebricksOptimizationContext implements IOptimizationContext {
             PhysicalOptimizationConfig physicalOptimizationConfig, AlgebricksPartitionConstraint clusterLocations) {
         this(varCounter, expressionEvalSizeComputer, mergeAggregationExpressionFactory, expressionTypeComputer,
                 missableTypeComputer, conflictingTypeResovler, cardinalityEstimator, physicalOptimizationConfig,
-                clusterLocations, new LogicalOperatorPrettyPrintVisitor());
+                clusterLocations, PlanPrettyPrinter.createStringPlanPrettyPrinter(), null);
     }
->>>>>>> christina/merged_stats
 
     public AlgebricksOptimizationContext(int varCounter, IExpressionEvalSizeComputer expressionEvalSizeComputer,
             IMergeAggregationExpressionFactory mergeAggregationExpressionFactory,
             IExpressionTypeComputer expressionTypeComputer, IMissableTypeComputer nullableTypeComputer,
-<<<<<<< HEAD
-            IConflictingTypeResolver conflictingTypeResovler, PhysicalOptimizationConfig physicalOptimizationConfig,
-            AlgebricksPartitionConstraint clusterLocations, IPlanPrettyPrinter prettyPrinter,
-            IWarningCollector warningCollector) {
-=======
             IConflictingTypeResolver conflictingTypeResovler, ICardinalityEstimator cardinalityEstimator,
             PhysicalOptimizationConfig physicalOptimizationConfig, AlgebricksPartitionConstraint clusterLocations,
-            LogicalOperatorPrettyPrintVisitor prettyPrintVisitor) {
->>>>>>> christina/merged_stats
+            IPlanPrettyPrinter prettyPrinter, IWarningCollector warningCollector) {
         this.varCounter = varCounter;
         this.expressionEvalSizeComputer = expressionEvalSizeComputer;
         this.mergeAggregationExpressionFactory = mergeAggregationExpressionFactory;
@@ -125,11 +118,8 @@ public class AlgebricksOptimizationContext implements IOptimizationContext {
         this.defaultNodeDomain = new DefaultNodeGroupDomain(clusterLocations);
         this.prettyPrinter = prettyPrinter;
         this.conflictingTypeResovler = conflictingTypeResovler;
-<<<<<<< HEAD
         this.warningCollector = warningCollector;
-=======
         this.cardinalityEstimator = cardinalityEstimator;
->>>>>>> christina/merged_stats
     }
 
     @Override
@@ -358,12 +348,16 @@ public class AlgebricksOptimizationContext implements IOptimizationContext {
     }
 
     @Override
-<<<<<<< HEAD
     public IWarningCollector getWarningCollector() {
         return warningCollector;
-=======
+    }
+
     public ICardinalityEstimator getCardinalityEstimator() {
         return cardinalityEstimator;
->>>>>>> christina/merged_stats
+    }
+
+    @Override
+    public LogicalOperatorPrettyPrintVisitor getPrettyPrintVisitor() {
+        return null;
     }
 }

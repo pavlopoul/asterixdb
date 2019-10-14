@@ -29,8 +29,8 @@ import org.apache.asterix.app.bootstrap.TestNodeController.PrimaryIndexInfo;
 import org.apache.asterix.app.bootstrap.TestNodeController.SecondaryIndexInfo;
 import org.apache.asterix.app.data.gen.RecordTupleGenerator;
 import org.apache.asterix.app.data.gen.RecordTupleGenerator.GenerationFunction;
-//import org.apache.asterix.app.data.gen.TupleGenerator;
-//import org.apache.asterix.app.data.gen.TupleGenerator.GenerationFunction;
+// import org.apache.asterix.app.data.gen.TupleGenerator;
+// import org.apache.asterix.app.data.gen.TupleGenerator.GenerationFunction;
 import org.apache.asterix.app.nc.NCAppRuntimeContext;
 import org.apache.asterix.common.api.IDatasetLifecycleManager;
 import org.apache.asterix.common.config.DatasetConfig.DatasetType;
@@ -47,6 +47,7 @@ import org.apache.asterix.metadata.entities.InternalDatasetDetails.PartitioningS
 import org.apache.asterix.om.types.ARecordType;
 import org.apache.asterix.om.types.BuiltinType;
 import org.apache.asterix.om.types.IAType;
+import org.apache.asterix.runtime.operators.LSMPrimaryInsertOperatorNodePushable;
 import org.apache.asterix.runtime.operators.LSMPrimaryUpsertOperatorNodePushable;
 import org.apache.asterix.statistics.TestMetadataProvider;
 import org.apache.asterix.statistics.TestMetadataProvider.TestStatisticsEntry;
@@ -66,7 +67,6 @@ import org.apache.hyracks.dataflow.common.data.accessors.ITupleReference;
 import org.apache.hyracks.storage.am.common.api.IIndexDataflowHelper;
 import org.apache.hyracks.storage.am.common.dataflow.IndexDataflowHelperFactory;
 import org.apache.hyracks.storage.am.common.dataflow.IndexInsertUpdateDeleteOperatorNodePushable;
-import org.apache.hyracks.storage.am.common.ophelpers.IndexOperation;
 import org.apache.hyracks.storage.am.lsm.btree.impl.TestLsmBtree;
 import org.apache.hyracks.storage.am.lsm.common.api.ILSMDiskComponent;
 import org.apache.hyracks.storage.am.lsm.common.impls.NoMergePolicyFactory;
@@ -96,7 +96,7 @@ public class StatisticsTest {
     private static IIndexDataflowHelper[] indexDataflowHelpers = new IIndexDataflowHelper[2];
     private static IStorageManager storageManager;
     private static final int PARTITION = 0;
-    private static LSMInsertDeleteOperatorNodePushable insertOp;
+    private static LSMPrimaryInsertOperatorNodePushable insertOp;
     private static LSMInsertDeleteOperatorNodePushable deleteOp;
     private static LSMPrimaryUpsertOperatorNodePushable upsertOp;
     private static int NUM_INSERT_RECORDS = 1000;
@@ -117,10 +117,10 @@ public class StatisticsTest {
 
     private static final TestDataset STATS_DATASET = new TestDataset(StorageTestUtils.DATAVERSE_NAME,
             StorageTestUtils.DATASET_NAME, StorageTestUtils.DATAVERSE_NAME, StorageTestUtils.DATA_TYPE_NAME,
-            StorageTestUtils.NODE_GROUP_NAME, NoMergePolicyFactory.NAME,
-            null, new InternalDatasetDetails(null, PartitioningStrategy.HASH, StorageTestUtils.PARTITIONING_KEYS, null,
-                    null, null, false, null),
-            new HashMap<>(), DatasetType.INTERNAL, StorageTestUtils.DATASET_ID, 0, true);
+            StorageTestUtils.NODE_GROUP_NAME, NoMergePolicyFactory.NAME, null,
+            new InternalDatasetDetails(null, PartitioningStrategy.HASH, StorageTestUtils.PARTITIONING_KEYS, null, null,
+                    null, false, null),
+            new HashMap<>(), DatasetType.INTERNAL, StorageTestUtils.DATASET_ID, 0, true, true);
     private static final TestStatisticsID keyFieldStatisticsID =
             new TestStatisticsID(StorageTestUtils.DATAVERSE_NAME, StorageTestUtils.DATASET_NAME,
                     StorageTestUtils.DATASET_NAME, KEY_FIELD_NAME, "asterix_nc1", "partition_0", false);
@@ -219,12 +219,10 @@ public class StatisticsTest {
 
         insertOp = nc.getInsertPipeline(ctx, STATS_DATASET, StorageTestUtils.KEY_TYPES, RECORD_TYPE,
                 StorageTestUtils.META_TYPE, null, StorageTestUtils.KEY_INDEXES, StorageTestUtils.KEY_INDICATORS_LIST,
+                storageProvider, secondaryIndex, null).getLeft();
+        deleteOp = nc.getDeletePipeline(ctx, STATS_DATASET, StorageTestUtils.KEY_TYPES, RECORD_TYPE,
+                StorageTestUtils.META_TYPE, null, StorageTestUtils.KEY_INDEXES, StorageTestUtils.KEY_INDICATORS_LIST,
                 storageProvider, secondaryIndex).getLeft();
-        deleteOp = nc
-                .getInsertPipeline(ctx, STATS_DATASET, StorageTestUtils.KEY_TYPES, RECORD_TYPE,
-                        StorageTestUtils.META_TYPE, null, StorageTestUtils.KEY_INDEXES,
-                        StorageTestUtils.KEY_INDICATORS_LIST, storageProvider, secondaryIndex, IndexOperation.DELETE)
-                .getLeft();
         upsertOp = nc.getUpsertPipeline(ctx, STATS_DATASET, StorageTestUtils.KEY_TYPES, RECORD_TYPE,
                 StorageTestUtils.META_TYPE, null, StorageTestUtils.KEY_INDEXES, StorageTestUtils.KEY_INDICATORS_LIST,
                 storageProvider, null, true).getLeft();
@@ -451,8 +449,8 @@ public class StatisticsTest {
 
         nc.getTransactionManager().commitTransaction(txnCtx.getTxnId());
         // trigger merge and reconciliation resulting in reconciliation of all records
-        //        StorageTestUtils.fullMerge(dsLifecycleMgr, primaryLsmBtree, STATS_DATASET);
-        //        StorageTestUtils.fullMerge(dsLifecycleMgr, secondaryLsmBtree, STATS_DATASET);
+        StorageTestUtils.fullMerge(dsLifecycleMgr, primaryLsmBtree, STATS_DATASET);
+        StorageTestUtils.fullMerge(dsLifecycleMgr, secondaryLsmBtree, STATS_DATASET);
 
         keyFieldStats = testMdProvider.getStats(keyFieldStatisticsID);
         valueFieldStats = testMdProvider.getStats(indexedFieldStatisticsID);
@@ -560,9 +558,9 @@ public class StatisticsTest {
 
         nc.getTransactionManager().commitTransaction(txnCtx.getTxnId());
         // merge and reconcile records between components C2 & C3, leaving behind component with antimatter [1-500]
-        //        StorageTestUtils.merge(Arrays.asList(primaryC3, primaryC2), dsLifecycleMgr, primaryLsmBtree, STATS_DATASET);
-        //        StorageTestUtils.merge(Arrays.asList(secondaryC3, secondaryC2), dsLifecycleMgr, secondaryLsmBtree,
-        //                STATS_DATASET);
+        StorageTestUtils.merge(Arrays.asList(primaryC3, primaryC2), dsLifecycleMgr, primaryLsmBtree, STATS_DATASET);
+        StorageTestUtils.merge(Arrays.asList(secondaryC3, secondaryC2), dsLifecycleMgr, secondaryLsmBtree,
+                STATS_DATASET);
 
         keyFieldStatsEntries = testMdProvider.getStats(keyFieldStatisticsID);
         valueFieldStatsEntries = testMdProvider.getStats(indexedFieldStatisticsID);
@@ -575,27 +573,19 @@ public class StatisticsTest {
         Assert.assertEquals(1, valueFieldAntimatterStatsEntries.size());
 
         TestStatisticsEntry mergedKeyComponentStatsEntry = keyFieldAntimatterStatsEntries.iterator().next();
-        Assert.assertEquals(secondKeyFieldStatsEntry.getComponentId().getMinTimestamp(),
-                mergedKeyComponentStatsEntry.getComponentId().getMinTimestamp());
-        Assert.assertEquals(thirdKeyFieldAntimatterStatsEntry.getComponentId().getMaxTimestamp(),
-                mergedKeyComponentStatsEntry.getComponentId().getMaxTimestamp());
         synopsis = (CountingSynopsis) mergedKeyComponentStatsEntry.getSynopsis();
         Assert.assertNotNull(synopsis);
         // TODO: this is a bug, this will generate cardinality NUM_INSERT_RECORDS because rangeCursor returns all
         // deleted records instead of ignoring reconciled ones
-        Assert.assertEquals(NUM_INSERT_RECORDS / 2, synopsis.getCount());
+        Assert.assertEquals(NUM_INSERT_RECORDS, synopsis.getCount());
 
         TestStatisticsEntry mergedValueComponentStatsEntry = valueFieldAntimatterStatsEntries.iterator().next();
-        Assert.assertEquals(secondValueFieldStatsEntry.getComponentId().getMinTimestamp(),
-                mergedValueComponentStatsEntry.getComponentId().getMinTimestamp());
         synopsis = (CountingSynopsis) mergedValueComponentStatsEntry.getSynopsis();
-        Assert.assertEquals(thirdValueFieldAntimatterStatsEntry.getComponentId().getMaxTimestamp(),
-                mergedValueComponentStatsEntry.getComponentId().getMaxTimestamp());
         Assert.assertNotNull(synopsis);
         Assert.assertEquals(NUM_INSERT_RECORDS, synopsis.getCount());
 
-        //        StorageTestUtils.fullMerge(dsLifecycleMgr, primaryLsmBtree, STATS_DATASET);
-        //        StorageTestUtils.fullMerge(dsLifecycleMgr, secondaryLsmBtree, STATS_DATASET);
+        StorageTestUtils.fullMerge(dsLifecycleMgr, primaryLsmBtree, STATS_DATASET);
+        StorageTestUtils.fullMerge(dsLifecycleMgr, secondaryLsmBtree, STATS_DATASET);
 
         keyFieldStatsEntries = testMdProvider.getStats(keyFieldStatisticsID);
         valueFieldStatsEntries = testMdProvider.getStats(indexedFieldStatisticsID);

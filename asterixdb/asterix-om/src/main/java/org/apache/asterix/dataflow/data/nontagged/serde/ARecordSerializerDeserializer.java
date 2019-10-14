@@ -142,7 +142,10 @@ public class ARecordSerializerDeserializer implements ISerializerDeserializer<AR
         if (numberOfSchemaFields <= 0) {
             return NO_FIELDS;
         }
-        in.readInt(); // read number of schema fields.
+        if (in.readInt() <= 0) {
+            return NO_FIELDS; // read number of schema fields.
+        }
+
         boolean hasOptionalFields = NonTaggedFormatUtil.hasOptionalField(this.recordType);
         byte[] nullBitMap = null;
         if (hasOptionalFields) {
@@ -161,6 +164,11 @@ public class ARecordSerializerDeserializer implements ISerializerDeserializer<AR
             } else if (hasOptionalFields && ((nullBitMap[fieldId / 4] & (1 << (7 - 2 * (fieldId % 4) - 1))) == 0)) {
                 schemaFields[fieldId] = AMissing.MISSING;
             } else {
+                //                if (numberOfSchemaFields == 10 && fieldId == 9) {
+                //                    if (schemaFields[fieldId - 1] == new AString("")) {
+                //                        return NO_FIELDS;
+                //                    }
+                //                }
                 schemaFields[fieldId] = (IAObject) deserializers[fieldId].deserialize(in);
             }
         }

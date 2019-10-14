@@ -22,11 +22,8 @@ import java.util.List;
 import java.util.Map;
 
 import org.apache.asterix.common.config.DatasetConfig.DatasetType;
-<<<<<<< HEAD
 import org.apache.asterix.common.config.DatasetConfig.IndexType;
-=======
 import org.apache.asterix.common.config.StatisticsProperties;
->>>>>>> christina/merged_stats
 import org.apache.asterix.common.context.AsterixVirtualBufferCacheProvider;
 import org.apache.asterix.common.context.IStorageComponentProvider;
 import org.apache.asterix.common.exceptions.CompilationException;
@@ -56,13 +53,10 @@ import org.apache.hyracks.storage.am.lsm.common.api.ILSMIOOperationCallbackFacto
 import org.apache.hyracks.storage.am.lsm.common.api.ILSMIOOperationSchedulerProvider;
 import org.apache.hyracks.storage.am.lsm.common.api.ILSMMergePolicyFactory;
 import org.apache.hyracks.storage.am.lsm.common.api.ILSMOperationTrackerFactory;
-<<<<<<< HEAD
 import org.apache.hyracks.storage.am.lsm.common.api.ILSMPageWriteCallbackFactory;
-=======
 import org.apache.hyracks.storage.am.lsm.common.api.IStatisticsFactory;
 import org.apache.hyracks.storage.am.lsm.common.api.ISynopsis.SynopsisType;
 import org.apache.hyracks.storage.am.statistics.common.StatisticsFactory;
->>>>>>> christina/merged_stats
 import org.apache.hyracks.storage.common.IResourceFactory;
 import org.apache.hyracks.storage.common.IStorageManager;
 import org.apache.hyracks.storage.common.compression.NoOpCompressorDecompressorFactory;
@@ -90,7 +84,7 @@ public class BTreeResourceFactoryProvider implements IResourceFactoryProvider {
             unorderedStatisticsFields = statisticsFieldsHint.split(",");
         }
         ITypeTraitProvider typeTraitProvider = mdProvider.getStorageComponentProvider().getTypeTraitProvider();
-        ITypeTraits[] typeTraits = getTypeTraits(typeTraitProvider, dataset, index, recordType, metaType);
+        ITypeTraits[] typeTraits = getTypeTraits(mdProvider, dataset, index, recordType, metaType);
         IBinaryComparatorFactory[] cmpFactories = getCmpFactories(mdProvider, dataset, index, recordType, metaType);
         int[] bloomFilterFields = getBloomFilterFields(dataset, index);
         double bloomFilterFalsePositiveRate = mdProvider.getStorageProperties().getBloomFilterFalsePositiveRate();
@@ -145,16 +139,10 @@ public class BTreeResourceFactoryProvider implements IResourceFactoryProvider {
                 }
                 return new LSMBTreeLocalResourceFactory(storageManager, typeTraits, cmpFactories, filterTypeTraits,
                         filterCmpFactories, filterFields, opTrackerFactory, ioOpCallbackFactory,
-<<<<<<< HEAD
                         pageWriteCallbackFactory, metadataPageManagerFactory, vbcProvider, ioSchedulerProvider,
                         mergePolicyFactory, mergePolicyProperties, true, bloomFilterFields,
-                        bloomFilterFalsePositiveRate, index.isPrimaryIndex(), btreeFields, compDecompFactory);
-=======
-                        metadataPageManagerFactory, vbcProvider, ioSchedulerProvider, mergePolicyFactory,
-                        mergePolicyProperties, true, bloomFilterFields, bloomFilterFalsePositiveRate,
-                        index.isPrimaryIndex(), btreeFields, compDecompFactory, statisticsFactory,
-                        mdProvider.getStorageComponentProvider().getStatisticsManagerProvider());
->>>>>>> christina/merged_stats
+                        bloomFilterFalsePositiveRate, index.isPrimaryIndex(), btreeFields, compDecompFactory,
+                        statisticsFactory, mdProvider.getStorageComponentProvider().getStatisticsManagerProvider());
             default:
                 throw new CompilationException(ErrorCode.COMPILATION_UNKNOWN_DATASET_TYPE,
                         dataset.getDatasetType().toString());
@@ -196,9 +184,9 @@ public class BTreeResourceFactoryProvider implements IResourceFactoryProvider {
         return configDefinedStatsSize;
     }
 
-    public static ITypeTraits[] getTypeTraits(ITypeTraitProvider typeTraitProvider, Dataset dataset, Index index,
+    public static ITypeTraits[] getTypeTraits(MetadataProvider metadataProvider, Dataset dataset, Index index,
             ARecordType recordType, ARecordType metaType) throws AlgebricksException {
-        ITypeTraits[] primaryTypeTraits = dataset.getPrimaryTypeTraits(typeTraitProvider, recordType, metaType);
+        ITypeTraits[] primaryTypeTraits = dataset.getPrimaryTypeTraits(metadataProvider, recordType, metaType);
         if (index.isPrimaryIndex()) {
             return primaryTypeTraits;
         } else if (dataset.getDatasetType() == DatasetType.EXTERNAL
@@ -207,7 +195,7 @@ public class BTreeResourceFactoryProvider implements IResourceFactoryProvider {
         }
         int numPrimaryKeys = dataset.getPrimaryKeys().size();
         int numSecondaryKeys = index.getKeyFieldNames().size();
-
+        ITypeTraitProvider typeTraitProvider = metadataProvider.getStorageComponentProvider().getTypeTraitProvider();
         ITypeTraits[] secondaryTypeTraits = new ITypeTraits[numSecondaryKeys + numPrimaryKeys];
         for (int i = 0; i < numSecondaryKeys; i++) {
             ARecordType sourceType;
@@ -265,14 +253,9 @@ public class BTreeResourceFactoryProvider implements IResourceFactoryProvider {
         return secondaryCmpFactories;
     }
 
-<<<<<<< HEAD
     private static int[] getBloomFilterFields(Dataset dataset, Index index) throws AlgebricksException {
         // both the Primary index and the Primary Key index have bloom filters
         if (index.isPrimaryIndex() || index.isPrimaryKeyIndex()) {
-=======
-    public static int[] getBloomFilterFields(Dataset dataset, Index index) throws AlgebricksException {
-        if (index.isPrimaryIndex()) {
->>>>>>> christina/merged_stats
             return dataset.getPrimaryBloomFilterFields();
         } else if (dataset.getDatasetType() == DatasetType.EXTERNAL) {
             if (index.getIndexName().equals(IndexingConstants.getFilesIndexName(dataset.getDatasetName()))) {

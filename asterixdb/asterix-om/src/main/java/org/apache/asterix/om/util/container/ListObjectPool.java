@@ -24,15 +24,8 @@ import java.util.BitSet;
 import java.util.List;
 
 /**
-<<<<<<< HEAD
  * Object pool backed by a list. The argument for creating E instances could be different. This class also considers
  * arguments in object reusing, e.g., it reuses an E instances ONLY when the construction argument is "equal".
-=======
- * Object pool backed by a list.
- * The argument for creating E instances could be different. This class also
- * considers arguments in object reusing, e.g., it reuses an E instances ONLY
- * when the construction argument is "equal" and instance of E is marked as unused.
->>>>>>> christina/merged_stats
  */
 public class ListObjectPool<E, T> implements IObjectPool<E, T> {
 

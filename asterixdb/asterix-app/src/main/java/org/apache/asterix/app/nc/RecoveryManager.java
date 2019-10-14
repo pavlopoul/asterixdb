@@ -83,6 +83,7 @@ import org.apache.hyracks.storage.am.lsm.common.api.ILSMIndexAccessor;
 import org.apache.hyracks.storage.am.lsm.common.api.ILSMIndexOperationContext;
 import org.apache.hyracks.storage.am.lsm.common.impls.AbstractLSMIndex;
 import org.apache.hyracks.storage.am.lsm.common.impls.LSMComponentId;
+import org.apache.hyracks.storage.am.lsm.common.impls.StatisticsMessageIOOperationCallbackWrapper;
 import org.apache.hyracks.storage.common.IIndex;
 import org.apache.hyracks.storage.common.LocalResource;
 import org.apache.logging.log4j.Level;
@@ -470,12 +471,21 @@ public class RecoveryManager implements IRecoveryManager, ILifeCycleComponent {
         long minFirstLSN = logMgr.getAppendLSN();
         if (!openIndexList.isEmpty()) {
             for (IIndex index : openIndexList) {
-                LSMIOOperationCallback ioCallback =
-                        (LSMIOOperationCallback) ((ILSMIndex) index).getIOOperationCallback();
+                //                if (!((ILSMIndex) index).hasStatistics()) {
+                LSMIOOperationCallback ioCallback = null;
+                if (((ILSMIndex) index)
+                        .getIOOperationCallback() instanceof StatisticsMessageIOOperationCallbackWrapper) {
+                    ioCallback =
+                            (LSMIOOperationCallback) ((StatisticsMessageIOOperationCallbackWrapper) ((ILSMIndex) index)
+                                    .getIOOperationCallback()).getWrapper();
+                } else {
+                    ioCallback = (LSMIOOperationCallback) ((ILSMIndex) index).getIOOperationCallback();
+                }
                 if (!((AbstractLSMIndex) index).isCurrentMutableComponentEmpty() || ioCallback.hasPendingFlush()) {
                     firstLSN = ioCallback.getPersistenceLsn();
                     minFirstLSN = Math.min(minFirstLSN, firstLSN);
                 }
+                //}
             }
         }
         return minFirstLSN;

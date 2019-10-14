@@ -128,14 +128,12 @@ public interface INcApplicationContext extends IApplicationContext {
 
     IPersistedResourceRegistry getPersistedResourceRegistry();
 
-<<<<<<< HEAD
     /**
      * Gets the cache manager of this {@link INcApplicationContext}
      *
      * @return the cache manager
      */
     ICacheManager getCacheManager();
-=======
+
     IStatisticsManager getStatisticsManager();
->>>>>>> christina/merged_stats
 }

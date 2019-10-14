@@ -870,11 +870,8 @@
     <module>asterix-client-helper</module>
     <module>asterix-license</module>
     <module>asterix-geo</module>
-<<<<<<< HEAD
     <module>asterix-spidersilk</module>
-=======
     <module>asterix-statistics</module>
->>>>>>> christina/merged_stats
   </modules>
 
   <dependencyManagement>

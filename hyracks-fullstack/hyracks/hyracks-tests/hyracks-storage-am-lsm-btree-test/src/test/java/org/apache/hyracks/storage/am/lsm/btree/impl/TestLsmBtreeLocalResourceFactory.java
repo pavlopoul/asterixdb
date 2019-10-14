@@ -39,6 +39,7 @@ import org.apache.hyracks.storage.common.compression.NoOpCompressorDecompressorF
 
 public class TestLsmBtreeLocalResourceFactory extends LSMBTreeLocalResourceFactory {
     private static final long serialVersionUID = 1L;
+    private final boolean updateAware;
 
     public TestLsmBtreeLocalResourceFactory(IStorageManager storageManager, ITypeTraits[] typeTraits,
             IBinaryComparatorFactory[] cmpFactories, ITypeTraits[] filterTypeTraits,
@@ -49,12 +50,14 @@ public class TestLsmBtreeLocalResourceFactory extends LSMBTreeLocalResourceFacto
             ILSMIOOperationSchedulerProvider ioSchedulerProvider, ILSMMergePolicyFactory mergePolicyFactory,
             Map<String, String> mergePolicyProperties, boolean durable, int[] bloomFilterKeyFields,
             double bloomFilterFalsePositiveRate, boolean isPrimary, int[] btreeFields,
-            IStatisticsFactory statisticsFactory, IStatisticsManagerProvider statisticsManagerProvider) {
+            IStatisticsFactory statisticsFactory, IStatisticsManagerProvider statisticsManagerProvider,
+            boolean updateAware) {
         super(storageManager, typeTraits, cmpFactories, filterTypeTraits, filterCmpFactories, filterFields,
                 opTrackerFactory, ioOpCallbackFactory, pageWriteCallbackFactory, metadataPageManagerFactory,
                 vbcProvider, ioSchedulerProvider, mergePolicyFactory, mergePolicyProperties, durable,
                 bloomFilterKeyFields, bloomFilterFalsePositiveRate, isPrimary, btreeFields,
                 NoOpCompressorDecompressorFactory.INSTANCE, statisticsFactory, statisticsManagerProvider);
+        this.updateAware = updateAware;
     }
 
     @Override
@@ -63,6 +66,6 @@ public class TestLsmBtreeLocalResourceFactory extends LSMBTreeLocalResourceFacto
                 bloomFilterFalsePositiveRate, isPrimary, fileRef.getRelativePath(), storageManager, mergePolicyFactory,
                 mergePolicyProperties, filterTypeTraits, filterCmpFactories, btreeFields, filterFields,
                 opTrackerProvider, ioOpCallbackFactory, pageWriteCallbackFactory, metadataPageManagerFactory,
-                vbcProvider, ioSchedulerProvider, durable, statisticsFactory, statisticsManagerProvider);
+                vbcProvider, ioSchedulerProvider, durable, statisticsFactory, statisticsManagerProvider, updateAware);
     }
 }

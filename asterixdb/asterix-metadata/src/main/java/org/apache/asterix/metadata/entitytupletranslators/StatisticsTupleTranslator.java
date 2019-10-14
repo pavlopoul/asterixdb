@@ -23,7 +23,6 @@ import java.io.DataInput;
 import java.io.DataInputStream;
 import java.io.DataOutput;
 import java.rmi.RemoteException;
-import java.time.LocalDateTime;
 import java.time.format.DateTimeParseException;
 import java.util.ArrayList;
 import java.util.List;
@@ -64,7 +63,6 @@ import org.apache.hyracks.dataflow.common.data.accessors.ITupleReference;
 import org.apache.hyracks.storage.am.lsm.common.api.ISynopsis;
 import org.apache.hyracks.storage.am.lsm.common.api.ISynopsis.SynopsisType;
 import org.apache.hyracks.storage.am.lsm.common.api.ISynopsisElement;
-import org.apache.hyracks.storage.am.lsm.common.impls.AbstractLSMIndexFileManager;
 import org.apache.hyracks.storage.am.lsm.common.impls.ComponentStatisticsId;
 import org.apache.hyracks.storage.am.statistics.common.SynopsisElementFactory;
 import org.apache.hyracks.storage.am.statistics.common.SynopsisFactory;
@@ -122,12 +120,10 @@ public class StatisticsTupleTranslator extends AbstractTupleTranslator<Statistic
         String partitionName =
                 ((AString) statisticsRecord.getValueByPos(MetadataRecordTypes.STATISTICS_ARECORD_PARTITION_FIELD_INDEX))
                         .getStringValue();
-        LocalDateTime componentMinId = LocalDateTime.parse(((AString) statisticsRecord
-                .getValueByPos(MetadataRecordTypes.STATISTICS_ARECORD_COMPONENT_MIN_TIMESTAMP_INDEX)).getStringValue(),
-                AbstractLSMIndexFileManager.FORMATTER);
-        LocalDateTime componentMaxId = LocalDateTime.parse(((AString) statisticsRecord
-                .getValueByPos(MetadataRecordTypes.STATISTICS_ARECORD_COMPONENT_MAX_TIMESTAMP_INDEX)).getStringValue(),
-                AbstractLSMIndexFileManager.FORMATTER);
+        Long componentMinId = ((AInt64) statisticsRecord
+                .getValueByPos(MetadataRecordTypes.STATISTICS_ARECORD_COMPONENT_MIN_TIMESTAMP_INDEX)).getLongValue();
+        Long componentMaxId = ((AInt64) statisticsRecord
+                .getValueByPos(MetadataRecordTypes.STATISTICS_ARECORD_COMPONENT_MAX_TIMESTAMP_INDEX)).getLongValue();
         ARecord synopsisRecord =
                 (ARecord) statisticsRecord.getValueByPos(MetadataRecordTypes.STATISTICS_ARECORD_SYNOPSIS_FIELD_INDEX);
         SynopsisType synopsisType = SynopsisType.valueOf(((AString) synopsisRecord
@@ -198,9 +194,8 @@ public class StatisticsTupleTranslator extends AbstractTupleTranslator<Statistic
         aString.setValue(metadataEntity.getPartition());
         stringSerde.serialize(aString, tupleBuilder.getDataOutput());
         tupleBuilder.addFieldEndOffset();
-        aString.setValue(
-                AbstractLSMIndexFileManager.FORMATTER.format(metadataEntity.getComponentID().getMinTimestamp()));
-        stringSerde.serialize(aString, tupleBuilder.getDataOutput());
+        aInt64.setValue(metadataEntity.getComponentID().getMinTimestamp());
+        int64Serde.serialize(aInt64, tupleBuilder.getDataOutput());
         tupleBuilder.addFieldEndOffset();
 
         // write the payload in the 9th field of the tuple
@@ -249,16 +244,14 @@ public class StatisticsTupleTranslator extends AbstractTupleTranslator<Statistic
 
         // write field 7
         fieldValue.reset();
-        aString.setValue(
-                AbstractLSMIndexFileManager.FORMATTER.format(metadataEntity.getComponentID().getMinTimestamp()));
-        stringSerde.serialize(aString, fieldValue.getDataOutput());
+        aInt64.setValue(metadataEntity.getComponentID().getMinTimestamp());
+        int64Serde.serialize(aInt64, fieldValue.getDataOutput());
         recordBuilder.addField(MetadataRecordTypes.STATISTICS_ARECORD_COMPONENT_MIN_TIMESTAMP_INDEX, fieldValue);
 
         // write field 8
         fieldValue.reset();
-        aString.setValue(
-                AbstractLSMIndexFileManager.FORMATTER.format(metadataEntity.getComponentID().getMaxTimestamp()));
-        stringSerde.serialize(aString, fieldValue.getDataOutput());
+        aInt64.setValue(metadataEntity.getComponentID().getMaxTimestamp());
+        int64Serde.serialize(aInt64, fieldValue.getDataOutput());
         recordBuilder.addField(MetadataRecordTypes.STATISTICS_ARECORD_COMPONENT_MAX_TIMESTAMP_INDEX, fieldValue);
 
         // write field 9
@@ -300,38 +293,42 @@ public class StatisticsTupleTranslator extends AbstractTupleTranslator<Statistic
         listBuilder.reset((AOrderedListType) MetadataRecordTypes.STATISTICS_SYNOPSIS_RECORDTYPE
                 .getFieldTypes()[MetadataRecordTypes.STATISTICS_SYNOPSIS_ARECORD_ELEMENTS_FIELD_INDEX]);
         for (ISynopsisElement<Long> synopsisElement : synopsis.getElements()) {
-            synopsisElementRecordBuilder.reset(MetadataRecordTypes.STATISTICS_SYNOPSIS_ELEMENT_RECORDTYPE);
-            itemValue.reset();
+            // Skip synopsis elements with 0 value
+            if (synopsisElement.getValue() != 0.0) {
+                synopsisElementRecordBuilder.reset(MetadataRecordTypes.STATISTICS_SYNOPSIS_ELEMENT_RECORDTYPE);
+                itemValue.reset();
 
-            // write subrecord field 0
-            fieldValue.reset();
-            aInt64.setValue(synopsisElement.getKey());
-            int64Serde.serialize(aInt64, fieldValue.getDataOutput());
-            synopsisElementRecordBuilder
-                    .addField(MetadataRecordTypes.STATISTICS_SYNOPSIS_ELEMENT_ARECORD_KEY_FIELD_INDEX, fieldValue);
-
-            // write subrecord field 1
-            fieldValue.reset();
-            aDouble.setValue(synopsisElement.getValue());
-            doubleSerde.serialize(aDouble, fieldValue.getDataOutput());
-            synopsisElementRecordBuilder
-                    .addField(MetadataRecordTypes.STATISTICS_SYNOPSIS_ELEMENT_ARECORD_VALUE_FIELD_INDEX, fieldValue);
-
-            // write optional field 2
-            if (synopsisElement instanceof UniformHistogramBucket) {
-                ArrayBackedValueStorage nameValue = new ArrayBackedValueStorage();
-
+                // write subrecord field 0
                 fieldValue.reset();
-                nameValue.reset();
-                aString.setValue(MetadataRecordTypes.STATISTICS_SYNOPSIS_ELEMENT_ARECORD_UNIQUE_VALUES_NUM_FIELD_NAME);
-                stringSerde.serialize(aString, nameValue.getDataOutput());
-                aInt64.setValue(((UniformHistogramBucket) synopsisElement).getUniqueElementsNum());
+                aInt64.setValue(synopsisElement.getKey());
                 int64Serde.serialize(aInt64, fieldValue.getDataOutput());
-                synopsisElementRecordBuilder.addField(nameValue, fieldValue);
-            }
+                synopsisElementRecordBuilder
+                        .addField(MetadataRecordTypes.STATISTICS_SYNOPSIS_ELEMENT_ARECORD_KEY_FIELD_INDEX, fieldValue);
 
-            synopsisElementRecordBuilder.write(itemValue.getDataOutput(), true);
-            listBuilder.addItem(itemValue);
+                // write subrecord field 1
+                fieldValue.reset();
+                aDouble.setValue(synopsisElement.getValue());
+                doubleSerde.serialize(aDouble, fieldValue.getDataOutput());
+                synopsisElementRecordBuilder.addField(
+                        MetadataRecordTypes.STATISTICS_SYNOPSIS_ELEMENT_ARECORD_VALUE_FIELD_INDEX, fieldValue);
+
+                // write optional field 2
+                if (synopsisElement instanceof UniformHistogramBucket) {
+                    ArrayBackedValueStorage nameValue = new ArrayBackedValueStorage();
+
+                    fieldValue.reset();
+                    nameValue.reset();
+                    aString.setValue(
+                            MetadataRecordTypes.STATISTICS_SYNOPSIS_ELEMENT_ARECORD_UNIQUE_VALUES_NUM_FIELD_NAME);
+                    stringSerde.serialize(aString, nameValue.getDataOutput());
+                    aInt64.setValue(((UniformHistogramBucket) synopsisElement).getUniqueElementsNum());
+                    int64Serde.serialize(aInt64, fieldValue.getDataOutput());
+                    synopsisElementRecordBuilder.addField(nameValue, fieldValue);
+                }
+
+                synopsisElementRecordBuilder.write(itemValue.getDataOutput(), true);
+                listBuilder.addItem(itemValue);
+            }
         }
         // write field 2
         fieldValue.reset();

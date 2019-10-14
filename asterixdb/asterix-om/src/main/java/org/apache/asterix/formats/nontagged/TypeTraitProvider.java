@@ -62,14 +62,10 @@ public class TypeTraitProvider implements ITypeTraitProvider {
             case BIGINT:
             case DOUBLE:
             case DATETIME:
-<<<<<<< HEAD
             case DAYTIMEDURATION:
                 return EIGHT_BYTE_TYPE_TRAIT;
             case DURATION:
                 return TWELVE_BYTE_TYPE_TRAIT;
-=======
-                return EIGHTBYTETYPETRAIT;
->>>>>>> christina/merged_stats
             case POINT:
             case UUID:
                 return SIXTEEN_BYTE_TYPE_TRAIT;

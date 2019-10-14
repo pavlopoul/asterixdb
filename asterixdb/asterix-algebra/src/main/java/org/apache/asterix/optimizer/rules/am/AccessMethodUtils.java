@@ -598,7 +598,7 @@ public class AccessMethodUtils {
             probeExpr.setSourceLocation(sourceLoc);
 
             ATypeTag indexedFieldTypeTag = TypeComputeUtils.getActualType(indexedFieldType).getTypeTag();
-            if (ATypeHierarchy.belongsToDomain(indexedFieldTypeTag, ATypeHierarchy.Domain.NUMERIC)) {
+            if (ATypeHierarchy.getTypeDomain(indexedFieldTypeTag) == ATypeHierarchy.Domain.NUMERIC) {
                 IAType probeType = TypeComputeUtils.getActualType(optFuncExpr.getFieldType(probeVarIndex));
                 ATypeTag probeTypeTypeTag = probeType.getTypeTag();
                 if (probeTypeTypeTag != indexedFieldTypeTag) {

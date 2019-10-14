@@ -488,7 +488,7 @@
       </compilation-unit>
     </test-case>
   </test-group>
-  <test-group name="statistics">
+  <!--  <test-group name="statistics">
     <test-case FilePath="statistics">
       <compilation-unit name="pidx_bulkload">
         <output-dir compare="Text">pidx_bulkload</output-dir>
@@ -549,5 +549,5 @@
         <output-dir compare="Text">noidx_insert</output-dir>
       </compilation-unit>
     </test-case>
-  </test-group>
+  </test-group>-->
 </test-suite>

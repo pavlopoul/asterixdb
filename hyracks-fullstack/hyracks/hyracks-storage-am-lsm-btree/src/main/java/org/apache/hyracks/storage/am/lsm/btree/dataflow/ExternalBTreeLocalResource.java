@@ -57,9 +57,14 @@ public class ExternalBTreeLocalResource extends LSMBTreeLocalResource {
             ILSMIOOperationSchedulerProvider ioSchedulerProvider, boolean durable) {
         super(typeTraits, cmpFactories, bloomFilterKeyFields, bloomFilterFalsePositiveRate, isPrimary, path,
                 storageManager, mergePolicyFactory, mergePolicyProperties, filterTypeTraits, filterCmpFactories,
+<<<<<<< HEAD
                 btreeFields, filterFields, opTrackerProvider, ioOpCallbackFactory, pageWriteCallbackFactory,
                 metadataPageManagerFactory, null, ioSchedulerProvider, durable,
                 NoOpCompressorDecompressorFactory.INSTANCE);
+=======
+                btreeFields, filterFields, opTrackerProvider, ioOpCallbackFactory, metadataPageManagerFactory, null,
+                ioSchedulerProvider, durable, NoOpCompressorDecompressorFactory.INSTANCE, null, null);
+>>>>>>> christina/merged_stats
     }
 
     private ExternalBTreeLocalResource(IPersistedResourceRegistry registry, JsonNode json, int[] bloomFilterKeyFields,

@@ -120,7 +120,8 @@ public class MetadataBootstrap {
                     MetadataPrimaryIndexes.FUNCTION_DATASET, MetadataPrimaryIndexes.DATASOURCE_ADAPTER_DATASET,
                     MetadataPrimaryIndexes.FEED_DATASET, MetadataPrimaryIndexes.FEED_POLICY_DATASET,
                     MetadataPrimaryIndexes.LIBRARY_DATASET, MetadataPrimaryIndexes.COMPACTION_POLICY_DATASET,
-                    MetadataPrimaryIndexes.EXTERNAL_FILE_DATASET, MetadataPrimaryIndexes.FEED_CONNECTION_DATASET };
+                    MetadataPrimaryIndexes.EXTERNAL_FILE_DATASET, MetadataPrimaryIndexes.FEED_CONNECTION_DATASET,
+                    MetadataPrimaryIndexes.STATISTICS_DATASET };
 
     private MetadataBootstrap() {
     }
@@ -355,6 +356,7 @@ public class MetadataBootstrap {
         if (isNewUniverse()) {
             final double bloomFilterFalsePositiveRate =
                     appContext.getStorageProperties().getBloomFilterFalsePositiveRate();
+<<<<<<< HEAD
             LSMBTreeLocalResourceFactory lsmBtreeFactory =
                     new LSMBTreeLocalResourceFactory(storageComponentProvider.getStorageManager(), typeTraits,
                             cmpFactories, null, null, null, opTrackerFactory, ioOpCallbackFactory,
@@ -364,6 +366,16 @@ public class MetadataBootstrap {
                             appContext.getMetadataMergePolicyFactory(),
                             StorageConstants.DEFAULT_COMPACTION_POLICY_PROPERTIES, true, bloomFilterKeyFields,
                             bloomFilterFalsePositiveRate, true, null, NoOpCompressorDecompressorFactory.INSTANCE);
+=======
+            LSMBTreeLocalResourceFactory lsmBtreeFactory = new LSMBTreeLocalResourceFactory(
+                    storageComponentProvider.getStorageManager(), typeTraits, cmpFactories, null, null, null,
+                    opTrackerFactory, ioOpCallbackFactory, storageComponentProvider.getMetadataPageManagerFactory(),
+                    new AsterixVirtualBufferCacheProvider(datasetId),
+                    storageComponentProvider.getIoOperationSchedulerProvider(),
+                    appContext.getMetadataMergePolicyFactory(), GlobalConfig.DEFAULT_COMPACTION_POLICY_PROPERTIES, true,
+                    bloomFilterKeyFields, bloomFilterFalsePositiveRate, true, null,
+                    NoOpCompressorDecompressorFactory.INSTANCE, null, null);
+>>>>>>> christina/merged_stats
             DatasetLocalResourceFactory dsLocalResourceFactory =
                     new DatasetLocalResourceFactory(datasetId, lsmBtreeFactory);
             // TODO(amoudi) Creating the index should be done through the same code path as

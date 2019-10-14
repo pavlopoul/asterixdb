@@ -106,4 +106,8 @@ public interface ILogicalOperator {
     public boolean requiresVariableReferenceExpressions();
 
     SourceLocation getSourceLocation();
+
+    Long getCardinality();
+
+    void setCardinality(Long cardinality);
 }

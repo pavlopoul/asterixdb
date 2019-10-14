@@ -41,6 +41,7 @@ import org.apache.commons.lang3.tuple.Triple;
 import org.apache.hyracks.algebricks.common.exceptions.AlgebricksException;
 import org.apache.hyracks.api.client.IClusterInfoCollector;
 import org.apache.hyracks.api.client.IHyracksClientConnection;
+<<<<<<< HEAD
 import org.apache.hyracks.api.exceptions.Warning;
 import org.apache.hyracks.api.job.JobId;
 import org.apache.hyracks.api.job.JobSpecification;
@@ -49,6 +50,11 @@ import org.apache.hyracks.api.result.ResultSetId;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
+=======
+import org.apache.hyracks.api.job.JobId;
+import org.apache.hyracks.api.job.JobSpecification;
+import org.apache.hyracks.api.result.ResultSetId;
+>>>>>>> christina/merged_stats
 
 /**
  * An interface that takes care of executing a list of statements that are submitted through an Asterix API
@@ -95,10 +101,14 @@ public interface IStatementExecutor {
         private long count;
         private long size;
         private long processedObjects;
+<<<<<<< HEAD
         private Profile profile;
         private ProfileType type;
         private long diskIoCount;
         private long totalWarningsCount;
+=======
+        private long optimizeTime;
+>>>>>>> christina/merged_stats
 
         public long getCount() {
             return count;
@@ -124,6 +134,7 @@ public interface IStatementExecutor {
             this.processedObjects = processedObjects;
         }
 
+<<<<<<< HEAD
         public long getDiskIoCount() {
             return diskIoCount;
         }
@@ -182,6 +193,14 @@ public interface IStatementExecutor {
 
         public ObjectNode getProfile() {
             return profile;
+=======
+        public long getOptimizationTime() {
+            return optimizeTime;
+        }
+
+        public void setOptimizeTime(long optimizeTime) {
+            this.optimizeTime = optimizeTime;
+>>>>>>> christina/merged_stats
         }
     }
 
@@ -216,7 +235,8 @@ public interface IStatementExecutor {
      */
     JobSpecification rewriteCompileQuery(IClusterInfoCollector clusterInfoCollector, MetadataProvider metadataProvider,
             Query query, ICompiledDmlStatement dmlStatement, Map<String, IAObject> statementParameters,
-            IStatementRewriter statementRewriter) throws RemoteException, AlgebricksException, ACIDException;
+            IStatementRewriter statementRewriter, Stats stats)
+            throws RemoteException, AlgebricksException, ACIDException;
 
     /**
      * returns the active dataverse for an entity or a statement

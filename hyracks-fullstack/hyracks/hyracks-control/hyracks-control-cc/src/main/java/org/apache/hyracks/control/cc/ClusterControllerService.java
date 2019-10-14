@@ -398,11 +398,6 @@ public class ClusterControllerService implements IControllerService {
         return executor;
     }
 
-    @Override
-    public Timer getTimer() {
-        return timer;
-    }
-
     public CCConfig getConfig() {
         return ccConfig;
     }
@@ -556,6 +551,7 @@ public class ClusterControllerService implements IControllerService {
         return application.getApplicationContext();
     }
 
+<<<<<<< HEAD
     @Override
     public INetworkSecurityManager getNetworkSecurityManager() {
         return networkSecurityManager;
@@ -564,5 +560,9 @@ public class ClusterControllerService implements IControllerService {
     protected INetworkSecurityConfig getNetworkSecurityConfig() {
         return NetworkSecurityConfig.of(ccConfig.isSslEnabled(), ccConfig.getKeyStorePath(),
                 ccConfig.getKeyStorePassword(), ccConfig.getTrustStorePath());
+=======
+    public Timer getTimer() {
+        return timer;
+>>>>>>> christina/merged_stats
     }
 }

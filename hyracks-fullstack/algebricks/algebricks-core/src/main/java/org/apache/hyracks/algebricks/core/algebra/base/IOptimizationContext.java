@@ -31,6 +31,7 @@ import org.apache.hyracks.algebricks.core.algebra.properties.ILogicalPropertiesV
 import org.apache.hyracks.algebricks.core.algebra.properties.INodeDomain;
 import org.apache.hyracks.algebricks.core.algebra.typing.ITypingContext;
 import org.apache.hyracks.algebricks.core.rewriter.base.IAlgebraicRewriteRule;
+import org.apache.hyracks.algebricks.core.rewriter.base.ICardinalityEstimator;
 import org.apache.hyracks.algebricks.core.rewriter.base.PhysicalOptimizationConfig;
 import org.apache.hyracks.api.exceptions.IWarningCollector;
 
@@ -82,7 +83,13 @@ public interface IOptimizationContext extends ITypingContext, IVariableContext {
 
     public void updatePrimaryKeys(Map<LogicalVariable, LogicalVariable> mappedVars);
 
+<<<<<<< HEAD
     public IPlanPrettyPrinter getPrettyPrinter();
+=======
+    public ICardinalityEstimator getCardinalityEstimator();
+
+    public LogicalOperatorPrettyPrintVisitor getPrettyPrintVisitor();
+>>>>>>> christina/merged_stats
 
     public INodeDomain getComputationNodeDomain();
 

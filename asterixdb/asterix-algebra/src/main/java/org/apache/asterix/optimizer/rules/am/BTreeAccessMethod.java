@@ -82,7 +82,7 @@ import org.apache.hyracks.util.LogRedactionUtil;
 public class BTreeAccessMethod implements IAccessMethod {
 
     // Describes whether a search predicate is an open/closed interval.
-    private enum LimitType {
+    public enum LimitType {
         LOW_INCLUSIVE,
         LOW_EXCLUSIVE,
         HIGH_INCLUSIVE,
@@ -832,11 +832,15 @@ public class BTreeAccessMethod implements IAccessMethod {
         return -1;
     }
 
+<<<<<<< HEAD
     private static boolean keyMatches(List<Integer> keySources, int keyIndex, int fieldSource) {
         return keySources == null ? fieldSource == 0 : keySources.get(keyIndex) == fieldSource;
     }
 
     private LimitType getLimitType(IOptimizableFuncExpr optFuncExpr, OptimizableOperatorSubTree probeSubTree) {
+=======
+    public static LimitType getLimitType(IOptimizableFuncExpr optFuncExpr, OptimizableOperatorSubTree probeSubTree) {
+>>>>>>> christina/merged_stats
         ComparisonKind ck =
                 AlgebricksBuiltinFunctions.getComparisonType(optFuncExpr.getFuncExpr().getFunctionIdentifier());
         LimitType limit = null;
@@ -920,7 +924,7 @@ public class BTreeAccessMethod implements IAccessMethod {
         return false;
     }
 
-    private boolean probeIsOnLhs(IOptimizableFuncExpr optFuncExpr, OptimizableOperatorSubTree probeSubTree) {
+    public static boolean probeIsOnLhs(IOptimizableFuncExpr optFuncExpr, OptimizableOperatorSubTree probeSubTree) {
         if (probeSubTree == null) {
             if (optFuncExpr.getConstantExpressions().length == 0) {
                 return optFuncExpr.getLogicalExpr(0) == null;

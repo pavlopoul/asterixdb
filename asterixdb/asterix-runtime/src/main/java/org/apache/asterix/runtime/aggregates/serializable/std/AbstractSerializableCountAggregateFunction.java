@@ -36,6 +36,7 @@ import org.apache.hyracks.api.exceptions.HyracksDataException;
 import org.apache.hyracks.api.exceptions.SourceLocation;
 import org.apache.hyracks.data.std.api.IPointable;
 import org.apache.hyracks.data.std.primitive.VoidPointable;
+import org.apache.hyracks.data.std.util.BufferSerDeUtil;
 import org.apache.hyracks.dataflow.common.data.accessors.IFrameTupleReference;
 
 /**

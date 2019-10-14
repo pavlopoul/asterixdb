@@ -146,7 +146,8 @@ public class RTreeResourceFactoryProvider implements IResourceFactoryProvider {
                 storageComponentProvider.getIoOperationSchedulerProvider();
         ILinearizeComparatorFactory linearizeCmpFactory =
                 MetadataProvider.proposeLinearizer(keyType, secondaryComparatorFactories.length);
-        ITypeTraits[] typeTraits = getTypeTraits(mdProvider, dataset, index, recordType, metaType);
+        ITypeTraits[] typeTraits = getTypeTraits(mdProvider.getStorageComponentProvider().getTypeTraitProvider(),
+                dataset, index, recordType, metaType);
         IBinaryComparatorFactory[] rtreeCmpFactories = getCmpFactories(mdProvider, index, recordType, metaType);
         int[] secondaryFilterFields = (filterTypeTraits != null && filterTypeTraits.length > 0)
                 ? new int[] { numNestedSecondaryKeyFields + numPrimaryKeys } : null;
@@ -186,13 +187,12 @@ public class RTreeResourceFactoryProvider implements IResourceFactoryProvider {
         return btreeCompFactories;
     }
 
-    private static ITypeTraits[] getTypeTraits(MetadataProvider metadataProvider, Dataset dataset, Index index,
+    private static ITypeTraits[] getTypeTraits(ITypeTraitProvider typeTraitProvider, Dataset dataset, Index index,
             ARecordType recordType, ARecordType metaType) throws AlgebricksException {
-        ITypeTraitProvider ttProvider = metadataProvider.getStorageComponentProvider().getTypeTraitProvider();
         List<List<String>> secondaryKeyFields = index.getKeyFieldNames();
         int numSecondaryKeys = secondaryKeyFields.size();
         int numPrimaryKeys = dataset.getPrimaryKeys().size();
-        ITypeTraits[] primaryTypeTraits = dataset.getPrimaryTypeTraits(metadataProvider, recordType, metaType);
+        ITypeTraits[] primaryTypeTraits = dataset.getPrimaryTypeTraits(typeTraitProvider, recordType, metaType);
         if (numSecondaryKeys != 1) {
             throw new AsterixException("Cannot use " + numSecondaryKeys + " fields as a key for the R-tree index. "
                     + "There can be only one field as a key for the R-tree index.");
@@ -215,7 +215,7 @@ public class RTreeResourceFactoryProvider implements IResourceFactoryProvider {
         ITypeTraits[] secondaryTypeTraits = new ITypeTraits[numNestedSecondaryKeyFields + numPrimaryKeys];
         IAType nestedKeyType = NonTaggedFormatUtil.getNestedSpatialType(spatialType.getTypeTag());
         for (int i = 0; i < numNestedSecondaryKeyFields; i++) {
-            secondaryTypeTraits[i] = ttProvider.getTypeTrait(nestedKeyType);
+            secondaryTypeTraits[i] = typeTraitProvider.getTypeTrait(nestedKeyType);
         }
         for (int i = 0; i < numPrimaryKeys; i++) {
             secondaryTypeTraits[numNestedSecondaryKeyFields + i] = primaryTypeTraits[i];

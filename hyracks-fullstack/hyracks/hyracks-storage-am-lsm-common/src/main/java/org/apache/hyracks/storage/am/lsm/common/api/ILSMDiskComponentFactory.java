@@ -30,6 +30,10 @@ public interface ILSMDiskComponentFactory {
      *
      * @param cfr
      *            the disk file references which points to the different physical files of the index
+     * @param numTuples
+     *            number of tuples in a new disk component
+     * @param numAntimatterTuples
+     *            number of antimatter tuples in a new disk component
      * @return a disk component
      * @throws HyracksDataException
      */

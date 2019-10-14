@@ -38,6 +38,7 @@ import org.apache.asterix.om.utils.NonTaggedFormatUtil;
 import org.apache.asterix.om.utils.RecordUtil;
 import org.apache.hyracks.algebricks.common.exceptions.AlgebricksException;
 import org.apache.hyracks.algebricks.common.utils.Pair;
+import org.apache.hyracks.algebricks.data.ITypeTraitProvider;
 import org.apache.hyracks.api.dataflow.value.IBinaryComparatorFactory;
 import org.apache.hyracks.api.dataflow.value.ITypeTraits;
 import org.apache.hyracks.data.std.accessors.ShortBinaryComparatorFactory;
@@ -113,7 +114,8 @@ public class InvertedIndexResourceFactoryProvider implements IResourceFactoryPro
         ILSMIOOperationSchedulerProvider ioSchedulerProvider =
                 storageComponentProvider.getIoOperationSchedulerProvider();
         double bloomFilterFalsePositiveRate = mdProvider.getStorageProperties().getBloomFilterFalsePositiveRate();
-        ITypeTraits[] typeTraits = getInvListTypeTraits(mdProvider, dataset, recordType, metaType);
+        ITypeTraits[] typeTraits = getInvListTypeTraits(mdProvider.getStorageComponentProvider().getTypeTraitProvider(),
+                dataset, recordType, metaType);
         IBinaryComparatorFactory[] cmpFactories =
                 getInvListComparatorFactories(mdProvider, dataset, recordType, metaType);
         ITypeTraits[] tokenTypeTraits = getTokenTypeTraits(dataset, index, recordType, metaType);
@@ -128,9 +130,9 @@ public class InvertedIndexResourceFactoryProvider implements IResourceFactoryPro
                 invertedIndexFieldsForNonBulkLoadOps, bloomFilterFalsePositiveRate);
     }
 
-    private static ITypeTraits[] getInvListTypeTraits(MetadataProvider metadataProvider, Dataset dataset,
+    private static ITypeTraits[] getInvListTypeTraits(ITypeTraitProvider typeTraitProvider, Dataset dataset,
             ARecordType recordType, ARecordType metaType) throws AlgebricksException {
-        ITypeTraits[] primaryTypeTraits = dataset.getPrimaryTypeTraits(metadataProvider, recordType, metaType);
+        ITypeTraits[] primaryTypeTraits = dataset.getPrimaryTypeTraits(typeTraitProvider, recordType, metaType);
         ITypeTraits[] typeTraits = new ITypeTraits[primaryTypeTraits.length - 1];
         for (int i = 0; i < typeTraits.length; i++) {
             typeTraits[i] = primaryTypeTraits[i];

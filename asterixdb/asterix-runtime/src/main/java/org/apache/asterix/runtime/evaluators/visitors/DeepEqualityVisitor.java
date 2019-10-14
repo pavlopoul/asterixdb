@@ -81,10 +81,10 @@ public class DeepEqualityVisitor implements IVisitablePointableVisitor<Void, Pai
                 arg.second = false;
             } else {
                 // If same domain, check if numberic
-                Domain domain = ATypeHierarchy.getTypeDomain(tt1);
+
                 byte b1[] = pointable.getByteArray();
                 byte b2[] = arg.first.getByteArray();
-                if (domain == Domain.NUMERIC) {
+                if (ATypeHierarchy.belongsToDomain(tt1, Domain.NUMERIC)) {
                     int s1 = pointable.getStartOffset();
                     int s2 = arg.first.getStartOffset();
                     arg.second = Math.abs(ATypeHierarchy.getDoubleValue("deep-equal", 0, b1, s1)

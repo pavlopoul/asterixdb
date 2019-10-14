@@ -47,6 +47,7 @@ import org.apache.asterix.common.config.MessagingProperties;
 import org.apache.asterix.common.config.MetadataProperties;
 import org.apache.asterix.common.config.NodeProperties;
 import org.apache.asterix.common.config.ReplicationProperties;
+import org.apache.asterix.common.config.StatisticsProperties;
 import org.apache.asterix.common.config.StorageProperties;
 import org.apache.asterix.common.config.TransactionProperties;
 import org.apache.asterix.common.context.DatasetLifecycleManager;
@@ -74,6 +75,7 @@ import org.apache.asterix.replication.management.ReplicationChannel;
 import org.apache.asterix.replication.management.ReplicationManager;
 import org.apache.asterix.runtime.transaction.GlobalResourceIdFactoryProvider;
 import org.apache.asterix.runtime.utils.NoOpCoordinationService;
+import org.apache.asterix.statistics.common.StatisticsManager;
 import org.apache.asterix.transaction.management.resource.PersistentLocalResourceRepository;
 import org.apache.asterix.transaction.management.resource.PersistentLocalResourceRepositoryFactory;
 import org.apache.hyracks.api.application.INCServiceContext;
@@ -91,6 +93,7 @@ import org.apache.hyracks.control.nc.NodeControllerService;
 import org.apache.hyracks.ipc.impl.HyracksConnection;
 import org.apache.hyracks.storage.am.lsm.common.api.ILSMIOOperationScheduler;
 import org.apache.hyracks.storage.am.lsm.common.api.ILSMMergePolicyFactory;
+import org.apache.hyracks.storage.am.lsm.common.api.IStatisticsManager;
 import org.apache.hyracks.storage.am.lsm.common.impls.AsynchronousScheduler;
 import org.apache.hyracks.storage.am.lsm.common.impls.ConcurrentMergePolicyFactory;
 import org.apache.hyracks.storage.am.lsm.common.impls.GreedyScheduler;
@@ -128,6 +131,7 @@ public class NCAppRuntimeContext implements INcApplicationContext {
     private final BuildProperties buildProperties;
     private final ReplicationProperties replicationProperties;
     private final MessagingProperties messagingProperties;
+    private StatisticsProperties statisticsProperties;
     private final NodeProperties nodeProperties;
     private ExecutorService threadExecutor;
     private IDatasetMemoryManager datasetMemoryManager;
@@ -149,9 +153,13 @@ public class NCAppRuntimeContext implements INcApplicationContext {
     private IHyracksClientConnection hcc;
     private IIndexCheckpointManagerProvider indexCheckpointManagerProvider;
     private IReplicaManager replicaManager;
+<<<<<<< HEAD
     private IReceptionist receptionist;
     private ICacheManager cacheManager;
     private IConfigValidator configValidator;
+=======
+    private IStatisticsManager statisticsManager;
+>>>>>>> christina/merged_stats
 
     public NCAppRuntimeContext(INCServiceContext ncServiceContext, NCExtensionManager extensionManager,
             IPropertiesFactory propertiesFactory) {
@@ -220,6 +228,7 @@ public class NCAppRuntimeContext implements INcApplicationContext {
                 this.ncServiceContext);
         receptionist = receptionistFactory.create();
 
+        statisticsManager = new StatisticsManager(getServiceContext());
         if (replicationProperties.isReplicationEnabled()) {
             replicationManager = new ReplicationManager(this, replicationProperties);
 
@@ -397,6 +406,11 @@ public class NCAppRuntimeContext implements INcApplicationContext {
     }
 
     @Override
+    public StatisticsProperties getStatisticsProperties() {
+        return statisticsProperties;
+    }
+
+    @Override
     public IReplicationChannel getReplicationChannel() {
         return replicationChannel;
     }
@@ -409,6 +423,11 @@ public class NCAppRuntimeContext implements INcApplicationContext {
     @Override
     public ILibraryManager getLibraryManager() {
         return libraryManager;
+    }
+
+    @Override
+    public IStatisticsManager getStatisticsManager() {
+        return statisticsManager;
     }
 
     @Override

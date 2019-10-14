@@ -21,6 +21,7 @@ package org.apache.hyracks.storage.am.lsm.common.impls;
 
 import java.io.FilenameFilter;
 import java.io.IOException;
+import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Comparator;
@@ -83,6 +84,8 @@ public abstract class AbstractLSMIndexFileManager implements ILSMIndexFileManage
      * Hides transaction components until they are either committed by removing this file or deleted along with the file
      */
     public static final String TXN_PREFIX = ".T";
+
+    public static final DateTimeFormatter FORMATTER = DateTimeFormatter.ofPattern("yyyy-MM-dd-HH-mm-ss-SSS");
 
     public static final FilenameFilter COMPONENT_FILES_FILTER = (dir, name) -> !name.startsWith(".");
     protected static final FilenameFilter txnFileNameFilter = (dir, name) -> name.startsWith(TXN_PREFIX);
@@ -385,7 +388,6 @@ public abstract class AbstractLSMIndexFileManager implements ILSMIndexFileManage
             final String path = baseDir.getChildPath(name);
             return new CompressedFileReference(baseDir.getDeviceHandle(), compDecomp, path, path + LAF_SUFFIX);
         }
-
         return baseDir.getChild(name);
     }
 

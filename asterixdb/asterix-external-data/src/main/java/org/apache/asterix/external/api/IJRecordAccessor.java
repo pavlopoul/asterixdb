@@ -23,8 +23,8 @@ import org.apache.asterix.external.library.java.base.JRecord;
 import org.apache.asterix.om.pointables.ARecordVisitablePointable;
 import org.apache.asterix.om.types.ARecordType;
 import org.apache.asterix.om.types.IAType;
-import org.apache.asterix.om.util.container.IObjectPool;
 import org.apache.hyracks.api.exceptions.HyracksDataException;
+import org.apache.hyracks.util.objectpool.IObjectPool;
 
 public interface IJRecordAccessor {
 

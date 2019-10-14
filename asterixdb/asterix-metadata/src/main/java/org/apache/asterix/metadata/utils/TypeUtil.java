@@ -172,6 +172,7 @@ public class TypeUtil {
         }
         return recordNameTypesMap;
     }
+<<<<<<< HEAD
 
     /**
      * Maintains the {@code updatedRecordType} as nullable/missable (?) in case it was originally nullable/missable
@@ -212,4 +213,6 @@ public class TypeUtil {
                     "Field accessor is not defined for \"" + fName + "\" of type " + actualType.getTypeTag());
         }
     }
+=======
+>>>>>>> christina/merged_stats
 }

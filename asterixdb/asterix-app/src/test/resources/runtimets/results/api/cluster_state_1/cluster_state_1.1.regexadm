@@ -35,7 +35,18 @@
     "replication\.log\.buffer\.pagesize" : 131072,
     "replication\.strategy" : "none",
     "replication\.timeout" : 30,
+<<<<<<< HEAD
     "ssl\.enabled" : false,
+=======
+    "statistics\.merge\.strategy" : "TimeBased",
+    "statistics\.merge\.strategy\.timeout" : -1,
+    "statistics\.sketch\.accuracy" : 0.1,
+    "statistics\.sketch\.energy\.accuracy" : 0.1,
+    "statistics\.sketch\.failure\.probability" : 0.05,
+    "statistics\.sketch\.fanout" : 2,
+    "statistics\.synopsis\.size" : 20,
+    "statistics\.synopsis\.type" : "None",
+>>>>>>> christina/merged_stats
     "storage.max.active.writable.datasets" : 8,
     "txn\.commitprofiler\.enabled" : false,
     "txn\.commitprofiler\.reportinterval" : 5,

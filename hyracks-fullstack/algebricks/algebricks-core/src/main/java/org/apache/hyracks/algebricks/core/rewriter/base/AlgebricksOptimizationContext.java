@@ -88,14 +88,34 @@ public class AlgebricksOptimizationContext implements IOptimizationContext {
     private final INodeDomain defaultNodeDomain;
     private final IPlanPrettyPrinter prettyPrinter;
     private final IConflictingTypeResolver conflictingTypeResovler;
+<<<<<<< HEAD
     private final IWarningCollector warningCollector;
+=======
+    private final ICardinalityEstimator cardinalityEstimator;
+
+    public AlgebricksOptimizationContext(int varCounter, IExpressionEvalSizeComputer expressionEvalSizeComputer,
+            IMergeAggregationExpressionFactory mergeAggregationExpressionFactory,
+            IExpressionTypeComputer expressionTypeComputer, IMissableTypeComputer missableTypeComputer,
+            IConflictingTypeResolver conflictingTypeResovler, ICardinalityEstimator cardinalityEstimator,
+            PhysicalOptimizationConfig physicalOptimizationConfig, AlgebricksPartitionConstraint clusterLocations) {
+        this(varCounter, expressionEvalSizeComputer, mergeAggregationExpressionFactory, expressionTypeComputer,
+                missableTypeComputer, conflictingTypeResovler, cardinalityEstimator, physicalOptimizationConfig,
+                clusterLocations, new LogicalOperatorPrettyPrintVisitor());
+    }
+>>>>>>> christina/merged_stats
 
     public AlgebricksOptimizationContext(int varCounter, IExpressionEvalSizeComputer expressionEvalSizeComputer,
             IMergeAggregationExpressionFactory mergeAggregationExpressionFactory,
             IExpressionTypeComputer expressionTypeComputer, IMissableTypeComputer nullableTypeComputer,
+<<<<<<< HEAD
             IConflictingTypeResolver conflictingTypeResovler, PhysicalOptimizationConfig physicalOptimizationConfig,
             AlgebricksPartitionConstraint clusterLocations, IPlanPrettyPrinter prettyPrinter,
             IWarningCollector warningCollector) {
+=======
+            IConflictingTypeResolver conflictingTypeResovler, ICardinalityEstimator cardinalityEstimator,
+            PhysicalOptimizationConfig physicalOptimizationConfig, AlgebricksPartitionConstraint clusterLocations,
+            LogicalOperatorPrettyPrintVisitor prettyPrintVisitor) {
+>>>>>>> christina/merged_stats
         this.varCounter = varCounter;
         this.expressionEvalSizeComputer = expressionEvalSizeComputer;
         this.mergeAggregationExpressionFactory = mergeAggregationExpressionFactory;
@@ -105,7 +125,11 @@ public class AlgebricksOptimizationContext implements IOptimizationContext {
         this.defaultNodeDomain = new DefaultNodeGroupDomain(clusterLocations);
         this.prettyPrinter = prettyPrinter;
         this.conflictingTypeResovler = conflictingTypeResovler;
+<<<<<<< HEAD
         this.warningCollector = warningCollector;
+=======
+        this.cardinalityEstimator = cardinalityEstimator;
+>>>>>>> christina/merged_stats
     }
 
     @Override
@@ -334,7 +358,12 @@ public class AlgebricksOptimizationContext implements IOptimizationContext {
     }
 
     @Override
+<<<<<<< HEAD
     public IWarningCollector getWarningCollector() {
         return warningCollector;
+=======
+    public ICardinalityEstimator getCardinalityEstimator() {
+        return cardinalityEstimator;
+>>>>>>> christina/merged_stats
     }
 }

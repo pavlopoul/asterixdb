@@ -144,6 +144,7 @@ public class LogicalOperatorPrettyPrintVisitorJson extends AbstractLogicalOperat
     }
 
     @Override
+<<<<<<< HEAD
     public final IPlanPrettyPrinter reset() throws AlgebricksException {
         flushContentToWriter();
         resetState();
@@ -173,6 +174,42 @@ public class LogicalOperatorPrettyPrintVisitorJson extends AbstractLogicalOperat
             }
             for (Mutable<ILogicalOperator> root : plan.getRoots()) {
                 printOperatorImpl((AbstractLogicalOperator) root.getValue());
+=======
+    public void printOperator(AbstractLogicalOperator op, int indent) throws AlgebricksException {
+        int currentIndent = indent;
+        final AlgebricksAppendable out = get();
+        pad(out, currentIndent);
+        appendln(out, "{");
+        currentIndent++;
+        op.accept(this, currentIndent);
+        appendln(out, ",");
+        pad(out, currentIndent);
+        append(out, "\"operatorId\": \"" + idCounter.printOperatorId(op) + "\"");
+        IPhysicalOperator pOp = op.getPhysicalOperator();
+        if (pOp != null) {
+            appendln(out, ",");
+            pad(out, currentIndent);
+            String pOperator = "\"physical-operator\": \"" + pOp.toString() + "\"";
+            append(out, pOperator);
+        }
+        appendln(out, ",");
+        pad(out, currentIndent);
+        append(out, "\"cardinality\": \"" + op.getCardinality() + '"');
+        appendln(out, ",");
+        pad(out, currentIndent);
+        append(out, "\"execution-mode\": \"" + op.getExecutionMode() + '"');
+        if (!op.getInputs().isEmpty()) {
+            appendln(out, ",");
+            pad(out, currentIndent);
+            appendln(out, "\"inputs\": [");
+            boolean moreInputes = false;
+            for (Mutable<ILogicalOperator> k : op.getInputs()) {
+                if (moreInputes) {
+                    append(out, ",");
+                }
+                printOperator((AbstractLogicalOperator) k.getValue(), currentIndent + 4);
+                moreInputes = true;
+>>>>>>> christina/merged_stats
             }
             if (writeArrayOfRoots) {
                 jsonGenerator.writeEndArray();

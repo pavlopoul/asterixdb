@@ -39,11 +39,11 @@ import org.apache.asterix.om.pointables.PointableAllocator;
 import org.apache.asterix.om.pointables.base.IVisitablePointable;
 import org.apache.asterix.om.types.BuiltinType;
 import org.apache.asterix.om.types.IAType;
-import org.apache.asterix.om.util.container.IObjectPool;
-import org.apache.asterix.om.util.container.ListObjectPool;
 import org.apache.hyracks.api.exceptions.HyracksDataException;
 import org.apache.hyracks.data.std.api.IDataOutputProvider;
 import org.apache.hyracks.data.std.api.IValueReference;
+import org.apache.hyracks.util.objectpool.IObjectPool;
+import org.apache.hyracks.util.objectpool.ListObjectPool;
 
 public class JavaFunctionHelper implements IFunctionHelper {
 

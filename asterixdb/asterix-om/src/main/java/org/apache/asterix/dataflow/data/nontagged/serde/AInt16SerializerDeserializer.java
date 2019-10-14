@@ -22,11 +22,10 @@ import java.io.DataInput;
 import java.io.DataOutput;
 
 import org.apache.asterix.om.base.AInt16;
-import org.apache.hyracks.api.dataflow.value.ISerializerDeserializer;
 import org.apache.hyracks.api.exceptions.HyracksDataException;
 import org.apache.hyracks.dataflow.common.data.marshalling.ShortSerializerDeserializer;
 
-public class AInt16SerializerDeserializer implements ISerializerDeserializer<AInt16> {
+public class AInt16SerializerDeserializer implements AIntegerSerializerDeserializer<AInt16> {
 
     private static final long serialVersionUID = 1L;
 
@@ -51,5 +50,10 @@ public class AInt16SerializerDeserializer implements ISerializerDeserializer<AIn
 
     public static int getUnsignedShort(byte[] bytes, int offset) {
         return ((bytes[offset] & 0xff) << 8) + ((bytes[offset + 1] & 0xff) << 0);
+    }
+
+    @Override
+    public long getLongValue(byte[] bytes, int offset) {
+        return getShort(bytes, offset);
     }
 }

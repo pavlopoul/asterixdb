@@ -39,6 +39,8 @@ import org.apache.hyracks.storage.am.lsm.common.api.ILSMIndex;
 import org.apache.hyracks.storage.am.lsm.common.api.ILSMMergePolicyFactory;
 import org.apache.hyracks.storage.am.lsm.common.api.ILSMOperationTrackerFactory;
 import org.apache.hyracks.storage.am.lsm.common.api.ILSMPageWriteCallbackFactory;
+import org.apache.hyracks.storage.am.lsm.common.api.IStatisticsFactory;
+import org.apache.hyracks.storage.am.lsm.common.api.IStatisticsManagerProvider;
 import org.apache.hyracks.storage.am.lsm.common.api.IVirtualBufferCache;
 import org.apache.hyracks.storage.am.lsm.common.api.IVirtualBufferCacheProvider;
 import org.apache.hyracks.storage.am.lsm.common.dataflow.LsmResource;
@@ -58,6 +60,8 @@ public class LSMBTreeLocalResource extends LsmResource {
     protected final boolean isPrimary;
     protected final int[] btreeFields;
     protected final ICompressorDecompressorFactory compressorDecompressorFactory;
+    protected final IStatisticsFactory statisticsFactory;
+    protected final IStatisticsManagerProvider statisticsManagerProvider;
 
     public LSMBTreeLocalResource(ITypeTraits[] typeTraits, IBinaryComparatorFactory[] cmpFactories,
             int[] bloomFilterKeyFields, double bloomFilterFalsePositiveRate, boolean isPrimary, String path,
@@ -68,7 +72,8 @@ public class LSMBTreeLocalResource extends LsmResource {
             ILSMPageWriteCallbackFactory pageWriteCallbackFactory,
             IMetadataPageManagerFactory metadataPageManagerFactory, IVirtualBufferCacheProvider vbcProvider,
             ILSMIOOperationSchedulerProvider ioSchedulerProvider, boolean durable,
-            ICompressorDecompressorFactory compressorDecompressorFactory) {
+            ICompressorDecompressorFactory compressorDecompressorFactory, IStatisticsFactory statisticsFactory,
+            IStatisticsManagerProvider statisticsManagerProvider) {
         super(path, storageManager, typeTraits, cmpFactories, filterTypeTraits, filterCmpFactories, filterFields,
                 opTrackerProvider, ioOpCallbackFactory, pageWriteCallbackFactory, metadataPageManagerFactory,
                 vbcProvider, ioSchedulerProvider, mergePolicyFactory, mergePolicyProperties, durable);
@@ -77,6 +82,8 @@ public class LSMBTreeLocalResource extends LsmResource {
         this.isPrimary = isPrimary;
         this.btreeFields = btreeFields;
         this.compressorDecompressorFactory = compressorDecompressorFactory;
+        this.statisticsFactory = statisticsFactory;
+        this.statisticsManagerProvider = statisticsManagerProvider;
     }
 
     protected LSMBTreeLocalResource(IPersistedResourceRegistry registry, JsonNode json, int[] bloomFilterKeyFields,
@@ -88,6 +95,8 @@ public class LSMBTreeLocalResource extends LsmResource {
         this.isPrimary = isPrimary;
         this.btreeFields = btreeFields;
         this.compressorDecompressorFactory = compressorDecompressorFactory;
+        this.statisticsFactory = null;
+        this.statisticsManagerProvider = null;
     }
 
     @Override
@@ -99,13 +108,16 @@ public class LSMBTreeLocalResource extends LsmResource {
         pageWriteCallbackFactory.initialize(serviceCtx, this);
         //TODO: enable updateAwareness for secondary LSMBTree indexes
         boolean updateAware = false;
+        boolean hasStatistics =
+                statisticsFactory != null && statisticsManagerProvider != null && statisticsFactory.canCollectStats();
         return LSMBTreeUtil.createLSMTree(ioManager, vbcs, file, storageManager.getBufferCache(serviceCtx), typeTraits,
                 cmpFactories, bloomFilterKeyFields, bloomFilterFalsePositiveRate,
                 mergePolicyFactory.createMergePolicy(mergePolicyProperties, serviceCtx),
                 opTrackerProvider.getOperationTracker(serviceCtx, this), ioSchedulerProvider.getIoScheduler(serviceCtx),
                 ioOpCallbackFactory, pageWriteCallbackFactory, isPrimary, filterTypeTraits, filterCmpFactories,
                 btreeFields, filterFields, durable, metadataPageManagerFactory, updateAware, serviceCtx.getTracer(),
-                compressorDecompressorFactory);
+                compressorDecompressorFactory, statisticsFactory,
+                hasStatistics ? statisticsManagerProvider.getStatisticsManager(serviceCtx) : null);
     }
 
     @Override

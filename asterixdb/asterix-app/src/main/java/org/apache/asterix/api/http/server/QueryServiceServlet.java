@@ -202,6 +202,30 @@ public class QueryServiceServlet extends AbstractQueryApiServlet {
         }
     }
 
+<<<<<<< HEAD
+=======
+    private enum Metrics {
+        ELAPSED_TIME("elapsedTime"),
+        EXECUTION_TIME("executionTime"),
+        OPTIMIZATION_TIME("optimizationTime"),
+        RESULT_COUNT("resultCount"),
+        RESULT_SIZE("resultSize"),
+        ERROR_COUNT("errorCount"),
+        PROCESSED_OBJECTS_COUNT("processedObjects"),
+        WARNING_COUNT("warningCount");
+
+        private final String str;
+
+        Metrics(String str) {
+            this.str = str;
+        }
+
+        public String str() {
+            return str;
+        }
+    }
+
+>>>>>>> christina/merged_stats
     protected static final class RequestExecutionState {
         private long execStart = -1;
         private long execEnd = -1;

@@ -24,7 +24,7 @@ import org.apache.asterix.om.types.IAType;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 
-public class AInt64 implements IAObject {
+public class AInt64 extends AIntegerObject {
 
     protected long value;
 
@@ -67,5 +67,25 @@ public class AInt64 implements IAObject {
         json.put("AInt64", value);
 
         return json;
+    }
+
+    @Override
+    public long minDomainValue() {
+        return Long.MIN_VALUE;
+    }
+
+    @Override
+    public long maxDomainValue() {
+        return Long.MAX_VALUE;
+    }
+
+    @Override
+    public int size() {
+        return Long.SIZE;
+    }
+
+    @Override
+    public long longValue() {
+        return value;
     }
 }

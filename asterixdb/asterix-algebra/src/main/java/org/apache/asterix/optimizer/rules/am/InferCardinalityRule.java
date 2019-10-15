@@ -22,6 +22,7 @@ import static org.apache.asterix.optimizer.rules.am.BTreeAccessMethod.LimitType.
 import static org.apache.asterix.optimizer.rules.am.OptimizableOperatorSubTree.DataSourceType.DATASOURCE_SCAN;
 
 import java.util.List;
+import java.util.Map;
 
 import org.apache.asterix.common.exceptions.AsterixException;
 import org.apache.asterix.metadata.declared.MetadataProvider;
@@ -31,6 +32,7 @@ import org.apache.asterix.om.constants.AsterixConstantValue;
 import org.apache.asterix.om.types.hierachy.ATypeHierarchy;
 import org.apache.asterix.optimizer.rules.am.BTreeAccessMethod.LimitType;
 import org.apache.commons.lang3.mutable.Mutable;
+import org.apache.commons.lang3.mutable.MutableInt;
 import org.apache.hyracks.algebricks.common.exceptions.AlgebricksException;
 import org.apache.hyracks.algebricks.core.algebra.base.ILogicalExpression;
 import org.apache.hyracks.algebricks.core.algebra.base.ILogicalOperator;
@@ -49,7 +51,6 @@ import org.apache.hyracks.algebricks.core.algebra.operators.logical.AssignOperat
 import org.apache.hyracks.algebricks.core.algebra.operators.logical.InnerJoinOperator;
 import org.apache.hyracks.algebricks.core.algebra.operators.logical.SelectOperator;
 import org.apache.hyracks.algebricks.core.algebra.operators.logical.visitors.CardinalityInferenceVisitor;
-import org.apache.hyracks.algebricks.core.rewriter.base.IAlgebraicRewriteRule;
 
 /**
  * Uses accumulated statistics to infer cardinality of the select/join operations
@@ -58,7 +59,8 @@ import org.apache.hyracks.algebricks.core.rewriter.base.IAlgebraicRewriteRule;
  * (join) <-- (assign)? <--(datasource scan)
  * <-- (assign)? <-- (datasource scan)
  */
-public class InferCardinalityRule implements IAlgebraicRewriteRule {
+//public class InferCardinalityRule implements IAlgebraicRewriteRule {
+public class InferCardinalityRule extends AbstractIntroduceAccessMethodRule {
 
     private OptimizableOperatorSubTree leftSubTree;
     private OptimizableOperatorSubTree rightSubTree;
@@ -262,7 +264,7 @@ public class InferCardinalityRule implements IAlgebraicRewriteRule {
         }
         if (expr.getExpressionTag() == LogicalExpressionTag.CONSTANT) {
             IAObject constExprValue = ((AsterixConstantValue) ((ConstantExpression) expr).getValue()).getObject();
-            if (ATypeHierarchy.belongsToDomain(constExprValue.getType().getTypeTag(), ATypeHierarchy.Domain.INTEGER)) {
+            if (ATypeHierarchy.getTypeDomain(constExprValue.getType().getTypeTag()) == ATypeHierarchy.Domain.INTEGER) {
                 return (AIntegerObject) constExprValue;
             }
         }
@@ -278,6 +280,7 @@ public class InferCardinalityRule implements IAlgebraicRewriteRule {
             if (subTree.getDataset().hasMetaPart()) {
                 datasetMetaVar = datasetVars.get(datasetVars.size() - 1);
             }
+            MutableInt fieldSource = new MutableInt(0);
             for (int assignOrUnnestIndex = 0; assignOrUnnestIndex < subTree.getAssignsAndUnnests()
                     .size(); assignOrUnnestIndex++) {
                 AbstractLogicalOperator subTreeOp = subTree.getAssignsAndUnnests().get(assignOrUnnestIndex);
@@ -289,13 +292,13 @@ public class InferCardinalityRule implements IAlgebraicRewriteRule {
                         if (funcVarIndex == -1) {
                             continue;
                         }
-                        List<String> fieldName = AbstractIntroduceAccessMethodRule.getFieldNameFromSubTree(null,
-                                subTree, assignOrUnnestIndex, varIndex, subTree.getRecordType(), -1, null,
-                                subTree.getMetaRecordType(), datasetMetaVar);
+                        List<String> fieldName = getFieldNameFromSubTree(null, subTree, assignOrUnnestIndex, varIndex,
+                                subTree.getRecordType(), -1, null, subTree.getMetaRecordType(), datasetMetaVar,
+                                fieldSource);
                         if (fieldName.isEmpty()) {
                             return false;
                         }
-                        optFuncExpr.setFieldName(funcVarIndex, fieldName);
+                        optFuncExpr.setFieldName(funcVarIndex, fieldName, fieldSource.intValue());
                         optFuncExpr.setOptimizableSubTree(funcVarIndex, subTree);
                         return true;
                     }
@@ -320,7 +323,7 @@ public class InferCardinalityRule implements IAlgebraicRewriteRule {
                     fieldName = subTreePKs.get(varIndex);
 
                 }
-                optFuncExpr.setFieldName(funcVarIndex, fieldName);
+                optFuncExpr.setFieldName(funcVarIndex, fieldName, fieldSource.intValue());
                 optFuncExpr.setOptimizableSubTree(funcVarIndex, subTree);
                 optFuncExpr.setSourceVar(funcVarIndex, var);
                 optFuncExpr.setLogicalExpr(funcVarIndex, new VariableReferenceExpression(var));
@@ -328,5 +331,11 @@ public class InferCardinalityRule implements IAlgebraicRewriteRule {
             }
         }
         return false;
+    }
+
+    @Override
+    public Map<FunctionIdentifier, List<IAccessMethod>> getAccessMethods() {
+        // TODO Auto-generated method stub
+        return null;
     }
 }

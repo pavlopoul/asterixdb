@@ -18,15 +18,15 @@
  */
 package org.apache.asterix.test.dataflow;
 
+import java.util.List;
 import java.util.Map;
 
-<<<<<<< HEAD
 import org.apache.asterix.common.config.DatasetConfig.DatasetType;
 import org.apache.asterix.common.config.DatasetConfig.IndexType;
-=======
->>>>>>> christina/merged_stats
 import org.apache.asterix.common.context.AsterixVirtualBufferCacheProvider;
 import org.apache.asterix.common.context.IStorageComponentProvider;
+import org.apache.asterix.external.indexing.FilesIndexDescription;
+import org.apache.asterix.external.indexing.IndexingConstants;
 import org.apache.asterix.metadata.api.IResourceFactoryProvider;
 import org.apache.asterix.metadata.declared.BTreeResourceFactoryProvider;
 import org.apache.asterix.metadata.declared.MetadataProvider;
@@ -34,9 +34,12 @@ import org.apache.asterix.metadata.entities.Dataset;
 import org.apache.asterix.metadata.entities.Index;
 import org.apache.asterix.metadata.utils.IndexUtil;
 import org.apache.asterix.om.types.ARecordType;
+import org.apache.asterix.om.types.IAType;
 import org.apache.asterix.runtime.statistics.StatisticsUtil;
 import org.apache.asterix.transaction.management.opcallbacks.PrimaryIndexOperationTrackerFactory;
 import org.apache.hyracks.algebricks.common.exceptions.AlgebricksException;
+import org.apache.hyracks.algebricks.common.utils.Pair;
+import org.apache.hyracks.algebricks.data.IBinaryComparatorFactoryProvider;
 import org.apache.hyracks.algebricks.data.ITypeTraitProvider;
 import org.apache.hyracks.api.dataflow.value.IBinaryComparatorFactory;
 import org.apache.hyracks.api.dataflow.value.ITypeTraits;
@@ -68,10 +71,10 @@ public class TestLsmBTreeResourceFactoryProvider implements IResourceFactoryProv
         IStorageComponentProvider storageComponentProvider = mdProvider.getStorageComponentProvider();
         ITypeTraitProvider typeTraitProvider = storageComponentProvider.getTypeTraitProvider();
         ITypeTraits[] typeTraits =
-                BTreeResourceFactoryProvider.getTypeTraits(typeTraitProvider, dataset, index, recordType, metaType);
+                BTreeResourceFactoryProvider.getTypeTraits(mdProvider, dataset, index, recordType, metaType);
         IBinaryComparatorFactory[] cmpFactories =
                 BTreeResourceFactoryProvider.getCmpFactories(mdProvider, dataset, index, recordType, metaType);
-        int[] bloomFilterFields = BTreeResourceFactoryProvider.getBloomFilterFields(dataset, index);
+        int[] bloomFilterFields = getBloomFilterFields(dataset, index);
         double bloomFilterFalsePositiveRate = mdProvider.getStorageProperties().getBloomFilterFalsePositiveRate();
         ILSMOperationTrackerFactory opTrackerFactory = dataset.getIndexOperationTrackerFactory(index);
         if (opTrackerFactory instanceof PrimaryIndexOperationTrackerFactory) {
@@ -86,10 +89,14 @@ public class TestLsmBTreeResourceFactoryProvider implements IResourceFactoryProv
                 storageComponentProvider.getIoOperationSchedulerProvider();
         AsterixVirtualBufferCacheProvider vbcProvider = new AsterixVirtualBufferCacheProvider(dataset.getDatasetId());
         return new TestLsmBtreeLocalResourceFactory(storageManager, typeTraits, cmpFactories, filterTypeTraits,
-<<<<<<< HEAD
                 filterCmpFactories, filterFields, opTrackerFactory, ioOpCallbackFactory, pageWriteCallbackFactory,
                 metadataPageManagerFactory, vbcProvider, ioSchedulerProvider, mergePolicyFactory, mergePolicyProperties,
-                true, bloomFilterFields, bloomFilterFalsePositiveRate, index.isPrimaryIndex(), btreeFields);
+                true, bloomFilterFields, bloomFilterFalsePositiveRate, index.isPrimaryIndex(), btreeFields,
+                new TestCountingStatisticsFactory(dataset.getDataverseName(), dataset.getDatasetName(),
+                        index.getIndexName(),
+                        StatisticsUtil.computeStatisticsFieldExtractors(typeTraitProvider, recordType,
+                                index.getKeyFieldNames(), index.isPrimaryIndex(), true, null)),
+                hasStatistics ? storageComponentProvider.getStatisticsManagerProvider() : null);
     }
 
     private static ITypeTraits[] getTypeTraits(MetadataProvider metadataProvider, Dataset dataset, Index index,
@@ -183,15 +190,5 @@ public class TestLsmBTreeResourceFactoryProvider implements IResourceFactoryProv
             }
             return bloomFilterKeyFields;
         }
-=======
-                filterCmpFactories, filterFields, opTrackerFactory, ioOpCallbackFactory, metadataPageManagerFactory,
-                vbcProvider, ioSchedulerProvider, mergePolicyFactory, mergePolicyProperties, true, bloomFilterFields,
-                bloomFilterFalsePositiveRate, index.isPrimaryIndex(), btreeFields,
-                new TestCountingStatisticsFactory(dataset.getDataverseName(), dataset.getDatasetName(),
-                        index.getIndexName(),
-                        StatisticsUtil.computeStatisticsFieldExtractors(typeTraitProvider, recordType,
-                                index.getKeyFieldNames(), index.isPrimaryIndex(), true, null)),
-                hasStatistics ? storageComponentProvider.getStatisticsManagerProvider() : null);
->>>>>>> christina/merged_stats
     }
 }

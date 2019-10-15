@@ -25,18 +25,12 @@ package org.apache.asterix.om.util.container;
 public interface IObjectFactory<E, T> {
 
     /**
-<<<<<<< HEAD
      * Creates an element of type E.
      *
-     * @param arg additional argument to create the proper element.
+     * @param arg
+     *            additional argument to create the proper element.
      *
      * @return an E element.
-=======
-     * create an element of type E
-     * 
-     * @param arg
-     * @return an E element
->>>>>>> christina/merged_stats
      */
     E create(T arg);
 }

@@ -60,13 +60,9 @@ public class MetadataPrimaryIndexes {
     public static final MetadataIndexImmutableProperties PROPERTIES_COMPACTION_POLICY =
             new MetadataIndexImmutableProperties(MetadataConstants.COMPACTION_POLICY_DATASET_NAME, 13, 13);
     public static final MetadataIndexImmutableProperties PROPERTIES_EXTERNAL_FILE =
-<<<<<<< HEAD
             new MetadataIndexImmutableProperties(MetadataConstants.EXTERNAL_FILE_DATASET_NAME, 14, 14);
-=======
-            new MetadataIndexImmutableProperties("ExternalFile", 14, 14);
     public static final MetadataIndexImmutableProperties PROPERTIES_STATISTICS =
-            new MetadataIndexImmutableProperties("Statistics", 15, 15);
->>>>>>> christina/merged_stats
+            new MetadataIndexImmutableProperties(MetadataConstants.STATISTICS_DATASET_NAME, 15, 15);
 
     public static final IMetadataIndex DATAVERSE_DATASET =
             new MetadataIndex(PROPERTIES_DATAVERSE, 2, new IAType[] { BuiltinType.ASTRING },

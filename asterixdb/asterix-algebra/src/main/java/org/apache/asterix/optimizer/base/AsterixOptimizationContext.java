@@ -32,6 +32,7 @@ import org.apache.hyracks.algebricks.core.algebra.expressions.IMergeAggregationE
 import org.apache.hyracks.algebricks.core.algebra.expressions.IMissableTypeComputer;
 import org.apache.hyracks.algebricks.core.algebra.prettyprint.IPlanPrettyPrinter;
 import org.apache.hyracks.algebricks.core.rewriter.base.AlgebricksOptimizationContext;
+import org.apache.hyracks.algebricks.core.rewriter.base.ICardinalityEstimator;
 import org.apache.hyracks.algebricks.core.rewriter.base.PhysicalOptimizationConfig;
 import org.apache.hyracks.api.exceptions.IWarningCollector;
 
@@ -45,12 +46,12 @@ public final class AsterixOptimizationContext extends AlgebricksOptimizationCont
     public AsterixOptimizationContext(int varCounter, IExpressionEvalSizeComputer expressionEvalSizeComputer,
             IMergeAggregationExpressionFactory mergeAggregationExpressionFactory,
             IExpressionTypeComputer expressionTypeComputer, IMissableTypeComputer nullableTypeComputer,
-            IConflictingTypeResolver conflictingTypeResovler, PhysicalOptimizationConfig physicalOptimizationConfig,
-            AlgebricksPartitionConstraint clusterLocations, IPlanPrettyPrinter prettyPrinter,
-            IWarningCollector warningCollector) {
+            IConflictingTypeResolver conflictingTypeResovler, ICardinalityEstimator cardinalityEstimator,
+            PhysicalOptimizationConfig physicalOptimizationConfig, AlgebricksPartitionConstraint clusterLocations,
+            IPlanPrettyPrinter prettyPrinter, IWarningCollector warningCollector) {
         super(varCounter, expressionEvalSizeComputer, mergeAggregationExpressionFactory, expressionTypeComputer,
-                nullableTypeComputer, conflictingTypeResovler, physicalOptimizationConfig, clusterLocations,
-                prettyPrinter, warningCollector);
+                nullableTypeComputer, conflictingTypeResovler, cardinalityEstimator, physicalOptimizationConfig,
+                clusterLocations, prettyPrinter, warningCollector);
     }
 
     public void addDataSource(DataSource dataSource) {

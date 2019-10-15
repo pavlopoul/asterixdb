@@ -35,7 +35,6 @@ import org.apache.hyracks.data.std.primitive.BytePointable;
 import org.apache.hyracks.data.std.primitive.IntegerPointable;
 import org.apache.hyracks.data.std.primitive.LongPointable;
 import org.apache.hyracks.data.std.primitive.VarLengthTypeTrait;
-import org.apache.hyracks.util.objectpool.IObjectFactory;
 
 import com.fasterxml.jackson.databind.JsonNode;
 

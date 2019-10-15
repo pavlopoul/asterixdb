@@ -57,7 +57,7 @@ public class DeepEqualAssessor {
         if (leftTypeTag != rightTypeTag) {
             // If types are numeric compare their real values instead
             if (ATypeHierarchy.isSameTypeDomain(leftTypeTag, rightTypeTag, false)
-                    && ATypeHierarchy.belongsToDomain(leftTypeTag, Domain.NUMERIC)) {
+                    && ATypeHierarchy.getTypeDomain(leftTypeTag) == Domain.NUMERIC) {
                 double leftVal = ATypeHierarchy.getDoubleValue(DEEP_EQUAL, 0, leftPointable.getByteArray(),
                         leftPointable.getStartOffset());
                 double rightVal = ATypeHierarchy.getDoubleValue(DEEP_EQUAL, 1, rightPointable.getByteArray(),

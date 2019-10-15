@@ -84,11 +84,7 @@ import org.apache.asterix.metadata.bootstrap.AsterixStateProxy;
 import org.apache.asterix.metadata.lock.MetadataLockManager;
 import org.apache.asterix.runtime.job.resource.JobCapacityController;
 import org.apache.asterix.runtime.utils.CcApplicationContext;
-<<<<<<< HEAD
-=======
 import org.apache.asterix.statistics.common.StatisticsMerger;
-import org.apache.asterix.translator.IStatementExecutorContext;
->>>>>>> christina/merged_stats
 import org.apache.asterix.translator.IStatementExecutorFactory;
 import org.apache.asterix.translator.Receptionist;
 import org.apache.asterix.util.MetadataBuiltinFunctions;

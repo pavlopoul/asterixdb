@@ -56,23 +56,14 @@ public class HeuristicCompilerFactoryBuilder extends AbstractCompilerFactoryBuil
                 IExpressionEvalSizeComputer expressionEvalSizeComputer,
                 IMergeAggregationExpressionFactory mergeAggregationExpressionFactory,
                 IExpressionTypeComputer expressionTypeComputer, IMissableTypeComputer missableTypeComputer,
-<<<<<<< HEAD
-                IConflictingTypeResolver conflictingTypeResolver, PhysicalOptimizationConfig physicalOptimizationConfig,
-                AlgebricksPartitionConstraint clusterLocations, IWarningCollector warningCollector) {
+                IConflictingTypeResolver conflictingTypeResolver, ICardinalityEstimator cardinalityEstimator,
+                PhysicalOptimizationConfig physicalOptimizationConfig, AlgebricksPartitionConstraint clusterLocations,
+                IWarningCollector warningCollector) {
             IPlanPrettyPrinter prettyPrinter = PlanPrettyPrinter.createStringPlanPrettyPrinter();
             return new AlgebricksOptimizationContext(varCounter, expressionEvalSizeComputer,
                     mergeAggregationExpressionFactory, expressionTypeComputer, missableTypeComputer,
-                    conflictingTypeResolver, physicalOptimizationConfig, clusterLocations, prettyPrinter,
-                    warningCollector);
-=======
-                IConflictingTypeResolver conflictingTypeResolver, ICardinalityEstimator cardinalityEstimator,
-                PhysicalOptimizationConfig physicalOptimizationConfig, AlgebricksPartitionConstraint clusterLocations) {
-            LogicalOperatorPrettyPrintVisitor prettyPrintVisitor = new LogicalOperatorPrettyPrintVisitor();
-            return new AlgebricksOptimizationContext(varCounter, expressionEvalSizeComputer,
-                    mergeAggregationExpressionFactory, expressionTypeComputer, missableTypeComputer,
                     conflictingTypeResolver, cardinalityEstimator, physicalOptimizationConfig, clusterLocations,
-                    prettyPrintVisitor);
->>>>>>> christina/merged_stats
+                    prettyPrinter, warningCollector);
         }
     }
 
@@ -94,13 +85,8 @@ public class HeuristicCompilerFactoryBuilder extends AbstractCompilerFactoryBuil
                     int varCounter) {
                 final IOptimizationContext oc = optCtxFactory.createOptimizationContext(varCounter,
                         expressionEvalSizeComputer, mergeAggregationExpressionFactory, expressionTypeComputer,
-<<<<<<< HEAD
-                        missableTypeComputer, conflictingTypeResolver, physicalOptimizationConfig, clusterLocations,
-                        warningCollector);
-=======
                         missableTypeComputer, conflictingTypeResolver, cardinalityEstimator, physicalOptimizationConfig,
-                        clusterLocations);
->>>>>>> christina/merged_stats
+                        clusterLocations, warningCollector);
                 oc.setMetadataDeclarations(metadata);
                 final HeuristicOptimizer opt = new HeuristicOptimizer(plan, logicalRewrites, physicalRewrites, oc);
                 return new ICompiler() {

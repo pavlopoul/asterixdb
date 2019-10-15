@@ -52,7 +52,7 @@ public class StatisticsUtil {
         IAType keyType = recordType.getFieldType(keyField);
         // add statistics on indexed fields
         if ((!isPrimaryIndex || keepStatisticsOnPrimaryKeys)
-                && ATypeHierarchy.belongsToDomain(keyType.getTypeTag(), Domain.INTEGER)) {
+                && ATypeHierarchy.getTypeDomain(keyType.getTypeTag()) == Domain.INTEGER) {
             AIntegerSerializerDeserializer serDe =
                     (AIntegerSerializerDeserializer) SerializerDeserializerProvider.INSTANCE
                             .getNonTaggedSerializerDeserializer(keyType);
@@ -60,10 +60,12 @@ public class StatisticsUtil {
                     keyType.getTypeTag()));
         }
         // add statistics on non-indexed fields
-        if (isPrimaryIndex && unorderedStatisticsFields != null && unorderedStatisticsFields.length > 0) {
+        if (isPrimaryIndex && unorderedStatisticsFields != null && unorderedStatisticsFields.length > 0)
+
+        {
             for (int i = 0; i < unorderedStatisticsFields.length; i++) {
                 IAType statisticsType = recordType.getFieldType(unorderedStatisticsFields[i]);
-                if (ATypeHierarchy.belongsToDomain(statisticsType.getTypeTag(), Domain.INTEGER)) {
+                if (ATypeHierarchy.getTypeDomain(statisticsType.getTypeTag()) == Domain.INTEGER) {
                     AIntegerSerializerDeserializer serDe =
                             (AIntegerSerializerDeserializer) SerializerDeserializerProvider.INSTANCE
                                     .getNonTaggedSerializerDeserializer(statisticsType);

@@ -153,13 +153,10 @@ public class NCAppRuntimeContext implements INcApplicationContext {
     private IHyracksClientConnection hcc;
     private IIndexCheckpointManagerProvider indexCheckpointManagerProvider;
     private IReplicaManager replicaManager;
-<<<<<<< HEAD
     private IReceptionist receptionist;
     private ICacheManager cacheManager;
     private IConfigValidator configValidator;
-=======
     private IStatisticsManager statisticsManager;
->>>>>>> christina/merged_stats
 
     public NCAppRuntimeContext(INCServiceContext ncServiceContext, NCExtensionManager extensionManager,
             IPropertiesFactory propertiesFactory) {

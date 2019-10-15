@@ -29,8 +29,8 @@ import org.apache.asterix.app.bootstrap.TestNodeController.PrimaryIndexInfo;
 import org.apache.asterix.app.bootstrap.TestNodeController.SecondaryIndexInfo;
 import org.apache.asterix.app.data.gen.RecordTupleGenerator;
 import org.apache.asterix.app.data.gen.RecordTupleGenerator.GenerationFunction;
-//import org.apache.asterix.app.data.gen.TupleGenerator;
-//import org.apache.asterix.app.data.gen.TupleGenerator.GenerationFunction;
+// import org.apache.asterix.app.data.gen.TupleGenerator;
+// import org.apache.asterix.app.data.gen.TupleGenerator.GenerationFunction;
 import org.apache.asterix.app.nc.NCAppRuntimeContext;
 import org.apache.asterix.common.api.IDatasetLifecycleManager;
 import org.apache.asterix.common.config.DatasetConfig.DatasetType;
@@ -47,6 +47,7 @@ import org.apache.asterix.metadata.entities.InternalDatasetDetails.PartitioningS
 import org.apache.asterix.om.types.ARecordType;
 import org.apache.asterix.om.types.BuiltinType;
 import org.apache.asterix.om.types.IAType;
+import org.apache.asterix.runtime.operators.LSMPrimaryInsertOperatorNodePushable;
 import org.apache.asterix.runtime.operators.LSMPrimaryUpsertOperatorNodePushable;
 import org.apache.asterix.statistics.TestMetadataProvider;
 import org.apache.asterix.statistics.TestMetadataProvider.TestStatisticsEntry;
@@ -66,7 +67,6 @@ import org.apache.hyracks.dataflow.common.data.accessors.ITupleReference;
 import org.apache.hyracks.storage.am.common.api.IIndexDataflowHelper;
 import org.apache.hyracks.storage.am.common.dataflow.IndexDataflowHelperFactory;
 import org.apache.hyracks.storage.am.common.dataflow.IndexInsertUpdateDeleteOperatorNodePushable;
-import org.apache.hyracks.storage.am.common.ophelpers.IndexOperation;
 import org.apache.hyracks.storage.am.lsm.btree.impl.TestLsmBtree;
 import org.apache.hyracks.storage.am.lsm.common.api.ILSMDiskComponent;
 import org.apache.hyracks.storage.am.lsm.common.impls.NoMergePolicyFactory;
@@ -96,7 +96,7 @@ public class StatisticsTest {
     private static IIndexDataflowHelper[] indexDataflowHelpers = new IIndexDataflowHelper[2];
     private static IStorageManager storageManager;
     private static final int PARTITION = 0;
-    private static LSMInsertDeleteOperatorNodePushable insertOp;
+    private static LSMPrimaryInsertOperatorNodePushable insertOp;
     private static LSMInsertDeleteOperatorNodePushable deleteOp;
     private static LSMPrimaryUpsertOperatorNodePushable upsertOp;
     private static int NUM_INSERT_RECORDS = 1000;
@@ -219,12 +219,10 @@ public class StatisticsTest {
 
         insertOp = nc.getInsertPipeline(ctx, STATS_DATASET, StorageTestUtils.KEY_TYPES, RECORD_TYPE,
                 StorageTestUtils.META_TYPE, null, StorageTestUtils.KEY_INDEXES, StorageTestUtils.KEY_INDICATORS_LIST,
+                storageProvider, secondaryIndex, null).getLeft();
+        deleteOp = nc.getDeletePipeline(ctx, STATS_DATASET, StorageTestUtils.KEY_TYPES, RECORD_TYPE,
+                StorageTestUtils.META_TYPE, null, StorageTestUtils.KEY_INDEXES, StorageTestUtils.KEY_INDICATORS_LIST,
                 storageProvider, secondaryIndex).getLeft();
-        deleteOp = nc
-                .getInsertPipeline(ctx, STATS_DATASET, StorageTestUtils.KEY_TYPES, RECORD_TYPE,
-                        StorageTestUtils.META_TYPE, null, StorageTestUtils.KEY_INDEXES,
-                        StorageTestUtils.KEY_INDICATORS_LIST, storageProvider, secondaryIndex, IndexOperation.DELETE)
-                .getLeft();
         upsertOp = nc.getUpsertPipeline(ctx, STATS_DATASET, StorageTestUtils.KEY_TYPES, RECORD_TYPE,
                 StorageTestUtils.META_TYPE, null, StorageTestUtils.KEY_INDEXES, StorageTestUtils.KEY_INDICATORS_LIST,
                 storageProvider, null, true).getLeft();

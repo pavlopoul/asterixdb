@@ -56,9 +56,11 @@ import org.apache.hyracks.storage.common.IStorageManager;
 public class TestLsmBTreeResourceFactoryProvider implements IResourceFactoryProvider {
 
     private final boolean hasStatistics;
+    private final boolean updateAware;
 
-    public TestLsmBTreeResourceFactoryProvider(boolean hasStatistics) {
+    public TestLsmBTreeResourceFactoryProvider(boolean hasStatistics, boolean updateAware) {
         this.hasStatistics = hasStatistics;
+        this.updateAware = updateAware;
     }
 
     @Override
@@ -96,7 +98,7 @@ public class TestLsmBTreeResourceFactoryProvider implements IResourceFactoryProv
                         index.getIndexName(),
                         StatisticsUtil.computeStatisticsFieldExtractors(typeTraitProvider, recordType,
                                 index.getKeyFieldNames(), index.isPrimaryIndex(), true, null)),
-                hasStatistics ? storageComponentProvider.getStatisticsManagerProvider() : null);
+                hasStatistics ? storageComponentProvider.getStatisticsManagerProvider() : null, updateAware);
     }
 
     private static ITypeTraits[] getTypeTraits(MetadataProvider metadataProvider, Dataset dataset, Index index,

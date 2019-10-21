@@ -49,6 +49,7 @@ import com.fasterxml.jackson.databind.node.ObjectNode;
 
 public class TestLsmBtreeLocalResource extends LSMBTreeLocalResource {
     private static final long serialVersionUID = 1L;
+    private final boolean updateAware;
 
     public TestLsmBtreeLocalResource(ITypeTraits[] typeTraits, IBinaryComparatorFactory[] cmpFactories,
             int[] bloomFilterKeyFields, double bloomFilterFalsePositiveRate, boolean isPrimary, String path,
@@ -59,18 +60,21 @@ public class TestLsmBtreeLocalResource extends LSMBTreeLocalResource {
             ILSMPageWriteCallbackFactory pageWriteCallbackFactory,
             IMetadataPageManagerFactory metadataPageManagerFactory, IVirtualBufferCacheProvider vbcProvider,
             ILSMIOOperationSchedulerProvider ioSchedulerProvider, boolean durable, IStatisticsFactory statisticsFactory,
-            IStatisticsManagerProvider statisticsManagerProvider) {
+            IStatisticsManagerProvider statisticsManagerProvider, boolean updateAware) {
         super(typeTraits, cmpFactories, bloomFilterKeyFields, bloomFilterFalsePositiveRate, isPrimary, path,
                 storageManager, mergePolicyFactory, mergePolicyProperties, filterTypeTraits, filterCmpFactories,
                 btreeFields, filterFields, opTrackerProvider, ioOpCallbackFactory, pageWriteCallbackFactory,
                 metadataPageManagerFactory, vbcProvider, ioSchedulerProvider, durable,
                 NoOpCompressorDecompressorFactory.INSTANCE, statisticsFactory, statisticsManagerProvider);
+        this.updateAware = updateAware;
     }
 
     protected TestLsmBtreeLocalResource(IPersistedResourceRegistry registry, JsonNode json, int[] bloomFilterKeyFields,
-            double bloomFilterFalsePositiveRate, boolean isPrimary, int[] btreeFields) throws HyracksDataException {
+            double bloomFilterFalsePositiveRate, boolean isPrimary, int[] btreeFields, boolean updateAware)
+            throws HyracksDataException {
         super(registry, json, bloomFilterKeyFields, bloomFilterFalsePositiveRate, isPrimary, btreeFields,
                 NoOpCompressorDecompressorFactory.INSTANCE);
+        this.updateAware = updateAware;
     }
 
     @Override
@@ -92,7 +96,7 @@ public class TestLsmBtreeLocalResource extends LSMBTreeLocalResource {
                 mergePolicyFactory.createMergePolicy(mergePolicyProperties, serviceCtx),
                 opTrackerProvider.getOperationTracker(serviceCtx, this), ioSchedulerProvider.getIoScheduler(serviceCtx),
                 ioOpCallbackFactory, pageWriteCallbackFactory, isPrimary, filterTypeTraits, filterCmpFactories,
-                btreeFields, filterFields, durable, metadataPageManagerFactory, false, serviceCtx.getTracer(),
+                btreeFields, filterFields, durable, metadataPageManagerFactory, updateAware, serviceCtx.getTracer(),
                 statisticsFactory,
                 statisticsManagerProvider == null ? null : statisticsManagerProvider.getStatisticsManager(serviceCtx));
     }
@@ -111,6 +115,6 @@ public class TestLsmBtreeLocalResource extends LSMBTreeLocalResource {
         final boolean isPrimary = json.get("isPrimary").asBoolean();
         final int[] btreeFields = OBJECT_MAPPER.convertValue(json.get("btreeFields"), int[].class);
         return new TestLsmBtreeLocalResource(registry, json, bloomFilterKeyFields, bloomFilterFalsePositiveRate,
-                isPrimary, btreeFields);
+                isPrimary, btreeFields, false);
     }
 }

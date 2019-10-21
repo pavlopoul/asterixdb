@@ -19,7 +19,7 @@
 package org.apache.hyracks.storage.am.statistics.sketch.groupcount;
 
 import static org.junit.Assert.assertEquals;
-import static org.mockito.Matchers.anyLong;
+import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
@@ -77,7 +77,7 @@ public class GroupCountSketchTest {
 
         long[] products = HashGenerator.productVector(coeffIdx);
         int sign = HashGenerator.fourwiseIndependent(hashes, products) % 2 == 1 ? 1 : -1;
-        assertEquals(sketch.estimateValue(groupIdx), sign * 6.0, epsilon);
+        assertEquals(sketch.estimateValue(groupIdx, groupIdx), sign * 6.0, epsilon);
     }
 
     @Test
@@ -89,9 +89,9 @@ public class GroupCountSketchTest {
 
         long[] products = HashGenerator.productVector(coeffIdx);
         int sign = HashGenerator.fourwiseIndependent(hashes, products) % 2 == 1 ? 1 : -1;
-        assertEquals(sketch.estimateValue(0L), sign * 1.0, epsilon);
-        assertEquals(sketch.estimateValue(1L), sign * 2.0, epsilon);
-        assertEquals(sketch.estimateValue(2L), sign * 3.0, epsilon);
+        assertEquals(sketch.estimateValue(0L, 0L), sign * 1.0, epsilon);
+        assertEquals(sketch.estimateValue(0L, 1L), sign * 2.0, epsilon);
+        assertEquals(sketch.estimateValue(0L, 2L), sign * 3.0, epsilon);
     }
 
     //    @Test

@@ -98,13 +98,13 @@ public class GroupCountSketch {
     }
 
     // estimate value frequency. Can be called only for singleton groups, hence does not need to iterate over subbuckets
-    public double estimateValue(long coeffIdx) {
+    public double estimateValue(long coeffIdx, long groupIdx) {
         long[] products = HashGenerator.productVector(coeffIdx);
         double estimates[] = new double[testsNum];
         for (int i = 0; i < testsNum; i++) {
             int itemHash = HashGenerator.fourwiseIndependent(itemHashes[i], products) % 2;
             int subbucketHash = HashGenerator.pairwiseIndependent(subbucketHashes[i], coeffIdx) % subbucketNum;
-            int groupHash = HashGenerator.pairwiseIndependent(bucketHashes[i], coeffIdx) % bucketNum;
+            int groupHash = HashGenerator.pairwiseIndependent(bucketHashes[i], groupIdx) % bucketNum;
             if (itemHash == 1) {
                 estimates[i] += counters[i][groupHash][subbucketHash];
             } else {

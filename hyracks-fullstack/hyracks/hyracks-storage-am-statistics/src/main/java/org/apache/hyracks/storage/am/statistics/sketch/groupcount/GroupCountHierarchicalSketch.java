@@ -151,7 +151,7 @@ public class GroupCountHierarchicalSketch<T extends Number> implements ISketch<T
         double energyEstimate = sketches[level].estimateL2(groupIdx);
         if (energyEstimate >= energyThreshold) {
             if (level == 0) {
-                double coeffValue = sketches[level].estimateValue(groupIdx);
+                double coeffValue = sketches[level].estimateValue(groupIdx, groupIdx);
                 results.add(
                         new WaveletCoefficient(coeffValue, WaveletCoefficient.getLevel(groupIdx, maxLevel), groupIdx));
             } else {

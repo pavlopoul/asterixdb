@@ -423,12 +423,19 @@ public class LSMBTree extends AbstractLSMIndex implements ITreeIndex {
                 getIndexIdentifier());
     }
 
-    private ILSMIOOperationCallback getStatisticsAwareIOOperationCallback(ILSMIOOperationCallback callback) {
+    public ILSMIOOperationCallback getStatisticsAwareIOOperationCallback(ILSMIOOperationCallback callback) {
         if (hasStatistics) {
             return new StatisticsMessageIOOperationCallbackWrapper(callback, statisticsManager);
         } else {
             return callback;
         }
+    }
+
+    public boolean hasStatistics() {
+        if (!hasStatistics) {
+            return false;
+        }
+        return true;
     }
 
     @Override

@@ -48,11 +48,14 @@ public class StatisticsUtil {
         }
         List<IFieldExtractor> result = new ArrayList<>();
         // TODO: allow nested fields
+        if (indexKeys.isEmpty()) {
+            return result;
+        }
         String keyField = String.join(".", indexKeys.get(0));
         IAType keyType = recordType.getFieldType(keyField);
         // add statistics on indexed fields
         if ((!isPrimaryIndex || keepStatisticsOnPrimaryKeys)
-                && ATypeHierarchy.getTypeDomain(keyType.getTypeTag()) == Domain.INTEGER) {
+                && ATypeHierarchy.getTypeDomain(keyType.getTypeTag()) == Domain.NUMERIC) {
             AIntegerSerializerDeserializer serDe =
                     (AIntegerSerializerDeserializer) SerializerDeserializerProvider.INSTANCE
                             .getNonTaggedSerializerDeserializer(keyType);
@@ -65,7 +68,7 @@ public class StatisticsUtil {
         {
             for (int i = 0; i < unorderedStatisticsFields.length; i++) {
                 IAType statisticsType = recordType.getFieldType(unorderedStatisticsFields[i]);
-                if (ATypeHierarchy.getTypeDomain(statisticsType.getTypeTag()) == Domain.INTEGER) {
+                if (ATypeHierarchy.getTypeDomain(statisticsType.getTypeTag()) == Domain.NUMERIC) {
                     AIntegerSerializerDeserializer serDe =
                             (AIntegerSerializerDeserializer) SerializerDeserializerProvider.INSTANCE
                                     .getNonTaggedSerializerDeserializer(statisticsType);

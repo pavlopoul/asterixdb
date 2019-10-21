@@ -17,5 +17,5 @@
  * under the License.
  */
  select DataverseName, DatasetName, IndexName, FieldName, IsAntimatter, Synopsis
- from Metadata.Statistics
- where MinID != MaxID;
+ from Metadata.Statistics;
+ /*where MinID != MaxID;*/

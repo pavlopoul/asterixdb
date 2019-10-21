@@ -117,9 +117,8 @@ public class StatisticsTest {
 
     private static final TestDataset STATS_DATASET = new TestDataset(StorageTestUtils.DATAVERSE_NAME,
             StorageTestUtils.DATASET_NAME, StorageTestUtils.DATAVERSE_NAME, StorageTestUtils.DATA_TYPE_NAME,
-            StorageTestUtils.NODE_GROUP_NAME, NoMergePolicyFactory.NAME,
-            null, new InternalDatasetDetails(null, PartitioningStrategy.HASH, StorageTestUtils.PARTITIONING_KEYS, null,
-                    null, null, false, null),
+            StorageTestUtils.NODE_GROUP_NAME, NoMergePolicyFactory.NAME, null, new InternalDatasetDetails(null,
+                    PartitioningStrategy.HASH, StorageTestUtils.PARTITIONING_KEYS, null, null, null, false, null),
             new HashMap<>(), DatasetType.INTERNAL, StorageTestUtils.DATASET_ID, 0, true);
     private static final TestStatisticsID keyFieldStatisticsID =
             new TestStatisticsID(StorageTestUtils.DATAVERSE_NAME, StorageTestUtils.DATASET_NAME,
@@ -287,6 +286,8 @@ public class StatisticsTest {
     public void testFlushInsertDeleteEmptyStatistics() throws Exception {
         // insert 1000 records...
         insertRecords(NUM_INSERT_RECORDS);
+        nc.getTransactionManager().commitTransaction(txnCtx.getTxnId());
+        StorageTestUtils.flush(dsLifecycleMgr, primaryLsmBtree, STATS_DATASET, false);
         // ...and delete them right after
         deleteRecords(NUM_INSERT_RECORDS);
         nc.getTransactionManager().commitTransaction(txnCtx.getTxnId());
@@ -367,7 +368,7 @@ public class StatisticsTest {
                 antimatterKeyEntry.getComponentId().getMaxTimestamp());
         CountingSynopsis synopsis = (CountingSynopsis) antimatterKeyEntry.getSynopsis();
         Assert.assertNotNull(synopsis);
-        Assert.assertEquals(NUM_INSERT_RECORDS / 2, synopsis.getCount());
+        Assert.assertEquals(NUM_INSERT_RECORDS, synopsis.getCount());
 
         Assert.assertNotNull(valueFieldAntimatterStatsEntries);
         Assert.assertEquals(1, valueFieldAntimatterStatsEntries.size());
@@ -376,7 +377,7 @@ public class StatisticsTest {
                 antimatterValueEntry.getComponentId().getMaxTimestamp());
         synopsis = (CountingSynopsis) antimatterValueEntry.getSynopsis();
         Assert.assertNotNull(synopsis);
-        Assert.assertEquals(NUM_INSERT_RECORDS / 2, synopsis.getCount());
+        Assert.assertEquals(NUM_INSERT_RECORDS, synopsis.getCount());
     }
 
     @Test

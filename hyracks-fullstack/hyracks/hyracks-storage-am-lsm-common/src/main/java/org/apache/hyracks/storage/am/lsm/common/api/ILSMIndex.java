@@ -59,6 +59,8 @@ public interface ILSMIndex extends IIndex {
 
     boolean isPrimaryIndex();
 
+    boolean hasStatistics();
+
     void modify(IIndexOperationContext ictx, ITupleReference tuple) throws HyracksDataException;
 
     /**

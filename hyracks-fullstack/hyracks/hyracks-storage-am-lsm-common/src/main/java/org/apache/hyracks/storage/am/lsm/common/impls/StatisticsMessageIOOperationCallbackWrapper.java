@@ -69,14 +69,18 @@ public class StatisticsMessageIOOperationCallbackWrapper implements ILSMIOOperat
 
     @Override
     public void scheduled(ILSMIOOperation operation) throws HyracksDataException {
-        // TODO Auto-generated method stub
+        wrapperIOOpCallback.scheduled(operation);
 
     }
 
     @Override
     public void completed(ILSMIOOperation operation) {
-        // TODO Auto-generated method stub
+        wrapperIOOpCallback.completed(operation);
 
+    }
+
+    public ILSMIOOperationCallback getWrapper() {
+        return this.wrapperIOOpCallback;
     }
 
 }

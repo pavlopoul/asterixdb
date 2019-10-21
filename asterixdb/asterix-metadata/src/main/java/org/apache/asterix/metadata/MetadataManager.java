@@ -20,7 +20,6 @@
 package org.apache.asterix.metadata;
 
 import java.rmi.RemoteException;
-import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
@@ -494,8 +493,8 @@ public abstract class MetadataManager implements IMetadataManager {
             boolean isMergeable = true;
             SynopsisType type = null;
             List<ISynopsis<? extends ISynopsisElement>> synopsisList = new ArrayList<>();
-            LocalDateTime minComponentId = LocalDateTime.MAX;
-            LocalDateTime maxComponentId = LocalDateTime.MIN;
+            Long minComponentId = 0L;
+            Long maxComponentId = 0L;
             int synopsisSize = 0;
             int maxSynopsisElements = 0;
             //TODO : proactively merge only stats only within a node/partition?
@@ -511,15 +510,11 @@ public abstract class MetadataManager implements IMetadataManager {
                     synopsisSize = Integer.max(synopsisSize, stat.getSynopsis().getSize());
                     maxSynopsisElements = Integer.max(maxSynopsisElements, stat.getSynopsis().getElements().size());
                 }
-                if (stat.getComponentID().getMinTimestamp().isBefore(minComponentId)) {
-                    minComponentId = stat.getComponentID().getMinTimestamp();
-                }
-                if (stat.getComponentID().getMaxTimestamp().isAfter(maxComponentId)) {
-                    maxComponentId = stat.getComponentID().getMaxTimestamp();
-                }
+                minComponentId = stat.getComponentID().getMinTimestamp();
+                maxComponentId = stat.getComponentID().getMaxTimestamp();
             }
-            if (mergedStats != null && mergedStats.getComponentID().getMinTimestamp().isEqual(minComponentId)
-                    && mergedStats.getComponentID().getMaxTimestamp().isEqual(maxComponentId)) {
+            if (mergedStats != null && mergedStats.getComponentID().getMinTimestamp().equals(minComponentId)
+                    && mergedStats.getComponentID().getMaxTimestamp().equals(maxComponentId)) {
                 List<Statistics> result = new ArrayList(1);
                 result.add(mergedStats);
                 return result;

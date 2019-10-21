@@ -449,8 +449,8 @@ public class StatisticsTest {
 
         nc.getTransactionManager().commitTransaction(txnCtx.getTxnId());
         // trigger merge and reconciliation resulting in reconciliation of all records
-        //        StorageTestUtils.fullMerge(dsLifecycleMgr, primaryLsmBtree, STATS_DATASET);
-        //        StorageTestUtils.fullMerge(dsLifecycleMgr, secondaryLsmBtree, STATS_DATASET);
+        StorageTestUtils.fullMerge(dsLifecycleMgr, primaryLsmBtree, STATS_DATASET);
+        StorageTestUtils.fullMerge(dsLifecycleMgr, secondaryLsmBtree, STATS_DATASET);
 
         keyFieldStats = testMdProvider.getStats(keyFieldStatisticsID);
         valueFieldStats = testMdProvider.getStats(indexedFieldStatisticsID);
@@ -558,9 +558,9 @@ public class StatisticsTest {
 
         nc.getTransactionManager().commitTransaction(txnCtx.getTxnId());
         // merge and reconcile records between components C2 & C3, leaving behind component with antimatter [1-500]
-        //        StorageTestUtils.merge(Arrays.asList(primaryC3, primaryC2), dsLifecycleMgr, primaryLsmBtree, STATS_DATASET);
-        //        StorageTestUtils.merge(Arrays.asList(secondaryC3, secondaryC2), dsLifecycleMgr, secondaryLsmBtree,
-        //                STATS_DATASET);
+        StorageTestUtils.merge(Arrays.asList(primaryC3, primaryC2), dsLifecycleMgr, primaryLsmBtree, STATS_DATASET);
+        StorageTestUtils.merge(Arrays.asList(secondaryC3, secondaryC2), dsLifecycleMgr, secondaryLsmBtree,
+                STATS_DATASET);
 
         keyFieldStatsEntries = testMdProvider.getStats(keyFieldStatisticsID);
         valueFieldStatsEntries = testMdProvider.getStats(indexedFieldStatisticsID);
@@ -592,8 +592,8 @@ public class StatisticsTest {
         Assert.assertNotNull(synopsis);
         Assert.assertEquals(NUM_INSERT_RECORDS, synopsis.getCount());
 
-        //        StorageTestUtils.fullMerge(dsLifecycleMgr, primaryLsmBtree, STATS_DATASET);
-        //        StorageTestUtils.fullMerge(dsLifecycleMgr, secondaryLsmBtree, STATS_DATASET);
+        StorageTestUtils.fullMerge(dsLifecycleMgr, primaryLsmBtree, STATS_DATASET);
+        StorageTestUtils.fullMerge(dsLifecycleMgr, secondaryLsmBtree, STATS_DATASET);
 
         keyFieldStatsEntries = testMdProvider.getStats(keyFieldStatisticsID);
         valueFieldStatsEntries = testMdProvider.getStats(indexedFieldStatisticsID);

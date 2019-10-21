@@ -95,8 +95,9 @@ public class StorageTestUtils {
     public static final List<List<String>> PARTITIONING_KEYS =
             new ArrayList<>(Collections.singletonList(Collections.singletonList(RECORD_TYPE.getFieldNames()[0])));
     public static final TestDataset DATASET = new TestDataset(DATAVERSE_NAME, DATASET_NAME, DATAVERSE_NAME,
-            DATA_TYPE_NAME, NODE_GROUP_NAME, NoMergePolicyFactory.NAME, null, new InternalDatasetDetails(null,
-                    PartitioningStrategy.HASH, PARTITIONING_KEYS, null, null, null, false, null),
+            DATA_TYPE_NAME, NODE_GROUP_NAME,
+            NoMergePolicyFactory.NAME, null, new InternalDatasetDetails(null, PartitioningStrategy.HASH,
+                    PARTITIONING_KEYS, null, null, null, false, null),
             Collections.EMPTY_MAP, DatasetType.INTERNAL, DATASET_ID, 0, false, false);
 
     private StorageTestUtils() {

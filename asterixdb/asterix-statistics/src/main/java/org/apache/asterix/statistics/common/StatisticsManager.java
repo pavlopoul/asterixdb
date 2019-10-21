@@ -171,8 +171,8 @@ public class StatisticsManager implements IStatisticsManager {
             for (ILSMDiskComponent mergedComponent : mergedComponents) {
                 List<String> parsedMergedComponentPath =
                         parsePathComponents(((BTree) mergedComponent.getIndex()).getFileReference().getRelativePath());
-                mergedComponentIds.add(new ComponentStatisticsId(Long.parseLong(parsedComponentsPath.get(6)),
-                        Long.parseLong(parsedComponentsPath.get(5))));
+                mergedComponentIds.add(new ComponentStatisticsId(Long.parseLong(parsedMergedComponentPath.get(6)),
+                        Long.parseLong(parsedMergedComponentPath.get(5))));
             }
             ICcAddressedMessage msg = new ReportMergeComponentStatisticsMessage(flushComponentSynopsis,
                     ncContext.getNodeId(), parsedComponentsPath.get(1),

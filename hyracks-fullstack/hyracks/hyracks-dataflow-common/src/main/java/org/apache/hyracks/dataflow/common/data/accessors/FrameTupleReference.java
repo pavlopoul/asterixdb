@@ -59,4 +59,8 @@ public class FrameTupleReference implements IFrameTupleReference {
     public int getFieldLength(int fIdx) {
         return fta.getFieldLength(tIndex, fIdx);
     }
+
+    public boolean isFrame() {
+        return true;
+    }
 }

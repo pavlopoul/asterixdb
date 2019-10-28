@@ -72,7 +72,9 @@ class ActivityClusterPlanner {
         for (ActivityId aid : pcMap.keySet()) {
             activityPlanMap = buildActivityPlanMap(ac, jobRun, pcMap,
                     // (jobRun.getJobId().equals(new JobId(1))) ? 0 : pcMap.get(aid).getPartitionCount());
-                    (jobRun.getFirst()) ? 0 : pcMap.get(aid).getPartitionCount());
+                    !jobRun.getReturned() ? (jobRun.getFirst() ? 0 : pcMap.get(aid).getPartitionCount())
+                            : jobRun.getFirstNodes() ? pcMap.get(aid).getPartitionCount() : 0);
+            //(jobRun.getFirst()) ? 0 : pcMap.get(aid).getPartitionCount());
             break;
         }
         assignConnectorPolicy(ac, activityPlanMap);

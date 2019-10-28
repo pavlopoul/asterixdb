@@ -66,7 +66,6 @@ import org.apache.hyracks.control.common.job.PartitionState;
 import org.apache.hyracks.control.common.job.TaskAttemptDescriptor;
 import org.apache.hyracks.control.common.work.IResultCallback;
 import org.apache.hyracks.control.common.work.NoOpCallback;
-import org.apache.hyracks.dataflow.std.join.OptimizedHybridHashJoinOperatorDescriptor;
 import org.apache.logging.log4j.Level;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -145,7 +144,7 @@ public class JobExecutor {
             throws HyracksException {
         boolean depsComplete = true;
         for (ActivityCluster depAC : candidate.getDependencies()) {
-            if (!isPlanned(depAC)) {
+            if (!isPlanned(depAC) || jobRun.getReturned()) {
                 depsComplete = false;
                 findRunnableTaskClusterRoots(frontier, depAC);
             } else {
@@ -169,7 +168,7 @@ public class JobExecutor {
         if (!depsComplete) {
             return;
         }
-        if (!isPlanned(candidate)) {
+        if (!isPlanned(candidate) || jobRun.getReturned()) {
             ActivityClusterPlanner acp = new ActivityClusterPlanner(this);
             ActivityClusterPlan acPlan = acp.planActivityCluster(candidate);
             jobRun.getActivityClusterPlanMap().put(candidate.getId(), acPlan);
@@ -674,20 +673,38 @@ public class JobExecutor {
             ta.setEndTime(System.currentTimeMillis());
             System.out.println("Task finished for: " + jobRun.getJobId());
             Collection<JobRun> jobs = ccs.getJobManager().getRunningJobs();
-            if (jobRun.getJobSpecification().getOperatorMap().get(ta.getTask().getTaskId().getActivityId()
-                    .getOperatorDescriptorId()) instanceof OptimizedHybridHashJoinOperatorDescriptor) {
-                JobId id = null;
-                for (JobRun job : jobs) {
-                    if (job.getJobId() != jobRun.getJobId()) {
-                        id = job.getJobId();
-                    }
-                }
-                ccs.getJobManager().cancel(id, NoOpCallback.INSTANCE);
-            }
+            //            if (jobRun.getJobSpecification().getOperatorMap().get(ta.getTask().getTaskId().getActivityId()
+            //                    .getOperatorDescriptorId()) instanceof OptimizedHybridHashJoinOperatorDescriptor) {
+            //                JobId id = null;
+            //                for (JobRun job : jobs) {
+            //                    if (job.getJobId() != jobRun.getJobId()) {
+            //                        id = job.getJobId();
+            //                    }
+            //                }
+            //                ccs.getJobManager().cancel(id, NoOpCallback.INSTANCE);
+            //                jobRun.setReturned(true);
+            //                if (ta.getTask().getTaskId().getPartition() < 2) {
+            //                    jobRun.setFirstNodes(true);
+            //                }
+            //                startRunnableActivityClusters();
+            //            }
             if (lastAttempt.decrementPendingTasksCounter() == 0) {
                 lastAttempt.setStatus(TaskClusterAttempt.TaskClusterStatus.COMPLETED);
                 lastAttempt.setEndTime(System.currentTimeMillis());
                 inProgressTaskClusters.remove(tc);
+                JobId id = null;
+                for (JobRun job : jobs) {
+                    if (job.getJobId() != jobRun.getJobId()) {
+                        id = job.getJobId();
+                        String canceledNode = job.getParticipatingNodeIds().iterator().next();
+                    }
+                }
+                ccs.getJobManager().cancel(id, NoOpCallback.INSTANCE);
+                startRunnableActivityClusters();
+                jobRun.setReturned(true);
+                if (ta.getTask().getTaskId().getPartition() < 2) {
+                    jobRun.setFirstNodes(true);
+                }
                 startRunnableActivityClusters();
             }
         } catch (Exception e) {

@@ -93,6 +93,10 @@ public class JobRun implements IJobStatusConditionVariable {
 
     private boolean first;
 
+    private boolean returned = false;
+
+    private boolean fistNodes = false;
+
     private JobStatus status;
 
     private List<Exception> exceptions;
@@ -182,6 +186,22 @@ public class JobRun implements IJobStatusConditionVariable {
 
     public boolean getFirst() {
         return first;
+    }
+
+    public void setReturned(boolean returned) {
+        this.returned = returned;
+    }
+
+    public boolean getReturned() {
+        return returned;
+    }
+
+    public void setFirstNodes(boolean firstNodes) {
+        this.fistNodes = firstNodes;
+    }
+
+    public boolean getFirstNodes() {
+        return fistNodes;
     }
 
     public ActivityClusterGraph getActivityClusterGraph() {

@@ -42,6 +42,10 @@ public class PartitionConstraintSolver {
         }
     }
 
+    public Set<ConstraintExpression> getConstraints(Constraint c) {
+        return constraints.get(c.getLValue());
+    }
+
     public void addConstraint(Constraint c) {
         Set<ConstraintExpression> rValues = constraints.get(c.getLValue());
         if (rValues == null) {

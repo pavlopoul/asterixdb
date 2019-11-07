@@ -29,8 +29,14 @@ import java.util.Map;
 import java.util.Set;
 
 import org.apache.commons.lang3.tuple.Pair;
+import org.apache.hyracks.api.constraints.Constraint;
+import org.apache.hyracks.api.constraints.PartitionConstraintHelper;
+import org.apache.hyracks.api.constraints.expressions.ConstantExpression;
+import org.apache.hyracks.api.constraints.expressions.ConstraintExpression;
+import org.apache.hyracks.api.constraints.expressions.ConstraintExpression.ExpressionTag;
 import org.apache.hyracks.api.constraints.expressions.LValueConstraintExpression;
 import org.apache.hyracks.api.constraints.expressions.PartitionCountExpression;
+import org.apache.hyracks.api.constraints.expressions.PartitionLocationExpression;
 import org.apache.hyracks.api.dataflow.ActivityId;
 import org.apache.hyracks.api.dataflow.ConnectorDescriptorId;
 import org.apache.hyracks.api.dataflow.IConnectorDescriptor;
@@ -42,6 +48,7 @@ import org.apache.hyracks.api.dataflow.connectors.PipeliningConnectorPolicy;
 import org.apache.hyracks.api.exceptions.HyracksException;
 import org.apache.hyracks.api.job.ActivityCluster;
 import org.apache.hyracks.api.job.ActivityClusterGraph;
+import org.apache.hyracks.api.job.JobSpecification;
 import org.apache.hyracks.api.partitions.PartitionId;
 import org.apache.hyracks.control.cc.job.ActivityClusterPlan;
 import org.apache.hyracks.control.cc.job.ActivityPlan;
@@ -73,7 +80,8 @@ class ActivityClusterPlanner {
             activityPlanMap = buildActivityPlanMap(ac, jobRun, pcMap,
                     // (jobRun.getJobId().equals(new JobId(1))) ? 0 : pcMap.get(aid).getPartitionCount());
                     !jobRun.getReturned() ? (jobRun.getFirst() ? 0 : pcMap.get(aid).getPartitionCount())
-                            : jobRun.getFirstNodes() ? pcMap.get(aid).getPartitionCount() : 0);
+                            //                            : jobRun.getFirstNodes() ? pcMap.get(aid).getPartitionCount() : 0);
+                            : 0);
             //(jobRun.getFirst()) ? 0 : pcMap.get(aid).getPartitionCount());
             break;
         }
@@ -112,7 +120,12 @@ class ActivityClusterPlanner {
                 tasks[i - length] = new Task(tid, activityPlan);
                 for (ActivityId danId : depAnIds) {
                     ActivityCluster dAC = ac.getActivityClusterGraph().getActivityMap().get(danId);
-                    ActivityClusterPlan dACP = jobRun.getActivityClusterPlanMap().get(dAC.getId());
+                    ActivityClusterPlan dACP = null;
+                    if (jobRun.getReturned()) {
+                        dACP = jobRun.getReturnedActivityClusterPlanMap().get(dAC.getId());
+                    } else {
+                        dACP = jobRun.getActivityClusterPlanMap().get(dAC.getId());
+                    }
                     assert dACP != null : "IllegalStateEncountered: Dependent AC is being planned without a plan for "
                             + "dependency AC: Encountered no plan for ActivityID " + danId;
                     Task[] dATasks = dACP.getActivityPlanMap().get(danId).getTasks();
@@ -340,7 +353,12 @@ class ActivityClusterPlanner {
     private TaskCluster getTaskCluster(TaskId tid) {
         JobRun run = executor.getJobRun();
         ActivityCluster ac = run.getActivityClusterGraph().getActivityMap().get(tid.getActivityId());
-        ActivityClusterPlan acp = run.getActivityClusterPlanMap().get(ac.getId());
+        ActivityClusterPlan acp = null;
+        if (run.getReturned()) {
+            acp = run.getReturnedActivityClusterPlanMap().get(ac.getId());
+        } else {
+            acp = run.getActivityClusterPlanMap().get(ac.getId());
+        }
         Task[] tasks = acp.getActivityPlanMap().get(tid.getActivityId()).getTasks();
         int partition = 0;
         try {
@@ -422,6 +440,64 @@ class ActivityClusterPlanner {
         for (ActivityId anId : ac.getActivityMap().keySet()) {
             lValues.add(new PartitionCountExpression(anId.getOperatorDescriptorId()));
         }
+
+        boolean firstSpec = true;
+        int[] acceptedParts = new int[2];
+        if (executor.getJobRun().getReturned() && executor.getJobRun().getFirstAfterReturned()) {
+            JobSpecification jobSpec = executor.getJobRun().getJobSpecification();
+            for (Constraint constraint : new ArrayList<>(jobSpec.getUserConstraints())) {
+                LValueConstraintExpression lexpr = constraint.getLValue();
+                if (lexpr.getTag() == ExpressionTag.PARTITION_COUNT) {
+                    PartitionCountExpression pce = (PartitionCountExpression) lexpr;
+                    PartitionConstraintHelper.addPartitionCountConstraint(jobSpec,
+                            jobSpec.getOperatorMap().get(((PartitionCountExpression) lexpr).getOperatorDescriptorId()),
+                            4);
+                    jobSpec.getUserConstraints().remove(constraint);
+                    Set<ConstraintExpression> rValues = solver.getConstraints(constraint);
+                    if (rValues.size() == 1) {
+                        rValues.clear();
+                    } else {
+                        rValues.remove(constraint.getRValue());
+                    }
+                    solver.addConstraint(new Constraint(new PartitionCountExpression(pce.getOperatorDescriptorId()),
+                            new ConstantExpression(4)));
+
+                } else {
+                    PartitionLocationExpression ple = (PartitionLocationExpression) lexpr;
+                    if (firstSpec) {
+                        if (ple.getPartition() > 1) {
+                            acceptedParts[0] = 2;
+                            acceptedParts[1] = 3;
+                        } else {
+                            acceptedParts[0] = 0;
+                            acceptedParts[1] = 1;
+                        }
+                    }
+                    if (ple.getPartition() > 1
+                            && (acceptedParts[0] == ple.getPartition() || acceptedParts[1] == ple.getPartition())) {
+                        firstSpec = false;
+                        jobSpec.addUserConstraint(new Constraint(
+                                new PartitionLocationExpression(ple.getOperatorDescriptorId(), ple.getPartition() - 2),
+                                new ConstantExpression(executor.getCancelledNode())));
+
+                        solver.addConstraint(new Constraint(
+                                new PartitionLocationExpression(ple.getOperatorDescriptorId(), ple.getPartition() - 2),
+                                new ConstantExpression(executor.getCancelledNode())));
+                    } else if (ple.getPartition() < 2
+                            && (acceptedParts[0] == ple.getPartition() || acceptedParts[1] == ple.getPartition())) {
+                        firstSpec = false;
+                        jobSpec.addUserConstraint(new Constraint(
+                                new PartitionLocationExpression(ple.getOperatorDescriptorId(), ple.getPartition() + 2),
+                                new ConstantExpression(executor.getCancelledNode())));
+
+                        solver.addConstraint(new Constraint(
+                                new PartitionLocationExpression(ple.getOperatorDescriptorId(), ple.getPartition() + 2),
+                                new ConstantExpression(executor.getCancelledNode())));
+                    }
+                }
+            }
+        }
+
         solver.solve(lValues);
         Map<OperatorDescriptorId, Integer> nPartMap = new HashMap<>();
         for (LValueConstraintExpression lv : lValues) {

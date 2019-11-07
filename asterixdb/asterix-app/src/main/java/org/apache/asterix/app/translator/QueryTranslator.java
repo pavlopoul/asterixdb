@@ -67,6 +67,7 @@ import org.apache.asterix.common.exceptions.CompilationException;
 import org.apache.asterix.common.exceptions.ErrorCode;
 import org.apache.asterix.common.exceptions.MetadataException;
 import org.apache.asterix.common.functions.FunctionSignature;
+import org.apache.asterix.common.transactions.TxnId;
 import org.apache.asterix.common.utils.JobUtils;
 import org.apache.asterix.common.utils.JobUtils.ProgressState;
 import org.apache.asterix.compiler.provider.ILangCompilationProvider;
@@ -180,6 +181,7 @@ import org.apache.asterix.om.types.ATypeTag;
 import org.apache.asterix.om.types.IAType;
 import org.apache.asterix.om.types.TypeSignature;
 import org.apache.asterix.runtime.evaluators.common.ClosedRecordConstructorEvalFactory;
+import org.apache.asterix.runtime.job.listener.JobEventListenerFactory;
 import org.apache.asterix.runtime.statistics.StatisticsUtil;
 import org.apache.asterix.transaction.management.service.transaction.DatasetIdFactory;
 import org.apache.asterix.translator.AbstractLangTranslator;
@@ -2958,78 +2960,89 @@ public class QueryTranslator extends AbstractLangTranslator implements IStatemen
             } else {
                 removeFromConnectors(0, jobSpec, jobSpec.getConnectorOperatorMap());
             }
-            JobSpecification job2 = new JobSpecification();
-            for (IOperatorDescriptor op : jobSpec.getOperatorMap().values()) {
-                job2.createOperatorDescriptorId(op);
-            }
-            for (IConnectorDescriptor conn : jobSpec.getConnectorMap().values()) {
-                IOperatorDescriptor producer = jobSpec.getProducer(conn);
-                int i = 0;
-                IOperatorDescriptor consumer = jobSpec.getConsumer(conn);
-                if (job2.getOperatorInputMap().containsKey(consumer.getOperatorId())) {
-                    i = 1;
+
+            JobSpecification job2 = null;
+            JobSpecification[] jobs = new JobSpecification[2];
+            if (!getFinished()) {
+                job2 = new JobSpecification();
+                for (IOperatorDescriptor op : jobSpec.getOperatorMap().values()) {
+                    job2.createOperatorDescriptorId(op);
                 }
-                job2.createConnectorDescriptor(conn);
-                //job2.connect(conn, jobSpec.getProducer(conn), 0, jobSpec.getConsumer(conn), 0);
-                job2.connect(conn, producer, 0, consumer, i);
-            }
-            for (OperatorDescriptorId oid : jobSpec.getRoots()) {
-                job2.addRoot(jobSpec.getOperatorMap().get(oid));
-            }
-            for (ResultSetId rsId : jobSpec.getResultSetIds()) {
-                job2.addResultSetId(rsId);
-            }
+                for (IConnectorDescriptor conn : jobSpec.getConnectorMap().values()) {
+                    IOperatorDescriptor producer = jobSpec.getProducer(conn);
+                    int i = 0;
+                    IOperatorDescriptor consumer = jobSpec.getConsumer(conn);
+                    if (job2.getOperatorInputMap().containsKey(consumer.getOperatorId())) {
+                        i = 1;
+                    }
+                    job2.createConnectorDescriptor(conn);
+                    //job2.connect(conn, jobSpec.getProducer(conn), 0, jobSpec.getConsumer(conn), 0);
+                    job2.connect(conn, producer, 0, consumer, i);
+                }
+                for (OperatorDescriptorId oid : jobSpec.getRoots()) {
+                    job2.addRoot(jobSpec.getOperatorMap().get(oid));
+                }
+                for (ResultSetId rsId : jobSpec.getResultSetIds()) {
+                    job2.addResultSetId(rsId);
+                }
 
-            Set<String> participantNodes = mp.getApplicationContext().getClusterStateManager().getParticipantNodes();
-            Set<String> firstHalf = new HashSet<>();
-            Set<String> secondHalf = new HashSet<>();
-            Set<String> copySet = participantNodes;
-            int i = 0;
-            for (Iterator<String> it = participantNodes.iterator(); i < participantNodes.size() / 2;) {
-                i++;
-                String curr = it.next();
-                firstHalf.add(curr);
-                copySet.remove(curr);
-            }
-            for (Iterator<String> it = copySet.iterator(); it.hasNext();) {
-                secondHalf.add(it.next());
-            }
-            for (Constraint constraint : new ArrayList<>(jobSpec.getUserConstraints())) {
-                for (String key : firstHalf) {
-                    ConstraintExpression cexpr = constraint.getRValue();
-                    org.apache.hyracks.api.constraints.expressions.ConstantExpression sexpr =
-                            (org.apache.hyracks.api.constraints.expressions.ConstantExpression) cexpr;
-                    LValueConstraintExpression lexpr = constraint.getLValue();
-                    if (lexpr.getTag() == ExpressionTag.PARTITION_LOCATION) {
-                        if (!((String) sexpr.getValue()).equals(key)) {
-                            //                        if (((String) sexpr.getValue()).equals(key)) {
+                Set<String> participantNodes =
+                        mp.getApplicationContext().getClusterStateManager().getParticipantNodes();
+                Set<String> firstHalf = new HashSet<>();
+                Set<String> secondHalf = new HashSet<>();
+                Set<String> copySet = participantNodes;
+                int i = 0;
+                for (Iterator<String> it = participantNodes.iterator(); i < participantNodes.size() / 2;) {
+                    i++;
+                    String curr = it.next();
+                    firstHalf.add(curr);
+                    copySet.remove(curr);
+                }
+                for (Iterator<String> it = copySet.iterator(); it.hasNext();) {
+                    secondHalf.add(it.next());
+                }
+                for (Constraint constraint : new ArrayList<>(jobSpec.getUserConstraints())) {
+                    for (String key : firstHalf) {
+                        ConstraintExpression cexpr = constraint.getRValue();
+                        org.apache.hyracks.api.constraints.expressions.ConstantExpression sexpr =
+                                (org.apache.hyracks.api.constraints.expressions.ConstantExpression) cexpr;
+                        LValueConstraintExpression lexpr = constraint.getLValue();
+                        if (lexpr.getTag() == ExpressionTag.PARTITION_LOCATION) {
+                            if (!((String) sexpr.getValue()).equals(key)) {
+                                //                        if (((String) sexpr.getValue()).equals(key)) {
+                                jobSpec.getUserConstraints().remove(constraint);
+                                job2.addUserConstraint(constraint);
+                            }
+                        } else {
+                            PartitionConstraintHelper.addPartitionCountConstraint(jobSpec,
+                                    jobSpec.getOperatorMap()
+                                            .get(((PartitionCountExpression) lexpr).getOperatorDescriptorId()),
+                                    mp.getApplicationContext().getClusterStateManager().getClusterLocations()
+                                            .getLocations().length / 2);
+                            PartitionConstraintHelper.addPartitionCountConstraint(job2,
+                                    job2.getOperatorMap()
+                                            .get(((PartitionCountExpression) lexpr).getOperatorDescriptorId()),
+                                    mp.getApplicationContext().getClusterStateManager().getClusterLocations()
+                                            .getLocations().length / 2);
                             jobSpec.getUserConstraints().remove(constraint);
-                            job2.addUserConstraint(constraint);
-                        }
-                    } else {
-                        PartitionConstraintHelper.addPartitionCountConstraint(jobSpec,
-                                jobSpec.getOperatorMap()
-                                        .get(((PartitionCountExpression) lexpr).getOperatorDescriptorId()),
-                                mp.getApplicationContext().getClusterStateManager().getClusterLocations()
-                                        .getLocations().length / 2);
-                        PartitionConstraintHelper.addPartitionCountConstraint(job2,
-                                job2.getOperatorMap().get(((PartitionCountExpression) lexpr).getOperatorDescriptorId()),
-                                mp.getApplicationContext().getClusterStateManager().getClusterLocations()
-                                        .getLocations().length / 2);
-                        jobSpec.getUserConstraints().remove(constraint);
 
+                        }
                     }
                 }
-            }
 
-            JobSpecification[] jobs = new JobSpecification[2];
-            job2.setJobletEventListenerFactory(jobSpec.getJobletEventListenerFactory());
-            final IClusterCapacity clusterCapacity = new ClusterCapacity();
-            clusterCapacity.setAggregatedCores(jobSpec.getRequiredClusterCapacity().getAggregatedCores());
-            clusterCapacity
-                    .setAggregatedMemoryByteSize(jobSpec.getRequiredClusterCapacity().getAggregatedMemoryByteSize());
-            job2.setRequiredClusterCapacity(clusterCapacity);
-            job2.setConnectorPolicyAssignmentPolicy(jobSpec.getConnectorPolicyAssignmentPolicy());
+                jobs = new JobSpecification[2];
+                TxnId txnid = mp.getTxnIdFactory().create();
+                mp.setTxnId(txnid);
+                //job2.setJobletEventListenerFactory(jobSpec.getJobletEventListenerFactory());
+                job2.setJobletEventListenerFactory(new JobEventListenerFactory(txnid, mp.isWriteTransaction()));
+                final IClusterCapacity clusterCapacity = new ClusterCapacity();
+                clusterCapacity.setAggregatedCores(jobSpec.getRequiredClusterCapacity().getAggregatedCores());
+                clusterCapacity.setAggregatedMemoryByteSize(
+                        jobSpec.getRequiredClusterCapacity().getAggregatedMemoryByteSize());
+                job2.setRequiredClusterCapacity(clusterCapacity);
+                job2.setConnectorPolicyAssignmentPolicy(jobSpec.getConnectorPolicyAssignmentPolicy());
+
+            }
             jobs[0] = jobSpec;
             jobs[1] = job2;
             final JobId[] jobIds = JobUtils.runJobs(hcc, jobs, jobFlags, false);

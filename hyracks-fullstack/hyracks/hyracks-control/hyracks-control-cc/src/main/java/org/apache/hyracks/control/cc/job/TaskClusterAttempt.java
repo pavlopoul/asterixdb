@@ -44,6 +44,8 @@ public class TaskClusterAttempt {
 
     private long endTime;
 
+    private boolean first = true;
+
     public TaskClusterAttempt(TaskCluster taskCluster, int attempt) {
         this.taskCluster = taskCluster;
         this.attempt = attempt;
@@ -89,6 +91,14 @@ public class TaskClusterAttempt {
 
     public void setEndTime(long endTime) {
         this.endTime = endTime;
+    }
+
+    public boolean getFirst() {
+        return first;
+    }
+
+    public void setFirst(boolean first) {
+        this.first = first;
     }
 
     public void initializePendingTaskCounter() {

@@ -66,6 +66,7 @@ import org.apache.hyracks.control.common.job.PartitionState;
 import org.apache.hyracks.control.common.job.TaskAttemptDescriptor;
 import org.apache.hyracks.control.common.work.IResultCallback;
 import org.apache.hyracks.control.common.work.NoOpCallback;
+import org.apache.hyracks.dataflow.std.join.OptimizedHybridHashJoinOperatorDescriptor;
 import org.apache.logging.log4j.Level;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -86,6 +87,8 @@ public class JobExecutor {
     private final Set<TaskCluster> inProgressTaskClusters;
 
     private final Random random;
+
+    private String cancelledNode;
 
     private boolean cancelled = false;
 
@@ -118,7 +121,7 @@ public class JobExecutor {
         ccs.getContext().notifyJobStart(jobRun.getJobId());
     }
 
-    public void cancelJob(IResultCallback<Void> callback) throws HyracksException {
+    public void cancelJob(IResultCallback<Void> callback, boolean iscancelled) throws HyracksException {
         // If the job is already terminated or failed, do nothing here.
         if (jobRun.getPendingStatus() != null) {
             callback.setValue(null);
@@ -129,8 +132,12 @@ public class JobExecutor {
         // Aborts on-ongoing task clusters.
         abortOngoingTaskClusters(ta -> false, ta -> null);
         // Aborts the whole job.
-        abortJob(Collections.singletonList(HyracksException.create(ErrorCode.JOB_CANCELED, jobRun.getJobId())),
-                callback);
+        if (!iscancelled) {
+            abortJob(Collections.singletonList(HyracksException.create(ErrorCode.JOB_CANCELED, jobRun.getJobId())),
+                    callback);
+        } else {
+            abortJob(null, callback);
+        }
     }
 
     private void findRunnableTaskClusterRoots(Set<TaskCluster> frontier, Collection<ActivityCluster> roots)
@@ -144,21 +151,38 @@ public class JobExecutor {
             throws HyracksException {
         boolean depsComplete = true;
         for (ActivityCluster depAC : candidate.getDependencies()) {
-            if (!isPlanned(depAC) || jobRun.getReturned()) {
+            //            if (!isPlanned(depAC) || jobRun.getReturned()) {
+            if (!isPlanned(depAC)) {
                 depsComplete = false;
                 findRunnableTaskClusterRoots(frontier, depAC);
+            } else if (jobRun.getReturned() && !isReturnedPlanned(depAC)) {
+                depsComplete = false;
+                findRunnableTaskClusterRoots(frontier, depAC);
+
             } else {
                 boolean tcRootsComplete = true;
-                for (TaskCluster tc : getActivityClusterPlan(depAC).getTaskClusters()) {
-                    if (!tc.getProducedPartitions().isEmpty()) {
-                        continue;
+                if (!jobRun.getReturned())
+                    for (TaskCluster tc : getActivityClusterPlan(depAC).getTaskClusters()) {
+                        if (!tc.getProducedPartitions().isEmpty()) {
+                            continue;
+                        }
+                        TaskClusterAttempt tca = findLastTaskClusterAttempt(tc);
+                        if (tca == null || tca.getStatus() != TaskClusterAttempt.TaskClusterStatus.COMPLETED) {
+                            tcRootsComplete = false;
+                            break;
+                        }
                     }
-                    TaskClusterAttempt tca = findLastTaskClusterAttempt(tc);
-                    if (tca == null || tca.getStatus() != TaskClusterAttempt.TaskClusterStatus.COMPLETED) {
-                        tcRootsComplete = false;
-                        break;
+                else
+                    for (TaskCluster tc : getReturnedActivityClusterPlan(depAC).getTaskClusters()) {
+                        if (!tc.getProducedPartitions().isEmpty()) {
+                            continue;
+                        }
+                        TaskClusterAttempt tca = findLastTaskClusterAttempt(tc);
+                        if (tca == null || tca.getStatus() != TaskClusterAttempt.TaskClusterStatus.COMPLETED) {
+                            tcRootsComplete = false;
+                            break;
+                        }
                     }
-                }
                 if (!tcRootsComplete) {
                     depsComplete = false;
                     findRunnableTaskClusterRoots(frontier, depAC);
@@ -168,29 +192,54 @@ public class JobExecutor {
         if (!depsComplete) {
             return;
         }
-        if (!isPlanned(candidate) || jobRun.getReturned()) {
+        //        if (!isPlanned(candidate) || jobRun.getReturned()) {
+        if (!isPlanned(candidate)) {
             ActivityClusterPlanner acp = new ActivityClusterPlanner(this);
             ActivityClusterPlan acPlan = acp.planActivityCluster(candidate);
             jobRun.getActivityClusterPlanMap().put(candidate.getId(), acPlan);
             partitionProducingTaskClusterMap.putAll(acp.getPartitionProducingTaskClusterMap());
+        } else if (jobRun.getReturned() && !isReturnedPlanned(candidate)) {
+            ActivityClusterPlanner acp = new ActivityClusterPlanner(this);
+            ActivityClusterPlan acPlan = acp.planActivityCluster(candidate);
+            jobRun.getReturnedActivityClusterPlanMap().put(candidate.getId(), acPlan);
+            partitionProducingTaskClusterMap.putAll(acp.getPartitionProducingTaskClusterMap());
         }
-        for (TaskCluster tc : getActivityClusterPlan(candidate).getTaskClusters()) {
-            if (!tc.getProducedPartitions().isEmpty()) {
-                continue;
+        if (!jobRun.getReturned())
+            for (TaskCluster tc : getActivityClusterPlan(candidate).getTaskClusters()) {
+                if (!tc.getProducedPartitions().isEmpty()) {
+                    continue;
+                }
+                TaskClusterAttempt tca = findLastTaskClusterAttempt(tc);
+                if (tca == null || tca.getStatus() != TaskClusterAttempt.TaskClusterStatus.COMPLETED) {
+                    frontier.add(tc);
+                }
             }
-            TaskClusterAttempt tca = findLastTaskClusterAttempt(tc);
-            if (tca == null || tca.getStatus() != TaskClusterAttempt.TaskClusterStatus.COMPLETED) {
-                frontier.add(tc);
+        else
+            for (TaskCluster tc : getReturnedActivityClusterPlan(candidate).getTaskClusters()) {
+                if (!tc.getProducedPartitions().isEmpty()) {
+                    continue;
+                }
+                TaskClusterAttempt tca = findLastTaskClusterAttempt(tc);
+                if (tca == null || tca.getStatus() != TaskClusterAttempt.TaskClusterStatus.COMPLETED) {
+                    frontier.add(tc);
+                }
             }
-        }
     }
 
     private ActivityClusterPlan getActivityClusterPlan(ActivityCluster ac) {
         return jobRun.getActivityClusterPlanMap().get(ac.getId());
     }
 
+    private ActivityClusterPlan getReturnedActivityClusterPlan(ActivityCluster ac) {
+        return jobRun.getReturnedActivityClusterPlanMap().get(ac.getId());
+    }
+
     private boolean isPlanned(ActivityCluster ac) {
         return jobRun.getActivityClusterPlanMap().get(ac.getId()) != null;
+    }
+
+    private boolean isReturnedPlanned(ActivityCluster ac) {
+        return jobRun.getReturnedActivityClusterPlanMap().get(ac.getId()) != null;
     }
 
     private void startRunnableActivityClusters() throws HyracksException {
@@ -455,8 +504,12 @@ public class JobExecutor {
             LValueConstraintExpression pLocationExpr = locationMap.get(tid);
             Object location = solver.getValue(pLocationExpr);
             if (location == null) {
-                // pick any
-                nodeId = liveNodes.toArray(new String[liveNodes.size()])[random.nextInt(liveNodes.size())];
+                if (cancelledNode != null) {
+                    nodeId = cancelledNode;
+                } else {
+                    // pick any
+                    nodeId = liveNodes.toArray(new String[liveNodes.size()])[random.nextInt(liveNodes.size())];
+                }
             } else if (location instanceof String) {
                 nodeId = (String) location;
             } else if (location instanceof String[]) {
@@ -486,7 +539,12 @@ public class JobExecutor {
     private String findTaskLocation(TaskId tid) {
         ActivityId aid = tid.getActivityId();
         ActivityCluster ac = jobRun.getActivityClusterGraph().getActivityMap().get(aid);
-        Task[] tasks = getActivityClusterPlan(ac).getActivityPlanMap().get(aid).getTasks();
+        Task[] tasks = null;
+        if (!jobRun.getReturned()) {
+            tasks = getActivityClusterPlan(ac).getActivityPlanMap().get(aid).getTasks();
+        } else {
+            tasks = getReturnedActivityClusterPlan(ac).getActivityPlanMap().get(aid).getTasks();
+        }
         List<TaskClusterAttempt> tcAttempts =
                 tasks[(tid.getPartition() >= tasks.length ? tid.getPartition() - tasks.length : tid.getPartition())]
                         .getTaskCluster().getAttempts();
@@ -543,8 +601,13 @@ public class JobExecutor {
             abortTaskCluster(findLastTaskClusterAttempt(tc), TaskClusterAttempt.TaskClusterStatus.ABORTED);
         }
         assert inProgressTaskClusters.isEmpty();
-        ccs.getWorkQueue().schedule(
-                new JobCleanupWork(ccs.getJobManager(), jobRun.getJobId(), JobStatus.FAILURE, exceptions, callback));
+        if (exceptions != null) {
+            ccs.getWorkQueue().schedule(new JobCleanupWork(ccs.getJobManager(), jobRun.getJobId(), JobStatus.FAILURE,
+                    exceptions, callback));
+        } else {
+            ccs.getWorkQueue().schedule(new JobCleanupWork(ccs.getJobManager(), jobRun.getJobId(), JobStatus.TERMINATED,
+                    exceptions, callback));
+        }
     }
 
     private void abortTaskCluster(TaskClusterAttempt tcAttempt,
@@ -666,8 +729,10 @@ public class JobExecutor {
             }
             TaskAttempt.TaskStatus taStatus = ta.getStatus();
             if (taStatus != TaskAttempt.TaskStatus.RUNNING) {
-                LOGGER.warn(() -> "Spurious task complete notification: " + taId + " Current state = " + taStatus);
-                return;
+                if (!jobRun.getReturned()) {
+                    LOGGER.warn(() -> "Spurious task complete notification: " + taId + " Current state = " + taStatus);
+                    return;
+                }
             }
             ta.setStatus(TaskAttempt.TaskStatus.COMPLETED, null);
             ta.setEndTime(System.currentTimeMillis());
@@ -692,25 +757,46 @@ public class JobExecutor {
                 lastAttempt.setStatus(TaskClusterAttempt.TaskClusterStatus.COMPLETED);
                 lastAttempt.setEndTime(System.currentTimeMillis());
                 inProgressTaskClusters.remove(tc);
+                if (jobRun.getReturned()) {
+                    jobRun.setFirstAfterReturned(false);
+                }
+                startRunnableActivityClusters();
                 JobId id = null;
+                JobRun failed = null;
                 for (JobRun job : jobs) {
                     if (job.getJobId() != jobRun.getJobId()) {
                         id = job.getJobId();
-                        String canceledNode = job.getParticipatingNodeIds().iterator().next();
+                        cancelledNode = job.getParticipatingNodeIds().iterator().next();
+                        failed = job;
                     }
                 }
-                ccs.getJobManager().cancel(id, NoOpCallback.INSTANCE);
-                startRunnableActivityClusters();
-                jobRun.setReturned(true);
-                if (ta.getTask().getTaskId().getPartition() < 2) {
-                    jobRun.setFirstNodes(true);
+                if (jobRun.getJobSpecification().getOperatorMap()
+                        .get(ta.getTask().getTaskId().getActivityId()
+                                .getOperatorDescriptorId()) instanceof OptimizedHybridHashJoinOperatorDescriptor
+                        && !jobRun.getReturned() && id != null) {
+                    lastAttempt.setFirst(false);
+                    failed.setCancelled(true);
+                    jobRun.setReturned(true);
+                    ccs.getJobManager().cancel(id, NoOpCallback.INSTANCE);
+                    //startRunnableActivityClusters();
+                    //jobRun.setReturned(true);
+                    if (ta.getTask().getTaskId().getPartition() < 2) {
+                        jobRun.setFirstNodes(true);
+                    }
+                    inProgressTaskClusters.clear();
+                    startRunnableActivityClusters();
                 }
-                startRunnableActivityClusters();
+
+                //                startRunnableActivityClusters();
             }
         } catch (Exception e) {
             LOGGER.error(() -> "Unexpected failure. Aborting job " + jobRun.getJobId(), e);
             abortJob(Collections.singletonList(e), NoOpCallback.INSTANCE);
         }
+    }
+
+    public String getCancelledNode() {
+        return cancelledNode;
     }
 
     /**

@@ -59,8 +59,20 @@ public abstract class AbstractTaskLifecycleWork extends AbstractHeartbeatWork {
             Map<ActivityId, ActivityCluster> activityClusterMap = run.getActivityClusterGraph().getActivityMap();
             ActivityCluster ac = activityClusterMap.get(tid.getActivityId());
             if (ac != null) {
-                Map<ActivityId, ActivityPlan> taskStateMap =
-                        run.getActivityClusterPlanMap().get(ac.getId()).getActivityPlanMap();
+                Map<ActivityId, ActivityPlan> taskStateMap = null;
+                if (run.getReturned()) {
+                    //if (tid.getPartition() >= 2 && run.getReturnedActivityClusterPlanMap().get(ac.getId()) != null) {
+                    if (run.getReturnedActivityClusterPlanMap().get(ac.getId()) != null) {
+                        taskStateMap = run.getReturnedActivityClusterPlanMap().get(ac.getId()).getActivityPlanMap();
+                    } else {
+                        return;
+                    }
+                    //                    } else {
+                    //                        taskStateMap = run.getActivityClusterPlanMap().get(ac.getId()).getActivityPlanMap();
+                    //                    }
+                } else {
+                    taskStateMap = run.getActivityClusterPlanMap().get(ac.getId()).getActivityPlanMap();
+                }
                 Task[] taskStates = taskStateMap.get(tid.getActivityId()).getTasks();
                 Set<LValueConstraintExpression> lValues = new HashSet<>();
                 lValues.add(new PartitionCountExpression(tid.getActivityId().getOperatorDescriptorId()));
@@ -92,7 +104,8 @@ public abstract class AbstractTaskLifecycleWork extends AbstractHeartbeatWork {
                     Task ts = taskStates[partition];
                     TaskCluster tc = ts.getTaskCluster();
                     List<TaskClusterAttempt> taskClusterAttempts = tc.getAttempts();
-                    if (taskClusterAttempts != null && taskClusterAttempts.size() > taId.getAttempt()) {
+                    if (taskClusterAttempts != null && taskClusterAttempts.size() > taId.getAttempt()
+                            && !run.getCancelled()) {
                         TaskClusterAttempt tca = taskClusterAttempts.get(taId.getAttempt());
                         TaskAttempt ta = tca.getTaskAttempts().get(tid);
                         if (ta != null) {

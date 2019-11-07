@@ -446,7 +446,7 @@ public final class HyracksConnection implements IHyracksClientConnection {
         @Override
         protected JobId[] doHandle() throws Exception {
             if (deploymentId == null) {
-                if (acggf.getJobSpecification() == null) {
+                if (acggf.getJobSpecification() == null && acggf.getJobSpecifications()[1] != null) {
                     JobSpecificationActivityClusterGraphGeneratorFactory acgf =
                             new JobSpecificationActivityClusterGraphGeneratorFactory(
                                     ((JobSpecificationActivityClusterGraphGeneratorFactory) acggf)
@@ -457,6 +457,12 @@ public final class HyracksConnection implements IHyracksClientConnection {
                                             .getJobSpecifications()[1]);
                     return (JobId[]) hci.startJob(JavaSerializationUtils.serialize(acgf),
                             JavaSerializationUtils.serialize(acgf2), jobFlags);
+                } else if (acggf.getJobSpecification() == null && acggf.getJobSpecifications()[1] == null) {
+                    JobSpecificationActivityClusterGraphGeneratorFactory acgf =
+                            new JobSpecificationActivityClusterGraphGeneratorFactory(
+                                    ((JobSpecificationActivityClusterGraphGeneratorFactory) acggf)
+                                            .getJobSpecifications()[0]);
+                    return (JobId[]) hci.startJob(JavaSerializationUtils.serialize(acgf), null, jobFlags);
                 } else {
                     return (JobId[]) hci.startJob(JavaSerializationUtils.serialize(acggf), null, jobFlags);
                 }

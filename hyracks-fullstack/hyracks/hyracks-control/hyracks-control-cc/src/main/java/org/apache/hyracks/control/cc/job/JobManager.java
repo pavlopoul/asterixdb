@@ -141,7 +141,11 @@ public class JobManager implements IJobManager {
             // The following call will abort all ongoing tasks and then consequently
             // trigger JobCleanupWork and JobCleanupNotificationWork which will update the lifecyle of the job.
             // Therefore, we do not remove the job out of activeRunMap here.
-            jobRun.getExecutor().cancelJob(callback);
+            if (jobRun.getCancelled()) {
+                jobRun.getExecutor().cancelJob(callback, true);
+            } else {
+                jobRun.getExecutor().cancelJob(callback, false);
+            }
             return;
         }
         // Removes a pending job.

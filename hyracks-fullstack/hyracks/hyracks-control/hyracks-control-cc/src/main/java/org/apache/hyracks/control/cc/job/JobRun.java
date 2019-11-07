@@ -75,6 +75,8 @@ public class JobRun implements IJobStatusConditionVariable {
 
     private final Map<ActivityClusterId, ActivityClusterPlan> activityClusterPlanMap;
 
+    private final Map<ActivityClusterId, ActivityClusterPlan> returnedActivityClusterPlanMap;
+
     private final PartitionMatchMaker pmm;
 
     private final Set<String> participatingNodeIds;
@@ -95,7 +97,11 @@ public class JobRun implements IJobStatusConditionVariable {
 
     private boolean returned = false;
 
+    private boolean cancelled = false;
+
     private boolean fistNodes = false;
+
+    private boolean fistAfterReturned = true;
 
     private JobStatus status;
 
@@ -115,6 +121,7 @@ public class JobRun implements IJobStatusConditionVariable {
         this.spec = spec;
         this.acg = acg;
         activityClusterPlanMap = new HashMap<>();
+        returnedActivityClusterPlanMap = new HashMap<>();
         pmm = new PartitionMatchMaker();
         participatingNodeIds = new HashSet<>();
         cleanupPendingNodeIds = new HashSet<>();
@@ -159,6 +166,7 @@ public class JobRun implements IJobStatusConditionVariable {
         this.scheduler = new JobExecutor(ccs, this, constraints, null);
         this.first = first;
         activityClusterPlanMap = new HashMap<>();
+        returnedActivityClusterPlanMap = new HashMap<>();
         pmm = new PartitionMatchMaker();
         participatingNodeIds = new HashSet<>();
         cleanupPendingNodeIds = new HashSet<>();
@@ -196,12 +204,28 @@ public class JobRun implements IJobStatusConditionVariable {
         return returned;
     }
 
+    public void setCancelled(boolean cancelled) {
+        this.cancelled = cancelled;
+    }
+
+    public boolean getCancelled() {
+        return cancelled;
+    }
+
     public void setFirstNodes(boolean firstNodes) {
         this.fistNodes = firstNodes;
     }
 
     public boolean getFirstNodes() {
         return fistNodes;
+    }
+
+    public void setFirstAfterReturned(boolean firstAfterReturned) {
+        this.fistAfterReturned = firstAfterReturned;
+    }
+
+    public boolean getFirstAfterReturned() {
+        return fistAfterReturned;
     }
 
     public ActivityClusterGraph getActivityClusterGraph() {
@@ -214,6 +238,10 @@ public class JobRun implements IJobStatusConditionVariable {
 
     public Map<ActivityClusterId, ActivityClusterPlan> getActivityClusterPlanMap() {
         return activityClusterPlanMap;
+    }
+
+    public Map<ActivityClusterId, ActivityClusterPlan> getReturnedActivityClusterPlanMap() {
+        return returnedActivityClusterPlanMap;
     }
 
     public PartitionMatchMaker getPartitionMatchMaker() {

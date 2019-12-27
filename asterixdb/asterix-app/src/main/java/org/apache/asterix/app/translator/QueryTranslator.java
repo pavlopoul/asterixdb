@@ -23,6 +23,7 @@ import java.io.FileInputStream;
 import java.io.InputStream;
 import java.rmi.RemoteException;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.Date;
@@ -233,12 +234,7 @@ import org.apache.hyracks.algebricks.runtime.serializer.ResultSerializerFactoryP
 import org.apache.hyracks.algebricks.runtime.writers.PrinterBasedWriterFactory;
 import org.apache.hyracks.api.client.IClusterInfoCollector;
 import org.apache.hyracks.api.client.IHyracksClientConnection;
-import org.apache.hyracks.api.constraints.Constraint;
 import org.apache.hyracks.api.constraints.PartitionConstraintHelper;
-import org.apache.hyracks.api.constraints.expressions.ConstraintExpression;
-import org.apache.hyracks.api.constraints.expressions.ConstraintExpression.ExpressionTag;
-import org.apache.hyracks.api.constraints.expressions.LValueConstraintExpression;
-import org.apache.hyracks.api.constraints.expressions.PartitionCountExpression;
 import org.apache.hyracks.api.dataflow.ConnectorDescriptorId;
 import org.apache.hyracks.api.dataflow.IConnectorDescriptor;
 import org.apache.hyracks.api.dataflow.IOperatorDescriptor;
@@ -265,6 +261,7 @@ import org.apache.hyracks.control.common.controllers.CCConfig;
 import org.apache.hyracks.control.common.job.profiling.om.JobProfile;
 import org.apache.hyracks.control.common.job.profiling.om.JobletProfile;
 import org.apache.hyracks.control.common.job.profiling.om.TaskProfile;
+import org.apache.hyracks.dataflow.std.connectors.MToNPartitioningConnectorDescriptor;
 import org.apache.hyracks.dataflow.std.connectors.OneToOneConnectorDescriptor;
 import org.apache.hyracks.dataflow.std.join.OptimizedHybridHashJoinOperatorDescriptor;
 import org.apache.hyracks.storage.am.lsm.common.api.ILSMMergePolicyFactory;
@@ -2695,14 +2692,31 @@ public class QueryTranslator extends AbstractLangTranslator implements IStatemen
         Query newQuery = null;
         boolean first = true;
         RecordDescriptor[] rdesc = null;
+        RecordDescriptor[] secrdesc = null;
+        DatasetDataSource dataSource = null;
         DatasetDataSource dataSource1 = null;
+        DatasetDataSource dataSource2 = null;
         List<LogicalVariable> evars = null;
         List<DatasetDataSource> hints = new ArrayList<>();
+        List<DatasetDataSource> sechints = new ArrayList<>();
         List<String> datasources = new ArrayList<>();
+        List<String> secdatasources = new ArrayList<>();
         RecordDescriptor[] internalRecordDescriptors = new RecordDescriptor[3];
+        RecordDescriptor[] sinternalRecordDescriptors = new RecordDescriptor[3];
         String[] readerLocations = null;
+        String firstrecordTypeName = null;
+        String secondrecordTypeName = null;
+        VariableReferenceExpression varexpr = null;
+        VariableReferenceExpression svarexpr = null;
+        IAType newRecordType = null;
+        IAType snewRecordType = null;
+        List<List<String>> firstprimKey = new ArrayList<>();
+        List<IAType> firststrType = new ArrayList<>();
+        List<List<String>> secondprimKey = new ArrayList<>();
+        List<IAType> secondstrType = new ArrayList<>();
         while (!getFinished()) {
             locker.lock();
+            JobSpecification newJob = new JobSpecification();
             jobSpec = compiler.compile(operators, first, newQuery);
             if (jobSpec == null) {
                 return;
@@ -2710,26 +2724,40 @@ public class QueryTranslator extends AbstractLangTranslator implements IStatemen
             operators = getOperators();
             if (!getFinished()) {
                 List<LogicalVariable> vars = null;
-                IAType[] types = null;
-                String[] fieldNames = null;
-                String recordTypeName = null;
-                VariableReferenceExpression varexpr = null;
+                List<LogicalVariable> svars = null;
+                List<LogicalVariable> allvars = null;
+                IAType[] firstTypes = null;
+                IAType[] secondTypes = null;
+                String[] firstFieldNames = null;
+                String[] secondFieldNames = null;
                 int i = 0;
-                for (ILogicalOperator op : operators) {
+                int r = 0;
+                int opId = -1;
+                for (int p = operators.size() - 1; p >= 0; p--) {
+                    ILogicalOperator op = operators.get(p);
                     if (op.getOperatorTag() == LogicalOperatorTag.INNERJOIN) {
-                        vars = op.getSchema();
-                        evars = vars;
-                        types = new IAType[vars.size()];
-                        fieldNames = new String[vars.size()];
-                        if (!datasources.isEmpty()) {
-                            datasources.clear();
-                            hints.clear();
+                        if (firstFieldNames == null) {
+                            vars = op.getSchema();
+                            firstFieldNames = new String[vars.size()];
+                            firstTypes = new IAType[vars.size()];
+
                             i = 0;
+                        } else {
+                            svars = op.getSchema();
+                            secondFieldNames = new String[svars.size()];
+                            secondTypes = new IAType[svars.size()];
+
+                            r = 0;
                         }
                     }
                     if (op.getOperatorTag() == LogicalOperatorTag.ASSIGN) {
-                        if (vars != null)
-                            for (LogicalVariable var : vars) {
+                        if (vars != null && svars == null) {
+                            allvars = vars;
+                        } else if (svars != null) {
+                            allvars = svars;
+                        }
+                        if (allvars != null)
+                            for (LogicalVariable var : allvars) {
                                 if (var == ((AssignOperator) op).getVariables().get(0)) {
                                     List<Mutable<ILogicalExpression>> expressions =
                                             ((AssignOperator) op).getExpressions();
@@ -2739,9 +2767,9 @@ public class QueryTranslator extends AbstractLangTranslator implements IStatemen
                                         childOp = childOp.getInputs().get(0).getValue();
                                     }
                                     DataSourceScanOperator scan = (DataSourceScanOperator) childOp;
-                                    dataSource1 = (DatasetDataSource) scan.getDataSource();
+                                    dataSource = (DatasetDataSource) scan.getDataSource();
                                     hints.add(dataSource1);
-                                    ARecordType recordType = (ARecordType) dataSource1.getItemType();
+                                    ARecordType recordType = (ARecordType) dataSource.getItemType();
                                     for (Mutable<ILogicalExpression> expression : expressions) {
 
                                         ScalarFunctionCallExpression sfce =
@@ -2752,30 +2780,68 @@ public class QueryTranslator extends AbstractLangTranslator implements IStatemen
                                         int aint32 = ((AInt32) cs.getObject()).getIntegerValue();
 
                                         IAType type = recordType.getFieldTypes()[aint32];
-                                        types[i] = type;
-                                        fieldNames[i] = recordType.getFieldNames()[aint32];
+                                        if (secondFieldNames == null) {
+                                            firstFieldNames[i] = recordType.getFieldNames()[aint32];
+                                            firstTypes[i] = type;
+                                            dataSource1 = (DatasetDataSource) scan.getDataSource();
+                                        } else if (i < firstFieldNames.length) {
+                                            firstFieldNames[i] = recordType.getFieldNames()[aint32];
+                                            firstTypes[i] = type;
+                                            secondFieldNames[r] = recordType.getFieldNames()[aint32];
+                                            secondTypes[r] = type;
+                                            opId = dataSource.getOId();
+                                        } else {
+                                            dataSource2 = (DatasetDataSource) scan.getDataSource();
+                                            secondFieldNames[r] = recordType.getFieldNames()[aint32];
+                                            secondTypes[r] = type;
+                                        }
                                         i++;
+                                        r++;
                                     }
                                     ScalarFunctionCallExpression sfce1 =
                                             (ScalarFunctionCallExpression) expressions.get(0).getValue();
-                                    varexpr = (VariableReferenceExpression) sfce1.getArguments().get(0).getValue();
-                                    recordTypeName = varexpr.getVariableReference().toString().substring(2);
-                                    datasources.add(recordTypeName);
+                                    if (firstrecordTypeName == null) {
+                                        varexpr = (VariableReferenceExpression) sfce1.getArguments().get(0).getValue();
+                                        firstrecordTypeName = varexpr.getVariableReference().toString().substring(2);
+                                        datasources.add(firstrecordTypeName);
+                                    } else if (datasources.size() < 2) {
+                                        varexpr = (VariableReferenceExpression) sfce1.getArguments().get(0).getValue();
+                                        firstrecordTypeName = varexpr.getVariableReference().toString().substring(2);
+                                        datasources.add(firstrecordTypeName);
+                                        if (opId != -1) {
+                                            secdatasources.add(firstrecordTypeName);
+                                        }
+                                    } else {
+                                        svarexpr = (VariableReferenceExpression) sfce1.getArguments().get(0).getValue();
+                                        secondrecordTypeName = svarexpr.getVariableReference().toString().substring(2);
+                                        secdatasources.add(secondrecordTypeName);
+                                    }
                                     break;
                                 }
                             }
                     }
                     if (op.getOperatorTag() == LogicalOperatorTag.DATASOURCESCAN) {
-                        if (vars != null)
-                            for (LogicalVariable var : vars) {
+                        if (vars != null && svars == null) {
+                            allvars = vars;
+                        } else if (svars != null) {
+                            allvars = svars;
+                        }
+                        if (allvars != null)
+                            for (LogicalVariable var : allvars) {
                                 if (var == ((DataSourceScanOperator) op).getVariables().get(0)) {
                                     DataSourceScanOperator scan = (DataSourceScanOperator) op;
 
                                     IAType type = (IAType) scan.getDataSource().getSchemaTypes()[0];
-                                    types[i] = type;
                                     DatasetDataSource datasource = (DatasetDataSource) scan.getDataSource();
                                     ARecordType rType = (ARecordType) datasource.getItemType();
-                                    fieldNames[i] = rType.getFieldNames()[0];
+
+                                    if (secondFieldNames == null) {
+                                        firstFieldNames[i] = rType.getFieldNames()[0];
+                                        firstTypes[i] = type;
+                                    } else {
+                                        secondFieldNames[i] = rType.getFieldNames()[0];
+                                        secondTypes[i] = type;
+                                    }
                                     for (String datasource1 : datasources) {
                                         if (!datasource1.equals(scan.getVariables().get(scan.getVariables().size() - 1)
                                                 .toString().substring(2))) {
@@ -2790,9 +2856,10 @@ public class QueryTranslator extends AbstractLangTranslator implements IStatemen
                             }
                     }
                 }
-                IScalarEvaluatorFactory[] args = new IScalarEvaluatorFactory[fieldNames.length * 2];
-                for (int j = 0; j < fieldNames.length * 2; j = j + 2) {
-                    IAObject field = new AString(fieldNames[j / 2]);
+                IScalarEvaluatorFactory[] args = new IScalarEvaluatorFactory[firstFieldNames.length * 2];
+                IScalarEvaluatorFactory[] secondargs = new IScalarEvaluatorFactory[secondFieldNames.length * 2];
+                for (int j = 0; j < firstFieldNames.length * 2; j = j + 2) {
+                    IAObject field = new AString(firstFieldNames[j / 2]);
                     AsterixConstantValue acv = new AsterixConstantValue(field);
                     ConstantExpression ce = new ConstantExpression(acv);
 
@@ -2802,17 +2869,38 @@ public class QueryTranslator extends AbstractLangTranslator implements IStatemen
                     args[j] = copyEvaluatorFactory;
                     args[j + 1] = new ColumnAccessEvalFactory(j / 2);
                 }
-                ARecordType recType = new ARecordType(null, fieldNames, types, false);
-                ClosedRecordConstructorEvalFactory crc = new ClosedRecordConstructorEvalFactory(args, recType);
-                List<List<String>> primKey = new ArrayList<>();
-                List<String> str = new ArrayList<>();
-                str.add(fieldNames[1]);
-                primKey.add(str);
-                List<IAType> strType = new ArrayList<>();
-                strType.add(types[1]);
+                for (int j = 0; j < secondFieldNames.length * 2; j = j + 2) {
+                    IAObject field = new AString(secondFieldNames[j / 2]);
+                    AsterixConstantValue acv = new AsterixConstantValue(field);
+                    ConstantExpression ce = new ConstantExpression(acv);
+
+                    IScalarEvaluatorFactory copyEvaluatorFactory =
+                            mp.getDataFormat().getConstantEvalFactory(ce.getValue());
+
+                    secondargs[j] = copyEvaluatorFactory;
+                    secondargs[j + 1] = new ColumnAccessEvalFactory(j / 2);
+                }
+                ARecordType firstrecType = new ARecordType(null, firstFieldNames, firstTypes, false);
+                ARecordType secondrecType = new ARecordType(null, secondFieldNames, secondTypes, false);
+                ClosedRecordConstructorEvalFactory firstcrc =
+                        new ClosedRecordConstructorEvalFactory(args, firstrecType);
+                ClosedRecordConstructorEvalFactory secondcrc =
+                        new ClosedRecordConstructorEvalFactory(secondargs, secondrecType);
+                List<String> firststr = new ArrayList<>();
+                firststr.add(firstFieldNames[1]);
+                firstprimKey.add(firststr);
+                firststrType.add(firstTypes[1]);
+
+                List<String> secondstr = new ArrayList<>();
+                secondstr.add(secondFieldNames[1]);
+                secondprimKey.add(secondstr);
+
+                secondstrType.add(secondTypes[1]);
                 queries++;
-                IAType newRecordType =
-                        new ARecordType(recordTypeName + String.valueOf(queries), fieldNames, types, false);
+                newRecordType = new ARecordType(firstrecordTypeName + String.valueOf(queries), firstFieldNames,
+                        firstTypes, false);
+                snewRecordType = new ARecordType(secondrecordTypeName + String.valueOf(queries), secondFieldNames,
+                        secondTypes, false);
                 for (Entry<OperatorDescriptorId, List<IConnectorDescriptor>> entry : jobSpec.getOperatorInputMap()
                         .entrySet()) {
                     if (jobSpec.getOperatorMap().get(entry.getKey()) instanceof AlgebricksMetaOperatorDescriptor) {
@@ -2824,13 +2912,13 @@ public class QueryTranslator extends AbstractLangTranslator implements IStatemen
                                 IConnectorDescriptor conn2 = jobSpec.getOperatorInputMap().get(id).get(0);
                                 OperatorDescriptorId id2 = jobSpec.getConnectorOperatorMap().get(conn2.getConnectorId())
                                         .getKey().getKey().getOperatorId();
-                                jobSpec.getConnectorMap().remove(conn2.getConnectorId());
-                                jobSpec.getConnectorOperatorMap().remove(conn2.getConnectorId());
+                                // jobSpec.getConnectorMap().remove(conn2.getConnectorId());
+                                // jobSpec.getConnectorOperatorMap().remove(conn2.getConnectorId());
                                 jobSpec.getConnectorMap().remove(conn.getConnectorId());
                                 jobSpec.getConnectorOperatorMap().remove(conn.getConnectorId());
                                 jobSpec.getOperatorMap().remove(entry.getKey());
-                                jobSpec.getOperatorMap().remove(id);
-                                jobSpec.getOperatorMap().remove(id2);
+                                // jobSpec.getOperatorMap().remove(id);
+                                // jobSpec.getOperatorMap().remove(id2);
                             }
                         }
                     }
@@ -2844,80 +2932,258 @@ public class QueryTranslator extends AbstractLangTranslator implements IStatemen
                 for (ConnectorDescriptorId cid : connId) {
                     jobSpec.getConnectorMap().remove(cid);
                 }
-                newQuery = makeConnectionQuery(varexpr, recordTypeName + String.valueOf(queries), dataSource1,
-                        newRecordType, mp, primKey, strType, datasources, newQuery);
                 OperatorDescriptorId odId = null;
+                OperatorDescriptorId sodId = null;
                 OperatorDescriptorId id = null;
+                int count = 0;
                 for (Entry<OperatorDescriptorId, IOperatorDescriptor> entry : jobSpec.getOperatorMap().entrySet()) {
                     if (entry.getValue() instanceof OptimizedHybridHashJoinOperatorDescriptor) {
-                        odId = entry.getKey();
+                        count++;
+                        if (count == 1) {
+                            odId = entry.getKey();
+                        } else {
+                            sodId = entry.getKey();
+                        }
                     }
                     if (entry.getValue() instanceof IncrementalSinkOperatorDescriptor) {
                         id = entry.getKey();
                     }
                 }
                 IScalarEvaluatorFactory[] evalFactories = new IScalarEvaluatorFactory[1];
-                evalFactories[0] = crc;
-                rdesc = jobSpec.getOperatorMap().get(odId).getOutputRecordDescriptors();
+                IScalarEvaluatorFactory[] sevalFactories = new IScalarEvaluatorFactory[1];
+                evalFactories[0] = firstcrc;
+                sevalFactories[0] = secondcrc;
+                rdesc = jobSpec.getOperatorMap().get(sodId).getOutputRecordDescriptors();
+                secrdesc = jobSpec.getOperatorMap().get(odId).getOutputRecordDescriptors();
                 ISerializerDeserializer[] fields = new ISerializerDeserializer[rdesc[0].getFieldCount() + 1];
-
+                ISerializerDeserializer[] secfields = new ISerializerDeserializer[secrdesc[0].getFieldCount() + 1];
                 ITypeTraits[] typeTraits = new ITypeTraits[rdesc[0].getFieldCount() + 1];
+                ITypeTraits[] stypeTraits = new ITypeTraits[secrdesc[0].getFieldCount() + 1];
                 for (int k = 0; k < fields.length - 1; k++) {
                     fields[k] = rdesc[0].getFields()[k];
                     typeTraits[k] = rdesc[0].getTypeTraits()[k];
                 }
-                fields[fields.length - 1] = SerializerDeserializerProvider.INSTANCE.getSerializerDeserializer(recType);
+                for (int k = 0; k < secfields.length - 1; k++) {
+                    secfields[k] = secrdesc[0].getFields()[k];
+                    stypeTraits[k] = secrdesc[0].getTypeTraits()[k];
+                }
+                fields[fields.length - 1] =
+                        SerializerDeserializerProvider.INSTANCE.getSerializerDeserializer(firstrecType);
                 typeTraits[fields.length - 1] = typeTraits[0];
+                secfields[secfields.length - 1] =
+                        SerializerDeserializerProvider.INSTANCE.getSerializerDeserializer(secondrecType);
+                stypeTraits[secfields.length - 1] = stypeTraits[0];
                 int[] outColumns = new int[1];
-                outColumns[0] = evars.size();
-                int[] projectionList = new int[evars.size()];
-                int[] aprojectionList = new int[evars.size() + 1];
+                int[] soutColumns = new int[1];
+                outColumns[0] = vars.size();
+                soutColumns[0] = svars.size();
+                int[] projectionList = new int[vars.size()];
+                int[] aprojectionList = new int[vars.size() + 1];
+                int[] sprojectionList = new int[svars.size()];
+                int[] saprojectionList = new int[svars.size() + 1];
                 for (int j = 0; j < projectionList.length; j++) {
                     projectionList[j] = j;
                 }
                 for (int j = 0; j < aprojectionList.length; j++) {
                     aprojectionList[j] = j;
                 }
+                for (int j = 0; j < sprojectionList.length; j++) {
+                    sprojectionList[j] = j;
+                }
+                for (int j = 0; j < saprojectionList.length; j++) {
+                    saprojectionList[j] = j;
+                }
                 ISerializerDeserializer[] newfields = new ISerializerDeserializer[1];
+                ISerializerDeserializer[] snewfields = new ISerializerDeserializer[1];
                 ITypeTraits[] newtypeTraits = new ITypeTraits[1];
+                ITypeTraits[] snewtypeTraits = new ITypeTraits[1];
                 newfields[0] = fields[fields.length - 1];
                 typeTraits[0] = typeTraits[fields.length - 1];
+                snewfields[0] = secfields[secfields.length - 1];
+                stypeTraits[0] = stypeTraits[secfields.length - 1];
                 StreamProjectRuntimeFactory proruntime = new StreamProjectRuntimeFactory(projectionList, false);
+                StreamProjectRuntimeFactory sproruntime = new StreamProjectRuntimeFactory(sprojectionList, false);
                 RecordDescriptor projectDesc = rdesc[0];
+                RecordDescriptor sprojectDesc = secrdesc[0];
                 RecordDescriptor assignDesc = new RecordDescriptor(fields, typeTraits);
+                RecordDescriptor sassignDesc = new RecordDescriptor(secfields, stypeTraits);
                 AssignRuntimeFactory runtime =
                         new AssignRuntimeFactory(outColumns, evalFactories, aprojectionList, false);
+                AssignRuntimeFactory sruntime =
+                        new AssignRuntimeFactory(soutColumns, sevalFactories, saprojectionList, false);
                 StreamProjectRuntimeFactory proruntime2 = new StreamProjectRuntimeFactory(outColumns, false);
+                StreamProjectRuntimeFactory sproruntime2 = new StreamProjectRuntimeFactory(soutColumns, false);
                 RecordDescriptor projectDesc2 = new RecordDescriptor(newfields, newtypeTraits);
+                RecordDescriptor sprojectDesc2 = new RecordDescriptor(snewfields, snewtypeTraits);
                 IPushRuntimeFactory[] runtimeFactories = new IPushRuntimeFactory[3];
+                IPushRuntimeFactory[] sruntimeFactories = new IPushRuntimeFactory[3];
                 runtimeFactories[0] = proruntime;
                 internalRecordDescriptors[0] = projectDesc;
                 runtimeFactories[1] = runtime;
                 internalRecordDescriptors[1] = assignDesc;
                 runtimeFactories[2] = proruntime2;
                 internalRecordDescriptors[2] = projectDesc2;
+                sruntimeFactories[0] = sproruntime;
+                sinternalRecordDescriptors[0] = sprojectDesc;
+                sruntimeFactories[1] = sruntime;
+                sinternalRecordDescriptors[1] = sassignDesc;
+                sruntimeFactories[2] = sproruntime2;
+                sinternalRecordDescriptors[2] = sprojectDesc2;
                 IPushRuntimeFactory[] outRuntimeFactories = new IPushRuntimeFactory[1];
+                IPushRuntimeFactory[] soutRuntimeFactories = new IPushRuntimeFactory[1];
                 outRuntimeFactories[0] = null;
+                soutRuntimeFactories[0] = null;
                 int[] outPositions = new int[1];
+                int[] soutPositions = new int[1];
                 outPositions[0] = 0;
-                AlgebricksMetaOperatorDescriptor amod = new AlgebricksMetaOperatorDescriptor(jobSpec, 1, 1,
+                soutPositions[0] = 0;
+
+                int counter = 0;
+                AlgebricksMetaOperatorDescriptor samod = new AlgebricksMetaOperatorDescriptor(jobSpec, 1, 1,
+                        sruntimeFactories, sinternalRecordDescriptors, soutRuntimeFactories, soutPositions);
+                List<ConnectorDescriptorId> toBeRemoved = new ArrayList<>();
+                OperatorDescriptorId joinId = null;
+                OperatorDescriptorId remainedjoinId = null;
+                OperatorDescriptorId metaop = null;
+                OperatorDescriptorId metaopzero = null;
+                OperatorDescriptorId metaopjoin = null;
+                IConnectorDescriptor metaconn = null;
+                IConnectorDescriptor metaopconn = null;
+                for (IConnectorDescriptor conn : jobSpec.getConnectorMap().values()) {
+                    IOperatorDescriptor producer = jobSpec.getProducer(conn);
+                    IOperatorDescriptor consumer = jobSpec.getConsumer(conn);
+
+                    if (consumer instanceof OptimizedHybridHashJoinOperatorDescriptor) {
+                        counter++;
+                        if (counter == 2) {
+                            joinId = consumer.getOperatorId();
+                        } else if (counter > 2) {
+                            remainedjoinId = consumer.getOperatorId();
+                        }
+                    }
+                    //if the two joins share one same input
+                    if (opId != -1
+                            && (consumer.getOperatorId().getId() == opId || producer.getOperatorId().getId() == opId)) {
+                        newJob.getConnectorMap().put(conn.getConnectorId(), conn);
+                        newJob.getConnectorOperatorMap().put(conn.getConnectorId(),
+                                jobSpec.getConnectorOperatorMap().get(conn.getConnectorId()));
+                        newJob.getOperatorMap().put(consumer.getOperatorId(), consumer);
+                        newJob.getOperatorMap().put(producer.getOperatorId(), producer);
+                        if (producer.getOperatorId().getId() == opId) {
+                            metaop = consumer.getOperatorId();
+                            metaopconn = conn;
+                        } else {
+                            newJob.getOperatorOutputMap().put(consumer.getOperatorId(),
+                                    jobSpec.getOperatorOutputMap().get(consumer.getOperatorId()));
+                        }
+                        newJob.getOperatorInputMap().put(consumer.getOperatorId(),
+                                jobSpec.getOperatorInputMap().get(consumer.getOperatorId()));
+                        newJob.getOperatorInputMap().put(producer.getOperatorId(),
+                                jobSpec.getOperatorInputMap().get(producer.getOperatorId()));
+                        newJob.getOperatorOutputMap().put(producer.getOperatorId(),
+                                jobSpec.getOperatorOutputMap().get(producer.getOperatorId()));
+                    }
+                    if (counter >= 2 && consumer.getOperatorId() != joinId && producer.getOperatorId() != joinId) {
+                        toBeRemoved.add(conn.getConnectorId());
+                        if (consumer instanceof OptimizedHybridHashJoinOperatorDescriptor
+                                && ((AlgebricksMetaOperatorDescriptor) producer).getPipeline()
+                                        .getRuntimeFactories().length == 1) {
+                            metaopzero = producer.getOperatorId();
+                            metaopjoin = consumer.getOperatorId();
+                            metaconn = conn;
+                        }
+                        newJob.getConnectorMap().put(conn.getConnectorId(), conn);
+                        newJob.getConnectorOperatorMap().put(conn.getConnectorId(),
+                                jobSpec.getConnectorOperatorMap().get(conn.getConnectorId()));
+                        newJob.getOperatorMap().put(consumer.getOperatorId(), consumer);
+                        newJob.getOperatorMap().put(producer.getOperatorId(), producer);
+                        if (!newJob.getOperatorInputMap().containsKey(consumer.getOperatorId())) {
+                            newJob.getOperatorInputMap().put(consumer.getOperatorId(),
+                                    jobSpec.getOperatorInputMap().get(consumer.getOperatorId()));
+                            newJob.getOperatorOutputMap().put(consumer.getOperatorId(),
+                                    jobSpec.getOperatorOutputMap().get(consumer.getOperatorId()));
+                        }
+                        if (!newJob.getOperatorInputMap().containsKey(producer.getOperatorId())) {
+                            newJob.getOperatorInputMap().put(producer.getOperatorId(),
+                                    jobSpec.getOperatorInputMap().get(producer.getOperatorId()));
+                            newJob.getOperatorOutputMap().put(producer.getOperatorId(),
+                                    jobSpec.getOperatorOutputMap().get(producer.getOperatorId()));
+                        }
+                        jobSpec.getConnectorOperatorMap().remove(conn.getConnectorId());
+                        jobSpec.getOperatorMap().remove(consumer.getOperatorId());
+                        if (producer.getOperatorId() != joinId) {
+                            jobSpec.getOperatorMap().remove(producer.getOperatorId());
+                            jobSpec.getOperatorInputMap().remove(producer.getOperatorId());
+                            jobSpec.getOperatorOutputMap().remove(producer.getOperatorId());
+                        }
+                        jobSpec.getOperatorInputMap().remove(consumer.getOperatorId());
+
+                        jobSpec.getOperatorOutputMap().remove(consumer.getOperatorId());
+
+                    }
+                }
+                if (metaopconn != null) {
+                    ConnectorDescriptorId cdi = new ConnectorDescriptorId(metaopconn.getConnectorId().getId() + 1);
+                    newJob.connect(
+                            new MToNPartitioningConnectorDescriptor(newJob,
+                                    ((MToNPartitioningConnectorDescriptor) jobSpec.getConnectorMap().get(cdi))
+                                            .getTuplePartitionComputerFactory()),
+                            newJob.getOperatorMap().get(metaop), 0, newJob.getOperatorMap().get(remainedjoinId), 1);
+                }
+                newJob.getOperatorMap().remove(metaopzero);
+                newJob.getOperatorInputMap().remove(metaopzero);
+                newJob.getOperatorOutputMap().remove(metaopzero);
+                if (metaconn != null) {
+                    newJob.getConnectorMap().remove(metaconn.getConnectorId());
+                    newJob.getConnectorOperatorMap().remove(metaconn.getConnectorId());
+                }
+                List<OperatorDescriptorId> opInputToBeRemoved = new ArrayList<>();
+                for (OperatorDescriptorId twovalues : newJob.getOperatorInputMap().keySet()) {
+                    if (newJob.getOperatorInputMap().get(twovalues) == null) {
+                        opInputToBeRemoved.add(twovalues);
+                    }
+                }
+
+                for (OperatorDescriptorId twovalues : opInputToBeRemoved) {
+                    newJob.getOperatorInputMap().remove(twovalues);
+                }
+
+                List<OperatorDescriptorId> opOutputToBeRemoved = new ArrayList<>();
+                for (OperatorDescriptorId twovalues : newJob.getOperatorOutputMap().keySet()) {
+                    if (newJob.getOperatorOutputMap().get(twovalues) == null) {
+                        opOutputToBeRemoved.add(twovalues);
+                    }
+                }
+                for (OperatorDescriptorId twovalues : opOutputToBeRemoved) {
+                    newJob.getOperatorOutputMap().remove(twovalues);
+                }
+
+                for (ConnectorDescriptorId conneId : toBeRemoved) {
+                    jobSpec.getConnectorMap().remove(conneId);
+                }
+                if (metaconn != null) {
+                    jobSpec.getConnectorMap().remove(new ConnectorDescriptorId(metaconn.getConnectorId().getId() - 1));
+                    jobSpec.getConnectorOperatorMap()
+                            .remove(new ConnectorDescriptorId(metaconn.getConnectorId().getId() - 1));
+                }
+                AlgebricksMetaOperatorDescriptor amod = new AlgebricksMetaOperatorDescriptor(newJob, 1, 1,
                         runtimeFactories, internalRecordDescriptors, outRuntimeFactories, outPositions);
+
                 readerLocations =
                         mp.getApplicationContext().getClusterStateManager().getClusterLocations().getLocations();
-                PartitionConstraintHelper.addAbsoluteLocationConstraint(jobSpec, amod, readerLocations);
-                //                PartitionConstraintHelper.addAbsoluteLocationConstraint(jobSpec, amod,
-                //                        new String[] { readerLocations[2], readerLocations[3] });
-
-                ((IncrementalSinkOperatorDescriptor) jobSpec.getOperatorMap().get(id)).setRecDesc(projectDesc2);
-                //                String statisticsFieldsHint = dataSource1.getDataset().getHints().get(DatasetStatisticsHint.NAME);
-                String statisticsFieldsHint = "";
-                //                for (DatasetDataSource source : hints) {
-                //                    statisticsFieldsHint += source.getDataset().getHints().get(DatasetStatisticsHint.NAME) + ",";
-                //                }
-                for (String source : fieldNames) {
-                    statisticsFieldsHint += source + ",";
+                ((IncrementalSinkOperatorDescriptor) newJob.getOperatorMap().get(id)).setRecDesc(projectDesc2);
+                String firststatisticsFieldsHint = "";
+                String secondstatisticsFieldsHint = "";
+                for (String source : firstFieldNames) {
+                    firststatisticsFieldsHint += source + ",";
                 }
-                statisticsFieldsHint = statisticsFieldsHint.substring(0, statisticsFieldsHint.length() - 1);
+                for (String source : secondFieldNames) {
+                    secondstatisticsFieldsHint += source + ",";
+                }
+                firststatisticsFieldsHint =
+                        firststatisticsFieldsHint.substring(0, firststatisticsFieldsHint.length() - 1);
+                secondstatisticsFieldsHint =
+                        secondstatisticsFieldsHint.substring(0, secondstatisticsFieldsHint.length() - 1);
                 List<List<String>> indexKeys = new ArrayList<>();
 
                 final MetadataTransactionContext writeTxn = MetadataManager.INSTANCE.beginTransaction();
@@ -2927,35 +3193,58 @@ public class QueryTranslator extends AbstractLangTranslator implements IStatemen
                         dataSource1.getDataset().getDatasetName(),
                         dataSource1.getDataset().getHints().get(DatasetStatisticsHint.NAME).split(",")[0], false);
                 int statsSize = stats.get(0).getSynopsis().getSize();
-                List<IFieldExtractor> extractors = StatisticsUtil.computeStatisticsFieldExtractors(
-                        mp.getStorageComponentProvider().getTypeTraitProvider(), recType, indexKeys, true, false,
-                        statisticsFieldsHint.split(","));
-
-                StatisticsFactory statisticsFactory = new StatisticsFactory(SynopsisType.QuantileSketch, "newdata",
-                        recordTypeName + String.valueOf(queries), recordTypeName + String.valueOf(queries), extractors,
-                        statsSize, mp.getApplicationContext().getStatisticsProperties().getSketchFanout(),
+                List<IFieldExtractor> firstextractors = StatisticsUtil.computeStatisticsFieldExtractors(
+                        mp.getStorageComponentProvider().getTypeTraitProvider(), firstrecType, indexKeys, true, false,
+                        firststatisticsFieldsHint.split(","));
+                List<IFieldExtractor> secondextractors = StatisticsUtil.computeStatisticsFieldExtractors(
+                        mp.getStorageComponentProvider().getTypeTraitProvider(), secondrecType, indexKeys, true, false,
+                        secondstatisticsFieldsHint.split(","));
+                StatisticsFactory firststatisticsFactory = new StatisticsFactory(SynopsisType.QuantileSketch, "newdata",
+                        firstrecordTypeName + String.valueOf(queries), firstrecordTypeName + String.valueOf(queries),
+                        firstextractors, statsSize,
+                        mp.getApplicationContext().getStatisticsProperties().getSketchFanout(),
                         mp.getApplicationContext().getStatisticsProperties().getSketchFailureProbability(),
                         mp.getApplicationContext().getStatisticsProperties().getSketchAccuracy(),
                         mp.getApplicationContext().getStatisticsProperties().getSketchEnergyAccuracy());
-                ((IncrementalSinkOperatorDescriptor) jobSpec.getOperatorMap().get(id)).setStats(statisticsFactory);
+                StatisticsFactory secondstatisticsFactory = new StatisticsFactory(SynopsisType.QuantileSketch,
+                        "newdata", secondrecordTypeName + String.valueOf(queries),
+                        secondrecordTypeName + String.valueOf(queries), secondextractors, statsSize,
+                        mp.getApplicationContext().getStatisticsProperties().getSketchFanout(),
+                        mp.getApplicationContext().getStatisticsProperties().getSketchFailureProbability(),
+                        mp.getApplicationContext().getStatisticsProperties().getSketchAccuracy(),
+                        mp.getApplicationContext().getStatisticsProperties().getSketchEnergyAccuracy());
+                ((IncrementalSinkOperatorDescriptor) newJob.getOperatorMap().get(id)).setStats(firststatisticsFactory);
                 IStatisticsManagerProvider statisticsManagerProvider =
                         mp.getStorageComponentProvider().getStatisticsManagerProvider();
-                ((IncrementalSinkOperatorDescriptor) jobSpec.getOperatorMap().get(id))
+                ((IncrementalSinkOperatorDescriptor) newJob.getOperatorMap().get(id))
                         .setManagerProvider(statisticsManagerProvider);
-                for (Entry<ConnectorDescriptorId, org.apache.commons.lang3.tuple.Pair<org.apache.commons.lang3.tuple.Pair<IOperatorDescriptor, Integer>, org.apache.commons.lang3.tuple.Pair<IOperatorDescriptor, Integer>>> entry : jobSpec
+                for (Entry<ConnectorDescriptorId, org.apache.commons.lang3.tuple.Pair<org.apache.commons.lang3.tuple.Pair<IOperatorDescriptor, Integer>, org.apache.commons.lang3.tuple.Pair<IOperatorDescriptor, Integer>>> entry : newJob
                         .getConnectorOperatorMap().entrySet()) {
                     if (entry.getValue().getLeft().getKey() instanceof IncrementalSinkOperatorDescriptor
                             || entry.getValue().getRight().getKey() instanceof IncrementalSinkOperatorDescriptor) {
-                        jobSpec.getConnectorOperatorMap().remove(entry.getKey());
-                        jobSpec.getConnectorMap().remove(entry.getKey());
+                        newJob.getConnectorOperatorMap().remove(entry.getKey());
+                        newJob.getConnectorMap().remove(entry.getKey());
                     }
                 }
+                IncrementalSinkOperatorDescriptor sink = new IncrementalSinkOperatorDescriptor(jobSpec,
+                        secondstatisticsFactory, sprojectDesc2, statisticsManagerProvider);
 
-                jobSpec.connect(new OneToOneConnectorDescriptor(jobSpec), jobSpec.getOperatorMap().get(odId), 0, amod,
+                jobSpec.connect(new OneToOneConnectorDescriptor(jobSpec), jobSpec.getOperatorMap().get(odId), 0, samod,
                         0);
-                jobSpec.connect(new OneToOneConnectorDescriptor(jobSpec), amod, 0, jobSpec.getOperatorMap().get(id), 0);
+                jobSpec.connect(new OneToOneConnectorDescriptor(jobSpec), samod, 0, sink, 0);
 
-                //  jobSpec.getUserConstraints().
+                newJob.connect(new OneToOneConnectorDescriptor(newJob), newJob.getOperatorMap().get(sodId), 0, amod, 0);
+                newJob.connect(new OneToOneConnectorDescriptor(newJob), amod, 0, newJob.getOperatorMap().get(id), 0);
+
+                jobSpec.getUserConstraints().clear();
+                for (IOperatorDescriptor op : jobSpec.getOperatorMap().values()) {
+                    PartitionConstraintHelper.addAbsoluteLocationConstraint(jobSpec, op,
+                            Arrays.copyOfRange(readerLocations, 0, readerLocations.length / 2));
+                }
+                for (IOperatorDescriptor op : newJob.getOperatorMap().values()) {
+                    PartitionConstraintHelper.addAbsoluteLocationHalfConstraint(newJob, op,
+                            Arrays.copyOfRange(readerLocations, readerLocations.length / 2, readerLocations.length));
+                }
                 removeFromConnectors(0, jobSpec, jobSpec.getConnectorOperatorMap());
             } else {
                 removeFromConnectors(0, jobSpec, jobSpec.getConnectorOperatorMap());
@@ -2964,76 +3253,10 @@ public class QueryTranslator extends AbstractLangTranslator implements IStatemen
             JobSpecification job2 = null;
             JobSpecification[] jobs = new JobSpecification[2];
             if (!getFinished()) {
-                job2 = new JobSpecification();
-                for (IOperatorDescriptor op : jobSpec.getOperatorMap().values()) {
-                    job2.createOperatorDescriptorId(op);
-                }
-                for (IConnectorDescriptor conn : jobSpec.getConnectorMap().values()) {
-                    IOperatorDescriptor producer = jobSpec.getProducer(conn);
-                    int i = 0;
-                    IOperatorDescriptor consumer = jobSpec.getConsumer(conn);
-                    if (job2.getOperatorInputMap().containsKey(consumer.getOperatorId())) {
-                        i = 1;
-                    }
-                    job2.createConnectorDescriptor(conn);
-                    //job2.connect(conn, jobSpec.getProducer(conn), 0, jobSpec.getConsumer(conn), 0);
-                    job2.connect(conn, producer, 0, consumer, i);
-                }
-                for (OperatorDescriptorId oid : jobSpec.getRoots()) {
-                    job2.addRoot(jobSpec.getOperatorMap().get(oid));
-                }
-                for (ResultSetId rsId : jobSpec.getResultSetIds()) {
-                    job2.addResultSetId(rsId);
-                }
-
-                Set<String> participantNodes =
-                        mp.getApplicationContext().getClusterStateManager().getParticipantNodes();
-                Set<String> firstHalf = new HashSet<>();
-                Set<String> secondHalf = new HashSet<>();
-                Set<String> copySet = participantNodes;
-                int i = 0;
-                for (Iterator<String> it = participantNodes.iterator(); i < participantNodes.size() / 2;) {
-                    i++;
-                    String curr = it.next();
-                    firstHalf.add(curr);
-                    copySet.remove(curr);
-                }
-                for (Iterator<String> it = copySet.iterator(); it.hasNext();) {
-                    secondHalf.add(it.next());
-                }
-                for (Constraint constraint : new ArrayList<>(jobSpec.getUserConstraints())) {
-                    for (String key : firstHalf) {
-                        ConstraintExpression cexpr = constraint.getRValue();
-                        org.apache.hyracks.api.constraints.expressions.ConstantExpression sexpr =
-                                (org.apache.hyracks.api.constraints.expressions.ConstantExpression) cexpr;
-                        LValueConstraintExpression lexpr = constraint.getLValue();
-                        if (lexpr.getTag() == ExpressionTag.PARTITION_LOCATION) {
-                            if (!((String) sexpr.getValue()).equals(key)) {
-                                //                        if (((String) sexpr.getValue()).equals(key)) {
-                                jobSpec.getUserConstraints().remove(constraint);
-                                job2.addUserConstraint(constraint);
-                            }
-                        } else {
-                            PartitionConstraintHelper.addPartitionCountConstraint(jobSpec,
-                                    jobSpec.getOperatorMap()
-                                            .get(((PartitionCountExpression) lexpr).getOperatorDescriptorId()),
-                                    mp.getApplicationContext().getClusterStateManager().getClusterLocations()
-                                            .getLocations().length / 2);
-                            PartitionConstraintHelper.addPartitionCountConstraint(job2,
-                                    job2.getOperatorMap()
-                                            .get(((PartitionCountExpression) lexpr).getOperatorDescriptorId()),
-                                    mp.getApplicationContext().getClusterStateManager().getClusterLocations()
-                                            .getLocations().length / 2);
-                            jobSpec.getUserConstraints().remove(constraint);
-
-                        }
-                    }
-                }
-
+                job2 = newJob;
                 jobs = new JobSpecification[2];
                 TxnId txnid = mp.getTxnIdFactory().create();
                 mp.setTxnId(txnid);
-                //job2.setJobletEventListenerFactory(jobSpec.getJobletEventListenerFactory());
                 job2.setJobletEventListenerFactory(new JobEventListenerFactory(txnid, mp.isWriteTransaction()));
                 final IClusterCapacity clusterCapacity = new ClusterCapacity();
                 clusterCapacity.setAggregatedCores(jobSpec.getRequiredClusterCapacity().getAggregatedCores());
@@ -3063,6 +3286,18 @@ public class QueryTranslator extends AbstractLangTranslator implements IStatemen
                 JobId[] ids = { jobIds[0], null };
                 //                hcc.waitForCompletion(jobIds);
                 hcc.waitForCompletion(ids);
+                hcc.getJobStatus(jobIds[0]);
+                if (!getFinished()) {
+                    if (hcc.getJobStatus(jobIds[1]) == JobStatus.LATE_RETURN) {
+                        newQuery = makeConnectionQuery(svarexpr, secondrecordTypeName + String.valueOf(queries),
+                                dataSource2, snewRecordType, mp, secondprimKey, secondstrType, secdatasources,
+                                newQuery);
+
+                    } else {
+                        newQuery = makeConnectionQuery(varexpr, firstrecordTypeName + String.valueOf(queries),
+                                dataSource1, newRecordType, mp, firstprimKey, firststrType, datasources, newQuery);
+                    }
+                }
                 //hcc.waitForCompletion(jobIds[1]);
                 if (getFinished()) {
                     printer.print(jobIds[0]);
@@ -3073,6 +3308,7 @@ public class QueryTranslator extends AbstractLangTranslator implements IStatemen
                 }
             }
         }
+
     }
 
     private void removeFromConnectors(int readers, JobSpecification jobSpec,

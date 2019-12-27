@@ -312,6 +312,9 @@ public class QuantileSketch<T extends Comparable<T>> implements ISketch<T, T> {
             // add the last element, since it marks the element with rank = 1
             ranks.add(e.value);
         }
+        if (ranks.isEmpty()) {
+            ranks.add(elements.firstEntry().value);
+        }
         return ranks;
     }
 

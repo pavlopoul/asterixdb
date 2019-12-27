@@ -108,6 +108,9 @@ public abstract class HistogramSynopsis<T extends HistogramBucket> extends Abstr
                 }
             }
         }
+        if (leftEstimate == 0.0) {
+            leftEstimate = 1.0;
+        }
 
         for (int i = 0; i < histogram.getBuckets().size(); i++) {
             if (histogram.getBuckets().get(i).getValue() != 0.0) {
@@ -117,6 +120,9 @@ public abstract class HistogramSynopsis<T extends HistogramBucket> extends Abstr
                     rightEstimate += histogram.getBuckets().get(i).getValue();
                 }
             }
+        }
+        if (rightEstimate == 0.0) {
+            rightEstimate = 1.0;
         }
         //            if (getBuckets().size() != 0) {
         //                heightl = getBuckets().get(0).getHeight();

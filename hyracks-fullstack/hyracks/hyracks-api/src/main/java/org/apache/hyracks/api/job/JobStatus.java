@@ -23,6 +23,7 @@ public enum JobStatus {
     PENDING,
     RUNNING,
     TERMINATED,
+    LATE_RETURN,
     FAILURE,
     FAILURE_BEFORE_EXECUTION
 }

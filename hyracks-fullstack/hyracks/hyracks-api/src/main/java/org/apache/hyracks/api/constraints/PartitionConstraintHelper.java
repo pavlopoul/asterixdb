@@ -38,4 +38,13 @@ public class PartitionConstraintHelper {
                     new ConstantExpression(locations[i])));
         }
     }
+
+    public static void addAbsoluteLocationHalfConstraint(JobSpecification spec, IOperatorDescriptor op,
+            String... locations) {
+        addPartitionCountConstraint(spec, op, locations.length);
+        for (int i = locations.length; i < locations.length * 2; ++i) {
+            spec.addUserConstraint(new Constraint(new PartitionLocationExpression(op.getOperatorId(), i),
+                    new ConstantExpression(locations[i - locations.length])));
+        }
+    }
 }

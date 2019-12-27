@@ -605,8 +605,10 @@ public class JobExecutor {
             ccs.getWorkQueue().schedule(new JobCleanupWork(ccs.getJobManager(), jobRun.getJobId(), JobStatus.FAILURE,
                     exceptions, callback));
         } else {
-            ccs.getWorkQueue().schedule(new JobCleanupWork(ccs.getJobManager(), jobRun.getJobId(), JobStatus.TERMINATED,
-                    exceptions, callback));
+            //            ccs.getWorkQueue().schedule(new JobCleanupWork(ccs.getJobManager(), jobRun.getJobId(), JobStatus.TERMINATED,
+            //                    exceptions, callback));
+            ccs.getWorkQueue().schedule(new JobCleanupWork(ccs.getJobManager(), jobRun.getJobId(),
+                    JobStatus.LATE_RETURN, exceptions, callback));
         }
     }
 

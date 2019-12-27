@@ -38,6 +38,7 @@ import org.apache.hyracks.api.job.JobSpecification;
 public class PlanCompiler {
     private JobGenContext context;
     private List<ILogicalOperator> operators = new ArrayList<>();
+    private List<ILogicalOperator> operatorsInJoins = new ArrayList<>();
     private boolean finished = false;
     private Map<Mutable<ILogicalOperator>, List<ILogicalOperator>> operatorVisitedToParents =
             new HashMap<Mutable<ILogicalOperator>, List<ILogicalOperator>>();
@@ -152,7 +153,8 @@ public class PlanCompiler {
     }
 
     public List<ILogicalOperator> getOperators() {
-        return operators;
+        //        return operators;
+        return operatorsInJoins;
     }
 
     public List<ILogicalOperator> traversePlan(Mutable<ILogicalOperator> root, boolean rootFlag) {
@@ -170,16 +172,20 @@ public class PlanCompiler {
     private void compileOpRef(IOperatorDescriptorRegistry spec, IHyracksJobBuilder builder,
             IOperatorSchema outerPlanSchema, boolean first) throws AlgebricksException {
         int size = operators.size();
+        int k = 0;
         for (int j = operators.size() - 1; j >= 0; j--) {
             int n = operators.get(j).getInputs().size();
             int i = 0;
             IOperatorSchema[] schemas = new IOperatorSchema[n];
+            operatorsInJoins.add(operators.get(j));
             if (!notJoinInPlan()) {
                 if (operators.get(j).hasInputs()) {
                     if (operators.get(j).getInputs().get(0).getValue().getOperatorTag() == LogicalOperatorTag.EXCHANGE
                             && operators.get(j).getInputs().get(0).getValue().getInputs().get(0).getValue()
                                     .getOperatorTag() == LogicalOperatorTag.INNERJOIN) {
-                        break;
+                        k++;
+                        if (k > 1)
+                            break;
                     }
                 }
             }
@@ -205,7 +211,7 @@ public class PlanCompiler {
                 //return false;
             }
         }
-        if (joins > 1) {
+        if (joins > 2) {
             return false;
         }
         return true;

@@ -50,6 +50,8 @@ public class DatasetDataSource extends DataSource {
 
     private final Dataset dataset;
 
+    public int oId;
+
     public DatasetDataSource(DataSourceId id, Dataset dataset, IAType itemType, IAType metaItemType,
             byte datasourceType, IDatasetDetails datasetDetails, INodeDomain datasetDomain) throws AlgebricksException {
         super(id, itemType, metaItemType, datasourceType, datasetDomain);
@@ -125,13 +127,24 @@ public class DatasetDataSource extends DataSource {
 
                 int[] minFilterFieldIndexes = createFilterIndexes(minFilterVars, opSchema);
                 int[] maxFilterFieldIndexes = createFilterIndexes(maxFilterVars, opSchema);
-                return metadataProvider.buildBtreeRuntime(jobSpec, opSchema, typeEnv, context, true, false,
-                        ((DatasetDataSource) dataSource).getDataset(), primaryIndex.getIndexName(), null, null, true,
-                        true, false, minFilterFieldIndexes, maxFilterFieldIndexes, tupleFilterFactory, outputLimit,
-                        false);
+                Pair<IOperatorDescriptor, AlgebricksPartitionConstraint> btreeSearch =
+                        metadataProvider.buildBtreeRuntime(jobSpec, opSchema, typeEnv, context, true, false,
+                                ((DatasetDataSource) dataSource).getDataset(), primaryIndex.getIndexName(), null, null,
+                                true, true, false, minFilterFieldIndexes, maxFilterFieldIndexes, tupleFilterFactory,
+                                outputLimit, false);
+                oId = btreeSearch.first.getOperatorId().getId();
+                //                return metadataProvider.buildBtreeRuntime(jobSpec, opSchema, typeEnv, context, true, false,
+                //                        ((DatasetDataSource) dataSource).getDataset(), primaryIndex.getIndexName(), null, null, true,
+                //                        true, false, minFilterFieldIndexes, maxFilterFieldIndexes, tupleFilterFactory, outputLimit,
+                //                        false);
+                return btreeSearch;
             default:
                 throw new AlgebricksException("Unknown datasource type");
         }
+    }
+
+    public int getOId() {
+        return oId;
     }
 
     private int[] createFilterIndexes(List<LogicalVariable> filterVars, IOperatorSchema opSchema) {

@@ -262,10 +262,9 @@ public class TwoJoinsRule implements IAlgebraicRewriteRule {
                 alo.getInputs().clear();
                 alo.getInputs().add(new MutableObject<ILogicalOperator>(finalJoin));
             }
-            LogicalVariable lv =
-                    ((VariableReferenceExpression) ((AssignOperator) alo).getExpressions().get(0).getValue())
-                            .getVariableReference();
-            if (findDataSource(alo, lv) == null) {
+            LogicalVariable lv = ((VariableReferenceExpression) ((ScalarFunctionCallExpression) ((AssignOperator) alo)
+                    .getExpressions().get(0).getValue()).getArguments().get(1).getValue()).getVariableReference();
+            if (findDataSource(joinA, lv) == null) {
                 ((AssignOperator) alo).getExpressions().set(0, sfceB.getArguments().get(0));
             }
             map.clear();

@@ -56,13 +56,13 @@ public class PlanCompiler {
     }
 
     public JobSpecification compilePlan(ILogicalPlan plan, IJobletEventListenerFactory jobEventListenerFactory,
-            List<ILogicalOperator> operators2, boolean first) throws AlgebricksException {
-        return compilePlanImpl(plan, false, null, jobEventListenerFactory, operators2, first);
+            List<ILogicalOperator> operators2, boolean first, boolean notJoinInPlan) throws AlgebricksException {
+        return compilePlanImpl(plan, false, null, jobEventListenerFactory, operators2, first, notJoinInPlan);
     }
 
     public JobSpecification compileNestedPlan(ILogicalPlan plan, IOperatorSchema outerPlanSchema)
             throws AlgebricksException {
-        return compilePlanImpl(plan, true, outerPlanSchema, null, null, true);
+        return compilePlanImpl(plan, true, outerPlanSchema, null, null, true, true);
     }
 
     private JobSpecification compileLoadPlanImpl(ILogicalPlan plan, boolean isNestedPlan,
@@ -119,8 +119,8 @@ public class PlanCompiler {
     }
 
     private JobSpecification compilePlanImpl(ILogicalPlan plan, boolean isNestedPlan, IOperatorSchema outerPlanSchema,
-            IJobletEventListenerFactory jobEventListenerFactory, List<ILogicalOperator> operators2, boolean first)
-            throws AlgebricksException {
+            IJobletEventListenerFactory jobEventListenerFactory, List<ILogicalOperator> operators2, boolean first,
+            boolean notJoinInPlan) throws AlgebricksException {
         JobSpecification spec = new JobSpecification(context.getFrameSize());
         if (jobEventListenerFactory != null) {
             spec.setJobletEventListenerFactory(jobEventListenerFactory);
@@ -131,8 +131,8 @@ public class PlanCompiler {
         operators = operators2;
         rootOps.add(opRef.getValue());
 
-        compileOpRef(spec, builder, outerPlanSchema, first);
-        if (!notJoinInPlan()) {
+        compileOpRef(spec, builder, outerPlanSchema, first, notJoinInPlan);
+        if (!notJoinInPlan) {
             builder.buildSpecNew();
         } else {
             builder.buildSpec(rootOps);
@@ -168,13 +168,13 @@ public class PlanCompiler {
     }
 
     private void compileOpRef(IOperatorDescriptorRegistry spec, IHyracksJobBuilder builder,
-            IOperatorSchema outerPlanSchema, boolean first) throws AlgebricksException {
+            IOperatorSchema outerPlanSchema, boolean first, boolean notJoinInPlan) throws AlgebricksException {
         int size = operators.size();
         for (int j = operators.size() - 1; j >= 0; j--) {
             int n = operators.get(j).getInputs().size();
             int i = 0;
             IOperatorSchema[] schemas = new IOperatorSchema[n];
-            if (!notJoinInPlan()) {
+            if (!notJoinInPlan) {
                 if (operators.get(j).hasInputs()) {
                     if (operators.get(j).getInputs().get(0).getValue().getOperatorTag() == LogicalOperatorTag.EXCHANGE
                             && operators.get(j).getInputs().get(0).getValue().getInputs().get(0).getValue()

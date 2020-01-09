@@ -55,6 +55,7 @@ import org.apache.asterix.dataflow.data.common.PartialAggregationTypeComputer;
 import org.apache.asterix.external.feed.watch.FeedActivityDetails;
 import org.apache.asterix.formats.base.IDataFormat;
 import org.apache.asterix.jobgen.QueryLogicalExpressionJobGen;
+import org.apache.asterix.lang.common.base.Expression.Kind;
 import org.apache.asterix.lang.common.base.IAstPrintVisitorFactory;
 import org.apache.asterix.lang.common.base.IQueryRewriter;
 import org.apache.asterix.lang.common.base.IReturningStatement;
@@ -66,6 +67,9 @@ import org.apache.asterix.lang.common.statement.Query;
 import org.apache.asterix.lang.common.statement.StartFeedStatement;
 import org.apache.asterix.lang.common.struct.VarIdentifier;
 import org.apache.asterix.lang.common.util.FunctionUtil;
+import org.apache.asterix.lang.sqlpp.clause.FromClause;
+import org.apache.asterix.lang.sqlpp.clause.FromTerm;
+import org.apache.asterix.lang.sqlpp.expression.SelectExpression;
 import org.apache.asterix.lang.sqlpp.rewrites.SqlppQueryRewriter;
 import org.apache.asterix.metadata.declared.MetadataProvider;
 import org.apache.asterix.om.base.IAObject;
@@ -315,10 +319,21 @@ public class APIFramework {
             finished = true;
             spec = compiler.createLoadJob(metadataProvider.getApplicationContext(), jobEventListenerFactory);
         } else {
-
+            boolean notJoinInPlan = true;
+            if (newQuery != null) {
+                query = newQuery;
+            }
+            if (query.getBody().getKind() == Kind.SELECT_EXPRESSION) {
+                SelectExpression select = (SelectExpression) query.getBody();
+                FromClause fromold = select.getSelectSetOperation().getLeftInput().getSelectBlock().getFromClause();
+                List<FromTerm> fromTerms = fromold.getFromTerms();
+                if (fromTerms.size() > 2) {
+                    notJoinInPlan = false;
+                }
+            }
             operators = compiler.traversePlan(metadataProvider.getApplicationContext(), first, context, pc);
             spec = compiler.createJob(metadataProvider.getApplicationContext(), jobEventListenerFactory, operators,
-                    first);
+                    first, notJoinInPlan);
             finished = compiler.getFinished(metadataProvider.getApplicationContext(), first, context, pc);
             this.operators = compiler.getOperators();
         }

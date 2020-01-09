@@ -102,9 +102,9 @@ public class HeuristicCompilerFactoryBuilder extends AbstractCompilerFactoryBuil
                     @Override
                     public JobSpecification createJob(Object appContext,
                             IJobletEventListenerFactory jobEventListenerFactory, List<ILogicalOperator> operators,
-                            boolean first) throws AlgebricksException {
+                            boolean first, boolean notJoinInPlan) throws AlgebricksException {
                         AlgebricksConfig.ALGEBRICKS_LOGGER.trace("Starting Job Generation.\n");
-                        return pc.compilePlan(plan, jobEventListenerFactory, operators, first);
+                        return pc.compilePlan(plan, jobEventListenerFactory, operators, first, notJoinInPlan);
                     }
 
                     @Override

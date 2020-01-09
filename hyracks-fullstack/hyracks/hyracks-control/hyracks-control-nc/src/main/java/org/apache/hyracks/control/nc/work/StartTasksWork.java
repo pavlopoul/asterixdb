@@ -162,7 +162,7 @@ public class StartTasksWork extends AbstractWork {
                         createInputChannels(td, inputs));
                 IOperatorEnvironment env = null;
                 if (id.getLocalIntermediateResultId() > 0) {
-                    //   env = ncs.getPastJobletMap().get(new JobId(jobId.getId() - 1)).getEnvironment();
+                    //env = ncs.getPastJobletMap().get(new JobId(jobId.getId() - 1)).getEnvironment();
                     env = ncs.getPastJobletMap()
                             .get(new JobId((ncs.getFirstJobId().getId() > 1)
                                     ? jobId.getId() - id.getLocalIntermediateResultId()

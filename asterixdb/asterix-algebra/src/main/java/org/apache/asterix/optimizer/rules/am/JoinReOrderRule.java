@@ -22,12 +22,10 @@ import static org.apache.asterix.optimizer.rules.am.BTreeAccessMethod.LimitType.
 
 import java.util.ArrayList;
 import java.util.Collections;
-import java.util.Iterator;
 import java.util.List;
 import java.util.ListIterator;
 import java.util.TreeMap;
 
-import org.apache.asterix.lang.common.util.FunctionUtil;
 import org.apache.asterix.metadata.declared.DatasetDataSource;
 import org.apache.asterix.om.types.ARecordType;
 import org.apache.asterix.om.utils.ConstantExpressionUtil;
@@ -183,56 +181,99 @@ public class JoinReOrderRule implements IAlgebraicRewriteRule {
     @Override
     public boolean rewritePost(Mutable<ILogicalOperator> opRef, IOptimizationContext context)
             throws AlgebricksException {
-        List<Mutable<ILogicalOperator>> joinRoots = new ArrayList<>();
-        List<Mutable<ILogicalOperator>> allJoins = new ArrayList<>();
+        //        List<Mutable<ILogicalOperator>> joinRoots = new ArrayList<>();
+        //        List<Mutable<ILogicalOperator>> allJoins = new ArrayList<>();
+        //        if (alo != null && !map.isEmpty()) {
+        //            alo.getInputs().clear();
+        //            alo.getInputs().add(map.firstEntry().getValue().get(0));
+        //            joinRoots.add(map.firstEntry().getValue().get(0));
+        //            Iterator<Long> it = map.navigableKeySet().iterator();
+        //            while (it.hasNext()) {
+        //                allJoins.addAll(map.get(it.next()));
+        //            }
+        //            ScalarFunctionCallExpression sfcebest =
+        //                    (ScalarFunctionCallExpression) ((InnerJoinOperator) allJoins.get(allJoins.size() - 1).getValue())
+        //                            .getCondition().getValue();
+        //            LogicalVariable lvbestl =
+        //                    ((VariableReferenceExpression) sfcebest.getArguments().get(0).getValue()).getVariableReference();
+        //            findDataSource((InnerJoinOperator) allJoins.get(allJoins.size() - 1).getValue(), lvbestl);
+        //            allJoins.get(allJoins.size() - 1).getValue().getInputs().set(0, mut);
+        //            allJoins.remove(0);
+        //            ListIterator<Mutable<ILogicalOperator>> list = joinRoots.listIterator();
+        //            while (list.hasNext()) {
+        //                Mutable<ILogicalOperator> root = list.next();
+        //                for (Mutable<ILogicalOperator> mutJoin : allJoins) {
+        //
+        //                    InnerJoinOperator join = (InnerJoinOperator) root.getValue();
+        //                    InnerJoinOperator joinChild = (InnerJoinOperator) mutJoin.getValue();
+        //                    matched = false;
+        //                    traversePlan(join, joinChild, list, mutJoin);
+        //                }
+        //            }
+        //            if (joinRoots.size() > 1) {
+        //                InnerJoinOperator joinA = (InnerJoinOperator) joinRoots.get(0).getValue();
+        //                Mutable<ILogicalExpression> conditionA = joinA.getCondition();
+        //                ScalarFunctionCallExpression sfceA = (ScalarFunctionCallExpression) conditionA.getValue();
+        //                LogicalVariable lvrA =
+        //                        ((VariableReferenceExpression) sfceA.getArguments().get(1).getValue()).getVariableReference();
+        //                InnerJoinOperator joinB = (InnerJoinOperator) joinRoots.get(1).getValue();
+        //                Mutable<ILogicalExpression> conditionB = joinB.getCondition();
+        //                ScalarFunctionCallExpression sfceB = (ScalarFunctionCallExpression) conditionB.getValue();
+        //                LogicalVariable lvlB =
+        //                        ((VariableReferenceExpression) sfceB.getArguments().get(0).getValue()).getVariableReference();
+        //                List<Mutable<ILogicalExpression>> eqExprs = new ArrayList<Mutable<ILogicalExpression>>();
+        //                List<Mutable<ILogicalExpression>> args = new ArrayList<Mutable<ILogicalExpression>>();
+        //                args.add(new MutableObject<ILogicalExpression>(new VariableReferenceExpression(lvrA)));
+        //                args.add(new MutableObject<ILogicalExpression>(new VariableReferenceExpression(lvlB)));
+        //                ScalarFunctionCallExpression eqFunc = new ScalarFunctionCallExpression(
+        //                        FunctionUtil.getFunctionInfo(AlgebricksBuiltinFunctions.EQ), args);
+        //                eqExprs.add(new MutableObject<ILogicalExpression>(eqFunc));
+        //                InnerJoinOperator outerJoin = new InnerJoinOperator(eqExprs.get(0), joinRoots.get(0), joinRoots.get(1));
+        //                context.computeAndSetTypeEnvironmentForOperator(outerJoin);
+        //                alo.getInputs().clear();
+        //                alo.getInputs().add(new MutableObject<ILogicalOperator>(outerJoin));
+        //            }
+        //            map.clear();
+        //            return true;
+        //        }
         if (alo != null && !map.isEmpty()) {
-            alo.getInputs().clear();
-            alo.getInputs().add(map.firstEntry().getValue().get(0));
-            joinRoots.add(map.firstEntry().getValue().get(0));
-            Iterator<Long> it = map.navigableKeySet().iterator();
-            while (it.hasNext()) {
-                allJoins.addAll(map.get(it.next()));
-            }
-            ScalarFunctionCallExpression sfcebest =
-                    (ScalarFunctionCallExpression) ((InnerJoinOperator) allJoins.get(allJoins.size() - 1).getValue())
-                            .getCondition().getValue();
-            LogicalVariable lvbestl =
-                    ((VariableReferenceExpression) sfcebest.getArguments().get(0).getValue()).getVariableReference();
-            findDataSource((InnerJoinOperator) allJoins.get(allJoins.size() - 1).getValue(), lvbestl);
-            allJoins.get(allJoins.size() - 1).getValue().getInputs().set(0, mut);
-            allJoins.remove(0);
-            ListIterator<Mutable<ILogicalOperator>> list = joinRoots.listIterator();
-            while (list.hasNext()) {
-                Mutable<ILogicalOperator> root = list.next();
-                for (Mutable<ILogicalOperator> mutJoin : allJoins) {
+            TreeMap<Long, List<Mutable<ILogicalOperator>>> twomap = new TreeMap<>();
+            twomap.put(map.lastKey(), map.lastEntry().getValue());
+            map.remove(map.lastKey());
+            twomap.put(map.lastKey(), map.lastEntry().getValue());
+            InnerJoinOperator joinA = (InnerJoinOperator) twomap.firstEntry().getValue().get(0).getValue();
 
-                    InnerJoinOperator join = (InnerJoinOperator) root.getValue();
-                    InnerJoinOperator joinChild = (InnerJoinOperator) mutJoin.getValue();
-                    matched = false;
-                    traversePlan(join, joinChild, list, mutJoin);
+            Mutable<ILogicalExpression> conditionA = joinA.getCondition();
+            ScalarFunctionCallExpression sfceA = (ScalarFunctionCallExpression) conditionA.getValue();
+            LogicalVariable lvrA =
+                    ((VariableReferenceExpression) sfceA.getArguments().get(1).getValue()).getVariableReference();
+            LogicalVariable lvlA =
+                    ((VariableReferenceExpression) sfceA.getArguments().get(0).getValue()).getVariableReference();
+            int inputs = -1;
+            for (Mutable<ILogicalOperator> mlo : joinA.getInputs()) {
+                inputs++;
+                if (mlo.getValue().getOperatorTag() == LogicalOperatorTag.INNERJOIN) {
+                    LogicalVariable lv = null;
+                    for (Mutable<ILogicalExpression> mule : ((ScalarFunctionCallExpression) ((InnerJoinOperator) mlo
+                            .getValue()).getCondition().getValue()).getArguments()) {
+                        if (((VariableReferenceExpression) mule.getValue()).getVariableReference() == lvrA) {
+                            lv = lvrA;
+                            break;
+                        } else if (((VariableReferenceExpression) mule.getValue()).getVariableReference() == lvlA) {
+                            lv = lvlA;
+                            break;
+                        }
+                    }
+                    findDataSource((AbstractLogicalOperator) mlo.getValue(), lv);
+                    joinA.getInputs().set(inputs, mut);
                 }
             }
-            if (joinRoots.size() > 1) {
-                InnerJoinOperator joinA = (InnerJoinOperator) joinRoots.get(0).getValue();
-                Mutable<ILogicalExpression> conditionA = joinA.getCondition();
-                ScalarFunctionCallExpression sfceA = (ScalarFunctionCallExpression) conditionA.getValue();
-                LogicalVariable lvrA =
-                        ((VariableReferenceExpression) sfceA.getArguments().get(1).getValue()).getVariableReference();
-                InnerJoinOperator joinB = (InnerJoinOperator) joinRoots.get(1).getValue();
-                Mutable<ILogicalExpression> conditionB = joinB.getCondition();
-                ScalarFunctionCallExpression sfceB = (ScalarFunctionCallExpression) conditionB.getValue();
-                LogicalVariable lvlB =
-                        ((VariableReferenceExpression) sfceB.getArguments().get(0).getValue()).getVariableReference();
-                List<Mutable<ILogicalExpression>> eqExprs = new ArrayList<Mutable<ILogicalExpression>>();
-                List<Mutable<ILogicalExpression>> args = new ArrayList<Mutable<ILogicalExpression>>();
-                args.add(new MutableObject<ILogicalExpression>(new VariableReferenceExpression(lvrA)));
-                args.add(new MutableObject<ILogicalExpression>(new VariableReferenceExpression(lvlB)));
-                ScalarFunctionCallExpression eqFunc = new ScalarFunctionCallExpression(
-                        FunctionUtil.getFunctionInfo(AlgebricksBuiltinFunctions.EQ), args);
-                eqExprs.add(new MutableObject<ILogicalExpression>(eqFunc));
-                InnerJoinOperator outerJoin = new InnerJoinOperator(eqExprs.get(0), joinRoots.get(0), joinRoots.get(1));
-                alo.getInputs().clear();
-                alo.getInputs().add(new MutableObject<ILogicalOperator>(outerJoin));
+            alo.getInputs().clear();
+            alo.getInputs().add(new MutableObject<ILogicalOperator>(joinA));
+            LogicalVariable lv = ((VariableReferenceExpression) ((ScalarFunctionCallExpression) ((AssignOperator) alo)
+                    .getExpressions().get(0).getValue()).getArguments().get(1).getValue()).getVariableReference();
+            if (findDataSource(joinA, lv) == null) {
+                ((AssignOperator) alo).getExpressions().set(0, sfceA.getArguments().get(0));
             }
             map.clear();
             return true;

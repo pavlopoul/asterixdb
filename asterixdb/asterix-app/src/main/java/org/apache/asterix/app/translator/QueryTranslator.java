@@ -2029,8 +2029,22 @@ public class QueryTranslator extends AbstractLangTranslator implements IStatemen
                 operators, first, newQuery);
     }
 
-    public boolean getFinished() {
-        return apiFramework.getFinished();
+    public boolean getFinished(Query newQuery) {
+        Query nq = (Query) statements.get(1);
+        if (newQuery != null) {
+            nq = newQuery;
+        }
+        if (nq.getBody().getKind() == Kind.SELECT_EXPRESSION) {
+            SelectExpression select = (SelectExpression) nq.getBody();
+            FromClause fromold = select.getSelectSetOperation().getLeftInput().getSelectBlock().getFromClause();
+            List<FromTerm> fromTerms = fromold.getFromTerms();
+            if (fromTerms.size() > 2) {
+                return false;
+            }
+        }
+        return true;
+        //return apiFramework.getFinished();
+
     }
 
     public List<ILogicalOperator> getOperators() {
@@ -2691,14 +2705,17 @@ public class QueryTranslator extends AbstractLangTranslator implements IStatemen
         List<DatasetDataSource> hints = new ArrayList<>();
         List<String> datasources = new ArrayList<>();
         RecordDescriptor[] internalRecordDescriptors = new RecordDescriptor[3];
-        while (!getFinished()) {
+        boolean finished = false;
+        //while (!getFinished(newQuery)) {
+        while (!finished) {
             locker.lock();
             jobSpec = compiler.compile(operators, first, newQuery);
             if (jobSpec == null) {
                 return;
             }
             operators = getOperators();
-            if (!getFinished()) {
+            if (!getFinished(newQuery)) {
+                finished = false;
                 List<LogicalVariable> vars = null;
                 IAType[] types = null;
                 String[] fieldNames = null;
@@ -2945,6 +2962,7 @@ public class QueryTranslator extends AbstractLangTranslator implements IStatemen
                 //  jobSpec.getUserConstraints().
                 removeFromConnectors(0, jobSpec, jobSpec.getConnectorOperatorMap());
             } else {
+                finished = true;
                 removeFromConnectors(0, jobSpec, jobSpec.getConnectorOperatorMap());
             }
             final JobId jobId = JobUtils.runJob(hcc, jobSpec, jobFlags, false);
@@ -2960,7 +2978,8 @@ public class QueryTranslator extends AbstractLangTranslator implements IStatemen
                 hcc.waitForCompletion(jobId);
             } else {
                 hcc.waitForCompletion(jobId);
-                if (getFinished()) {
+                if (finished) {
+                    //                if (getFinished()) {
                     printer.print(jobId);
                     locker.unlock();
                     if (req != null) {

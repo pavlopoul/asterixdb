@@ -31,7 +31,7 @@ public interface ICompiler {
     public void optimize() throws AlgebricksException;
 
     public JobSpecification createJob(Object appContext, IJobletEventListenerFactory jobEventListenerFactory,
-            List<ILogicalOperator> operators, boolean first) throws AlgebricksException;
+            List<ILogicalOperator> operators, boolean first, boolean notJoinInPlan) throws AlgebricksException;
 
     public JobSpecification createLoadJob(Object appContext, IJobletEventListenerFactory jobEventListenerFactory)
             throws AlgebricksException;

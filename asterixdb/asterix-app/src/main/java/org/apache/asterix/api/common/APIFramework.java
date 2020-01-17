@@ -327,7 +327,7 @@ public class APIFramework {
                 SelectExpression select = (SelectExpression) query.getBody();
                 FromClause fromold = select.getSelectSetOperation().getLeftInput().getSelectBlock().getFromClause();
                 List<FromTerm> fromTerms = fromold.getFromTerms();
-                if (fromTerms.size() > 2) {
+                if (fromTerms.size() > 3) {
                     notJoinInPlan = false;
                 }
             }

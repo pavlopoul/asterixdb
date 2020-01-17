@@ -83,6 +83,10 @@ public class ReaderJobOperatorDescriptor extends AbstractOperatorDescriptor {
                                 MaterializerTaskState state = (MaterializerTaskState) pastEnv.getStateObject(tId);
                                 state.writeOut(writer, new VSizeFrame(ctx), false);
                             }
+                            //                            if (pastEnv.getStateObject(tId) instanceof IncrementalTaskState) {
+                            //                                IncrementalTaskState state = (IncrementalTaskState) pastEnv.getStateObject(tId);
+                            //                                state.writeOut(writer, new VSizeFrame(ctx), false);
+                            //                            }
                         }
                     }
                 }

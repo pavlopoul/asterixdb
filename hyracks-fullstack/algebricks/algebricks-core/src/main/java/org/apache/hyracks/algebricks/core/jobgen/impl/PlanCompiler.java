@@ -176,9 +176,12 @@ public class PlanCompiler {
             IOperatorSchema[] schemas = new IOperatorSchema[n];
             if (!notJoinInPlan) {
                 if (operators.get(j).hasInputs()) {
-                    if (operators.get(j).getInputs().get(0).getValue().getOperatorTag() == LogicalOperatorTag.EXCHANGE
-                            && operators.get(j).getInputs().get(0).getValue().getInputs().get(0).getValue()
-                                    .getOperatorTag() == LogicalOperatorTag.INNERJOIN) {
+                    //                    if (operators.get(j).getInputs().get(0).getValue().getOperatorTag() == LogicalOperatorTag.EXCHANGE
+                    //                            && operators.get(j).getInputs().get(0).getValue().getInputs().get(0).getValue()
+                    //                                    .getOperatorTag() == LogicalOperatorTag.INNERJOIN) {
+                    //                        break;
+                    //                    }
+                    if (operators.get(j).getOperatorTag() == LogicalOperatorTag.DISTRIBUTE_RESULT) {
                         break;
                     }
                 }

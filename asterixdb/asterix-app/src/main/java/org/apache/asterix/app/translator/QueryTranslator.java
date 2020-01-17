@@ -75,7 +75,6 @@ import org.apache.asterix.external.indexing.IndexingConstants;
 import org.apache.asterix.external.operators.FeedIntakeOperatorNodePushable;
 import org.apache.asterix.external.operators.ReaderJobOperatorDescriptor;
 import org.apache.asterix.external.util.ExternalDataConstants;
-import org.apache.asterix.formats.nontagged.SerializerDeserializerProvider;
 import org.apache.asterix.formats.nontagged.TypeTraitProvider;
 import org.apache.asterix.lang.common.base.Expression;
 import org.apache.asterix.lang.common.base.Expression.Kind;
@@ -179,7 +178,6 @@ import org.apache.asterix.om.types.ARecordType;
 import org.apache.asterix.om.types.ATypeTag;
 import org.apache.asterix.om.types.IAType;
 import org.apache.asterix.om.types.TypeSignature;
-import org.apache.asterix.runtime.evaluators.common.ClosedRecordConstructorEvalFactory;
 import org.apache.asterix.runtime.statistics.StatisticsUtil;
 import org.apache.asterix.transaction.management.service.transaction.DatasetIdFactory;
 import org.apache.asterix.translator.AbstractLangTranslator;
@@ -221,22 +219,15 @@ import org.apache.hyracks.algebricks.core.algebra.operators.logical.AssignOperat
 import org.apache.hyracks.algebricks.core.algebra.operators.logical.DataSourceScanOperator;
 import org.apache.hyracks.algebricks.data.IAWriterFactory;
 import org.apache.hyracks.algebricks.data.IResultSerializerFactoryProvider;
-import org.apache.hyracks.algebricks.runtime.base.IPushRuntimeFactory;
 import org.apache.hyracks.algebricks.runtime.base.IScalarEvaluatorFactory;
 import org.apache.hyracks.algebricks.runtime.evaluators.ColumnAccessEvalFactory;
-import org.apache.hyracks.algebricks.runtime.operators.meta.AlgebricksMetaOperatorDescriptor;
-import org.apache.hyracks.algebricks.runtime.operators.std.AssignRuntimeFactory;
-import org.apache.hyracks.algebricks.runtime.operators.std.StreamProjectRuntimeFactory;
 import org.apache.hyracks.algebricks.runtime.serializer.ResultSerializerFactoryProvider;
 import org.apache.hyracks.algebricks.runtime.writers.PrinterBasedWriterFactory;
 import org.apache.hyracks.api.client.IClusterInfoCollector;
 import org.apache.hyracks.api.client.IHyracksClientConnection;
-import org.apache.hyracks.api.constraints.PartitionConstraintHelper;
 import org.apache.hyracks.api.dataflow.ConnectorDescriptorId;
-import org.apache.hyracks.api.dataflow.IConnectorDescriptor;
 import org.apache.hyracks.api.dataflow.IOperatorDescriptor;
 import org.apache.hyracks.api.dataflow.OperatorDescriptorId;
-import org.apache.hyracks.api.dataflow.value.ISerializerDeserializer;
 import org.apache.hyracks.api.dataflow.value.ITypeTraits;
 import org.apache.hyracks.api.dataflow.value.RecordDescriptor;
 import org.apache.hyracks.api.exceptions.HyracksDataException;
@@ -256,8 +247,6 @@ import org.apache.hyracks.control.common.controllers.CCConfig;
 import org.apache.hyracks.control.common.job.profiling.om.JobProfile;
 import org.apache.hyracks.control.common.job.profiling.om.JobletProfile;
 import org.apache.hyracks.control.common.job.profiling.om.TaskProfile;
-import org.apache.hyracks.dataflow.std.connectors.OneToOneConnectorDescriptor;
-import org.apache.hyracks.dataflow.std.join.OptimizedHybridHashJoinOperatorDescriptor;
 import org.apache.hyracks.storage.am.lsm.common.api.ILSMMergePolicyFactory;
 import org.apache.hyracks.storage.am.lsm.common.api.IStatisticsManagerProvider;
 import org.apache.hyracks.storage.am.lsm.common.api.ISynopsis.SynopsisType;
@@ -938,8 +927,9 @@ public class QueryTranslator extends AbstractLangTranslator implements IStatemen
                     overridesFieldTypes = true;
                 }
                 if (fieldType == null) {
-                    throw new CompilationException(ErrorCode.UNKNOWN_TYPE, sourceLoc, fieldExpr.second == null
-                            ? String.valueOf(fieldExpr.first) : String.valueOf(fieldExpr.second));
+                    throw new CompilationException(ErrorCode.UNKNOWN_TYPE, sourceLoc,
+                            fieldExpr.second == null ? String.valueOf(fieldExpr.first)
+                                    : String.valueOf(fieldExpr.second));
                 }
 
                 // try to add the key & its source to the set of keys, if key couldn't be added,
@@ -2038,7 +2028,7 @@ public class QueryTranslator extends AbstractLangTranslator implements IStatemen
             SelectExpression select = (SelectExpression) nq.getBody();
             FromClause fromold = select.getSelectSetOperation().getLeftInput().getSelectBlock().getFromClause();
             List<FromTerm> fromTerms = fromold.getFromTerms();
-            if (fromTerms.size() > 2) {
+            if (fromTerms.size() > 3) {
                 return false;
             }
         }
@@ -2810,7 +2800,7 @@ public class QueryTranslator extends AbstractLangTranslator implements IStatemen
                     args[j + 1] = new ColumnAccessEvalFactory(j / 2);
                 }
                 ARecordType recType = new ARecordType(null, fieldNames, types, false);
-                ClosedRecordConstructorEvalFactory crc = new ClosedRecordConstructorEvalFactory(args, recType);
+                //                ClosedRecordConstructorEvalFactory crc = new ClosedRecordConstructorEvalFactory(args, recType);
                 List<List<String>> primKey = new ArrayList<>();
                 List<String> str = new ArrayList<>();
                 str.add(fieldNames[1]);
@@ -2820,100 +2810,100 @@ public class QueryTranslator extends AbstractLangTranslator implements IStatemen
                 queries++;
                 IAType newRecordType =
                         new ARecordType(recordTypeName + String.valueOf(queries), fieldNames, types, false);
-                for (Entry<OperatorDescriptorId, List<IConnectorDescriptor>> entry : jobSpec.getOperatorInputMap()
-                        .entrySet()) {
-                    if (jobSpec.getOperatorMap().get(entry.getKey()) instanceof AlgebricksMetaOperatorDescriptor) {
-                        if (!jobSpec.getOperatorOutputMap().containsKey(entry.getKey())) {
-                            List<IConnectorDescriptor> toBeRemoved = entry.getValue();
-                            for (IConnectorDescriptor conn : toBeRemoved) {
-                                OperatorDescriptorId id = jobSpec.getConnectorOperatorMap().get(conn.getConnectorId())
-                                        .getKey().getKey().getOperatorId();
-                                IConnectorDescriptor conn2 = jobSpec.getOperatorInputMap().get(id).get(0);
-                                OperatorDescriptorId id2 = jobSpec.getConnectorOperatorMap().get(conn2.getConnectorId())
-                                        .getKey().getKey().getOperatorId();
-                                jobSpec.getConnectorMap().remove(conn2.getConnectorId());
-                                jobSpec.getConnectorOperatorMap().remove(conn2.getConnectorId());
-                                jobSpec.getConnectorMap().remove(conn.getConnectorId());
-                                jobSpec.getConnectorOperatorMap().remove(conn.getConnectorId());
-                                jobSpec.getOperatorMap().remove(entry.getKey());
-                                jobSpec.getOperatorMap().remove(id);
-                                jobSpec.getOperatorMap().remove(id2);
-                            }
-                        }
-                    }
-                }
-                List<ConnectorDescriptorId> connId = new ArrayList<>();
-                for (Entry<ConnectorDescriptorId, IConnectorDescriptor> entry : jobSpec.getConnectorMap().entrySet()) {
-                    if (!jobSpec.getConnectorOperatorMap().containsKey(entry.getKey())) {
-                        connId.add(entry.getKey());
-                    }
-                }
-                for (ConnectorDescriptorId cid : connId) {
-                    jobSpec.getConnectorMap().remove(cid);
-                }
+                //                for (Entry<OperatorDescriptorId, List<IConnectorDescriptor>> entry : jobSpec.getOperatorInputMap()
+                //                        .entrySet()) {
+                //                    if (jobSpec.getOperatorMap().get(entry.getKey()) instanceof AlgebricksMetaOperatorDescriptor) {
+                //                        if (!jobSpec.getOperatorOutputMap().containsKey(entry.getKey())) {
+                //                            List<IConnectorDescriptor> toBeRemoved = entry.getValue();
+                //                            for (IConnectorDescriptor conn : toBeRemoved) {
+                //                                OperatorDescriptorId id = jobSpec.getConnectorOperatorMap().get(conn.getConnectorId())
+                //                                        .getKey().getKey().getOperatorId();
+                //                                IConnectorDescriptor conn2 = jobSpec.getOperatorInputMap().get(id).get(0);
+                //                                OperatorDescriptorId id2 = jobSpec.getConnectorOperatorMap().get(conn2.getConnectorId())
+                //                                        .getKey().getKey().getOperatorId();
+                //                                jobSpec.getConnectorMap().remove(conn2.getConnectorId());
+                //                                jobSpec.getConnectorOperatorMap().remove(conn2.getConnectorId());
+                //                                jobSpec.getConnectorMap().remove(conn.getConnectorId());
+                //                                jobSpec.getConnectorOperatorMap().remove(conn.getConnectorId());
+                //                                jobSpec.getOperatorMap().remove(entry.getKey());
+                //                                jobSpec.getOperatorMap().remove(id);
+                //                                jobSpec.getOperatorMap().remove(id2);
+                //                            }
+                //                        }
+                //                    }
+                //                }
+                //                List<ConnectorDescriptorId> connId = new ArrayList<>();
+                //                for (Entry<ConnectorDescriptorId, IConnectorDescriptor> entry : jobSpec.getConnectorMap().entrySet()) {
+                //                    if (!jobSpec.getConnectorOperatorMap().containsKey(entry.getKey())) {
+                //                        connId.add(entry.getKey());
+                //                    }
+                //                }
+                //                for (ConnectorDescriptorId cid : connId) {
+                //                    jobSpec.getConnectorMap().remove(cid);
+                //                }
                 newQuery = makeConnectionQuery(varexpr, recordTypeName + String.valueOf(queries), dataSource1,
                         newRecordType, mp, primKey, strType, datasources, newQuery);
                 OperatorDescriptorId odId = null;
                 OperatorDescriptorId id = null;
                 for (Entry<OperatorDescriptorId, IOperatorDescriptor> entry : jobSpec.getOperatorMap().entrySet()) {
-                    if (entry.getValue() instanceof OptimizedHybridHashJoinOperatorDescriptor) {
-                        odId = entry.getKey();
-                    }
+                    //                    if (entry.getValue() instanceof OptimizedHybridHashJoinOperatorDescriptor) {
+                    //                        odId = entry.getKey();
+                    //                    }
                     if (entry.getValue() instanceof IncrementalSinkOperatorDescriptor) {
                         id = entry.getKey();
                     }
                 }
-                IScalarEvaluatorFactory[] evalFactories = new IScalarEvaluatorFactory[1];
-                evalFactories[0] = crc;
-                rdesc = jobSpec.getOperatorMap().get(odId).getOutputRecordDescriptors();
-                ISerializerDeserializer[] fields = new ISerializerDeserializer[rdesc[0].getFieldCount() + 1];
+                //                IScalarEvaluatorFactory[] evalFactories = new IScalarEvaluatorFactory[1];
+                //                evalFactories[0] = crc;
+                //                rdesc = jobSpec.getOperatorMap().get(odId).getOutputRecordDescriptors();
+                //                ISerializerDeserializer[] fields = new ISerializerDeserializer[rdesc[0].getFieldCount() + 1];
+                //
+                //                ITypeTraits[] typeTraits = new ITypeTraits[rdesc[0].getFieldCount() + 1];
+                //                for (int k = 0; k < fields.length - 1; k++) {
+                //                    fields[k] = rdesc[0].getFields()[k];
+                //                    typeTraits[k] = rdesc[0].getTypeTraits()[k];
+                //                }
+                //                fields[fields.length - 1] = SerializerDeserializerProvider.INSTANCE.getSerializerDeserializer(recType);
+                //                typeTraits[fields.length - 1] = typeTraits[0];
+                //                int[] outColumns = new int[1];
+                //                outColumns[0] = evars.size();
+                //                int[] projectionList = new int[evars.size()];
+                //                int[] aprojectionList = new int[evars.size() + 1];
+                //                for (int j = 0; j < projectionList.length; j++) {
+                //                    projectionList[j] = j;
+                //                }
+                //                for (int j = 0; j < aprojectionList.length; j++) {
+                //                    aprojectionList[j] = j;
+                //                }
+                //                ISerializerDeserializer[] newfields = new ISerializerDeserializer[1];
+                //                ITypeTraits[] newtypeTraits = new ITypeTraits[1];
+                //                newfields[0] = fields[fields.length - 1];
+                //                typeTraits[0] = typeTraits[fields.length - 1];
+                //                StreamProjectRuntimeFactory proruntime = new StreamProjectRuntimeFactory(projectionList, false);
+                //                RecordDescriptor projectDesc = rdesc[0];
+                //                RecordDescriptor assignDesc = new RecordDescriptor(fields, typeTraits);
+                //                AssignRuntimeFactory runtime =
+                //                        new AssignRuntimeFactory(outColumns, evalFactories, aprojectionList, false);
+                //                StreamProjectRuntimeFactory proruntime2 = new StreamProjectRuntimeFactory(outColumns, false);
+                //                RecordDescriptor projectDesc2 = new RecordDescriptor(newfields, newtypeTraits);
+                //                IPushRuntimeFactory[] runtimeFactories = new IPushRuntimeFactory[3];
+                //                runtimeFactories[0] = proruntime;
+                //                internalRecordDescriptors[0] = projectDesc;
+                //                runtimeFactories[1] = runtime;
+                //                internalRecordDescriptors[1] = assignDesc;
+                //                runtimeFactories[2] = proruntime2;
+                //                internalRecordDescriptors[2] = projectDesc2;
+                //                IPushRuntimeFactory[] outRuntimeFactories = new IPushRuntimeFactory[1];
+                //                outRuntimeFactories[0] = null;
+                //                int[] outPositions = new int[1];
+                //                outPositions[0] = 0;
+                //                AlgebricksMetaOperatorDescriptor amod = new AlgebricksMetaOperatorDescriptor(jobSpec, 1, 1,
+                //                        runtimeFactories, internalRecordDescriptors, outRuntimeFactories, outPositions);
+                //                String[] readerLocations =
+                //                        mp.getApplicationContext().getClusterStateManager().getClusterLocations().getLocations();
+                //                PartitionConstraintHelper.addAbsoluteLocationConstraint(jobSpec, amod, readerLocations);
 
-                ITypeTraits[] typeTraits = new ITypeTraits[rdesc[0].getFieldCount() + 1];
-                for (int k = 0; k < fields.length - 1; k++) {
-                    fields[k] = rdesc[0].getFields()[k];
-                    typeTraits[k] = rdesc[0].getTypeTraits()[k];
-                }
-                fields[fields.length - 1] = SerializerDeserializerProvider.INSTANCE.getSerializerDeserializer(recType);
-                typeTraits[fields.length - 1] = typeTraits[0];
-                int[] outColumns = new int[1];
-                outColumns[0] = evars.size();
-                int[] projectionList = new int[evars.size()];
-                int[] aprojectionList = new int[evars.size() + 1];
-                for (int j = 0; j < projectionList.length; j++) {
-                    projectionList[j] = j;
-                }
-                for (int j = 0; j < aprojectionList.length; j++) {
-                    aprojectionList[j] = j;
-                }
-                ISerializerDeserializer[] newfields = new ISerializerDeserializer[1];
-                ITypeTraits[] newtypeTraits = new ITypeTraits[1];
-                newfields[0] = fields[fields.length - 1];
-                typeTraits[0] = typeTraits[fields.length - 1];
-                StreamProjectRuntimeFactory proruntime = new StreamProjectRuntimeFactory(projectionList, false);
-                RecordDescriptor projectDesc = rdesc[0];
-                RecordDescriptor assignDesc = new RecordDescriptor(fields, typeTraits);
-                AssignRuntimeFactory runtime =
-                        new AssignRuntimeFactory(outColumns, evalFactories, aprojectionList, false);
-                StreamProjectRuntimeFactory proruntime2 = new StreamProjectRuntimeFactory(outColumns, false);
-                RecordDescriptor projectDesc2 = new RecordDescriptor(newfields, newtypeTraits);
-                IPushRuntimeFactory[] runtimeFactories = new IPushRuntimeFactory[3];
-                runtimeFactories[0] = proruntime;
-                internalRecordDescriptors[0] = projectDesc;
-                runtimeFactories[1] = runtime;
-                internalRecordDescriptors[1] = assignDesc;
-                runtimeFactories[2] = proruntime2;
-                internalRecordDescriptors[2] = projectDesc2;
-                IPushRuntimeFactory[] outRuntimeFactories = new IPushRuntimeFactory[1];
-                outRuntimeFactories[0] = null;
-                int[] outPositions = new int[1];
-                outPositions[0] = 0;
-                AlgebricksMetaOperatorDescriptor amod = new AlgebricksMetaOperatorDescriptor(jobSpec, 1, 1,
-                        runtimeFactories, internalRecordDescriptors, outRuntimeFactories, outPositions);
-                String[] readerLocations =
-                        mp.getApplicationContext().getClusterStateManager().getClusterLocations().getLocations();
-                PartitionConstraintHelper.addAbsoluteLocationConstraint(jobSpec, amod, readerLocations);
-
-                ((IncrementalSinkOperatorDescriptor) jobSpec.getOperatorMap().get(id)).setRecDesc(projectDesc2);
+                //                ((IncrementalSinkOperatorDescriptor) jobSpec.getOperatorMap().get(id)).setRecDesc(projectDesc2);
                 //                String statisticsFieldsHint = dataSource1.getDataset().getHints().get(DatasetStatisticsHint.NAME);
                 String statisticsFieldsHint = "";
                 //                for (DatasetDataSource source : hints) {
@@ -2947,18 +2937,18 @@ public class QueryTranslator extends AbstractLangTranslator implements IStatemen
                         mp.getStorageComponentProvider().getStatisticsManagerProvider();
                 ((IncrementalSinkOperatorDescriptor) jobSpec.getOperatorMap().get(id))
                         .setManagerProvider(statisticsManagerProvider);
-                for (Entry<ConnectorDescriptorId, org.apache.commons.lang3.tuple.Pair<org.apache.commons.lang3.tuple.Pair<IOperatorDescriptor, Integer>, org.apache.commons.lang3.tuple.Pair<IOperatorDescriptor, Integer>>> entry : jobSpec
-                        .getConnectorOperatorMap().entrySet()) {
-                    if (entry.getValue().getLeft().getKey() instanceof IncrementalSinkOperatorDescriptor
-                            || entry.getValue().getRight().getKey() instanceof IncrementalSinkOperatorDescriptor) {
-                        jobSpec.getConnectorOperatorMap().remove(entry.getKey());
-                        jobSpec.getConnectorMap().remove(entry.getKey());
-                    }
-                }
+                //                for (Entry<ConnectorDescriptorId, org.apache.commons.lang3.tuple.Pair<org.apache.commons.lang3.tuple.Pair<IOperatorDescriptor, Integer>, org.apache.commons.lang3.tuple.Pair<IOperatorDescriptor, Integer>>> entry : jobSpec
+                //                        .getConnectorOperatorMap().entrySet()) {
+                //                    if (entry.getValue().getLeft().getKey() instanceof IncrementalSinkOperatorDescriptor
+                //                            || entry.getValue().getRight().getKey() instanceof IncrementalSinkOperatorDescriptor) {
+                //                        jobSpec.getConnectorOperatorMap().remove(entry.getKey());
+                //                        jobSpec.getConnectorMap().remove(entry.getKey());
+                //                    }
+                //                }
 
-                jobSpec.connect(new OneToOneConnectorDescriptor(jobSpec), jobSpec.getOperatorMap().get(odId), 0, amod,
-                        0);
-                jobSpec.connect(new OneToOneConnectorDescriptor(jobSpec), amod, 0, jobSpec.getOperatorMap().get(id), 0);
+                //                jobSpec.connect(new OneToOneConnectorDescriptor(jobSpec), jobSpec.getOperatorMap().get(odId), 0, amod,
+                //                        0);
+                //                jobSpec.connect(new OneToOneConnectorDescriptor(jobSpec), amod, 0, jobSpec.getOperatorMap().get(id), 0);
                 //  jobSpec.getUserConstraints().
                 removeFromConnectors(0, jobSpec, jobSpec.getConnectorOperatorMap());
             } else {

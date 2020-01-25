@@ -132,7 +132,7 @@ public class CardinalityEstimator implements ICardinalityEstimator {
     public long getUniqueCardinality(IMetadataProvider metadataProvider, String dataverseName, String datasetName,
             List<String> fieldName) throws AlgebricksException {
 
-        long estimate = 0;
+        long estimate = 1;
         List<Statistics> stats = getFieldStats(metadataProvider, dataverseName, datasetName, fieldName);
         if (stats == null || stats.isEmpty()) {
             return CardinalityInferenceVisitor.UNKNOWN;

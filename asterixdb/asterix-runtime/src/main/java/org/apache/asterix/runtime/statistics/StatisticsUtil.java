@@ -21,7 +21,6 @@ package org.apache.asterix.runtime.statistics;
 import java.util.ArrayList;
 import java.util.List;
 
-import org.apache.asterix.common.exceptions.AsterixException;
 import org.apache.asterix.dataflow.data.nontagged.serde.AIntegerSerializerDeserializer;
 import org.apache.asterix.formats.nontagged.SerializerDeserializerProvider;
 import org.apache.asterix.om.pointables.nonvisitor.ARecordPointable;
@@ -43,8 +42,10 @@ public class StatisticsUtil {
     public static List<IFieldExtractor> computeStatisticsFieldExtractors(ITypeTraitProvider typeTraitProvider,
             ARecordType recordType, List<List<String>> indexKeys, boolean isPrimaryIndex,
             boolean keepStatisticsOnPrimaryKeys, String[] unorderedStatisticsFields) throws AlgebricksException {
+        int size = 1;
         if (indexKeys.size() > 1) {
-            throw new AsterixException("Cannot collect statistics on composite fields");
+            size = indexKeys.size();
+            //throw new AsterixException("Cannot collect statistics on composite fields");
         }
         List<IFieldExtractor> result = new ArrayList<>();
         // TODO: allow nested fields
@@ -71,7 +72,7 @@ public class StatisticsUtil {
                                     .getNonTaggedSerializerDeserializer(statisticsType);
                     int statisticsFieldIdx = recordType.getFieldIndex(unorderedStatisticsFields[i]);
                     result.add(getFieldExtractor(serDe, recordType, statisticsFieldIdx, unorderedStatisticsFields[i],
-                            typeTraitProvider.getTypeTrait(statisticsType)));
+                            typeTraitProvider.getTypeTrait(statisticsType), size));
                 }
             }
         }
@@ -79,9 +80,10 @@ public class StatisticsUtil {
     }
 
     public static IFieldExtractor getFieldExtractor(AIntegerSerializerDeserializer serde, ARecordType recordType,
-            int statisticsFieldIdx, String statisticsFieldName, ITypeTraits typeTraits) {
+            int statisticsFieldIdx, String statisticsFieldName, ITypeTraits typeTraits, int pksize) {
         //incoming tuple has format [PK][Record]... and we need to extract the record, i.e. 2nd field
-        final int hyracksFieldIdx = 1;
+        //        final int hyracksFieldIdx = 1;
+        final int hyracksFieldIdx = pksize;
         return new IFieldExtractor() {
             private static final long serialVersionUID = 1L;
 

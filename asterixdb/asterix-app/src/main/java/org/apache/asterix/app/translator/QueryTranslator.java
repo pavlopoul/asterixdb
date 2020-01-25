@@ -2706,7 +2706,8 @@ public class QueryTranslator extends AbstractLangTranslator implements IStatemen
             operators = getOperators();
             if (!getFinished(newQuery)) {
                 finished = false;
-                List<LogicalVariable> vars = null;
+                //                List<LogicalVariable> vars = null;
+                List<LogicalVariable> vars = new ArrayList<>();
                 IAType[] types = null;
                 String[] fieldNames = null;
                 String recordTypeName = null;
@@ -2714,10 +2715,26 @@ public class QueryTranslator extends AbstractLangTranslator implements IStatemen
                 int i = 0;
                 for (ILogicalOperator op : operators) {
                     if (op.getOperatorTag() == LogicalOperatorTag.INNERJOIN) {
-                        vars = op.getSchema();
+                        AssignOperator assign = (AssignOperator) operators.get(3);
+                        ScalarFunctionCallExpression sfce =
+                                (ScalarFunctionCallExpression) assign.getExpressions().get(0).getValue();
+                        List<Mutable<ILogicalExpression>> arguments = sfce.getArguments();
+                        fieldNames = new String[arguments.size() / 2];
+                        int k = 0;
+                        for (int j = 0; j < arguments.size(); j++) {
+                            if (j % 2 == 0) {
+                                fieldNames[k] = ((AString) ((AsterixConstantValue) ((ConstantExpression) arguments
+                                        .get(j).getValue()).getValue()).getObject()).getStringValue();
+                                k++;
+                            } else {
+                                vars.add(((VariableReferenceExpression) arguments.get(j).getValue())
+                                        .getVariableReference());
+                            }
+                        }
+                        //vars = op.getSchema();
                         evars = vars;
                         types = new IAType[vars.size()];
-                        fieldNames = new String[vars.size()];
+                        //fieldNames = new String[vars.size()];
                         if (!datasources.isEmpty()) {
                             datasources.clear();
                             hints.clear();
@@ -2725,11 +2742,14 @@ public class QueryTranslator extends AbstractLangTranslator implements IStatemen
                         }
                     }
                     if (op.getOperatorTag() == LogicalOperatorTag.ASSIGN) {
+                        int j = -1;
                         if (vars != null)
                             for (LogicalVariable var : vars) {
+                                j++;
                                 if (var == ((AssignOperator) op).getVariables().get(0)) {
                                     List<Mutable<ILogicalExpression>> expressions =
                                             ((AssignOperator) op).getExpressions();
+                                    List<LogicalVariable> nestedvarlist = ((AssignOperator) op).getVariables();
 
                                     ILogicalOperator childOp = op;
                                     while (childOp.getOperatorTag() != LogicalOperatorTag.DATASOURCESCAN) {
@@ -2740,7 +2760,6 @@ public class QueryTranslator extends AbstractLangTranslator implements IStatemen
                                     hints.add(dataSource1);
                                     ARecordType recordType = (ARecordType) dataSource1.getItemType();
                                     for (Mutable<ILogicalExpression> expression : expressions) {
-
                                         ScalarFunctionCallExpression sfce =
                                                 (ScalarFunctionCallExpression) expression.getValue();
                                         ConstantExpression ce =
@@ -2749,9 +2768,25 @@ public class QueryTranslator extends AbstractLangTranslator implements IStatemen
                                         int aint32 = ((AInt32) cs.getObject()).getIntegerValue();
 
                                         IAType type = recordType.getFieldTypes()[aint32];
-                                        types[i] = type;
-                                        fieldNames[i] = recordType.getFieldNames()[aint32];
+                                        types[j] = type;
+                                        //fieldNames[j] = recordType.getFieldNames()[aint32];
                                         i++;
+                                        nestedvarlist.remove(0);
+                                        boolean found = false;
+                                        for (LogicalVariable invar : vars) {
+                                            j = -1;
+                                            for (LogicalVariable nested : nestedvarlist) {
+                                                j++;
+                                                if (nested == invar) {
+                                                    found = true;
+                                                    break;
+                                                }
+                                            }
+                                            if (found) {
+                                                break;
+                                            }
+
+                                        }
                                     }
                                     ScalarFunctionCallExpression sfce1 =
                                             (ScalarFunctionCallExpression) expressions.get(0).getValue();
@@ -2763,16 +2798,18 @@ public class QueryTranslator extends AbstractLangTranslator implements IStatemen
                             }
                     }
                     if (op.getOperatorTag() == LogicalOperatorTag.DATASOURCESCAN) {
+                        int j = -1;
                         if (vars != null)
                             for (LogicalVariable var : vars) {
+                                j++;
                                 if (var == ((DataSourceScanOperator) op).getVariables().get(0)) {
                                     DataSourceScanOperator scan = (DataSourceScanOperator) op;
 
                                     IAType type = (IAType) scan.getDataSource().getSchemaTypes()[0];
-                                    types[i] = type;
+                                    types[j] = type;
                                     DatasetDataSource datasource = (DatasetDataSource) scan.getDataSource();
                                     ARecordType rType = (ARecordType) datasource.getItemType();
-                                    fieldNames[i] = rType.getFieldNames()[0];
+                                    //fieldNames[j] = rType.getFieldNames()[0];
                                     for (String datasource1 : datasources) {
                                         if (!datasource1.equals(scan.getVariables().get(scan.getVariables().size() - 1)
                                                 .toString().substring(2))) {
@@ -2921,9 +2958,11 @@ public class QueryTranslator extends AbstractLangTranslator implements IStatemen
                         dataSource1.getDataset().getDataverseName(), dataSource1.getDataset().getDatasetName(),
                         dataSource1.getDataset().getDatasetName(),
                         dataSource1.getDataset().getHints().get(DatasetStatisticsHint.NAME).split(",")[0], false);
-                int statsSize = stats.get(0).getSynopsis().getSize();
+                //int statsSize = stats.get(0).getSynopsis().getSize();
+                int statsSize = mp.getApplicationContext().getStatisticsProperties().getStatisticsSize();
                 List<IFieldExtractor> extractors = StatisticsUtil.computeStatisticsFieldExtractors(
-                        mp.getStorageComponentProvider().getTypeTraitProvider(), recType, indexKeys, true, false,
+                        mp.getStorageComponentProvider().getTypeTraitProvider(), recType, indexKeys, true, /*false,*/mp
+                                .getApplicationContext().getStatisticsProperties().isStatisticsOnPrimaryKeysEnabled(),
                         statisticsFieldsHint.split(","));
 
                 StatisticsFactory statisticsFactory = new StatisticsFactory(SynopsisType.QuantileSketch, "newdata",

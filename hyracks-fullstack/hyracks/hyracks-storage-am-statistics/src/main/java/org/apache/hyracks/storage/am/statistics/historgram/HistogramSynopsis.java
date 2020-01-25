@@ -96,8 +96,8 @@ public abstract class HistogramSynopsis<T extends HistogramBucket> extends Abstr
     @Override
     public double joinQuery(ISynopsis synopsis, boolean primIndex) {
         HistogramSynopsis<T> histogram = (HistogramSynopsis<T>) synopsis;
-        double leftEstimate = 0.0;
-        double rightEstimate = 0.0;
+        double leftEstimate = 1.0;
+        double rightEstimate = 1.0;
         double estimate = 0.0;
         for (int i = 0; i < getBuckets().size(); i++) {
             if (getBuckets().get(i).getValue() != 0.0) {

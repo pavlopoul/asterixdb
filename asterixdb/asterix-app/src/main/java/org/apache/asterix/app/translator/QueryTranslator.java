@@ -2759,7 +2759,9 @@ public class QueryTranslator extends AbstractLangTranslator implements IStatemen
                                     dataSource1 = (DatasetDataSource) scan.getDataSource();
                                     hints.add(dataSource1);
                                     ARecordType recordType = (ARecordType) dataSource1.getItemType();
+                                    int m = 0;
                                     for (Mutable<ILogicalExpression> expression : expressions) {
+                                        m++;
                                         ScalarFunctionCallExpression sfce =
                                                 (ScalarFunctionCallExpression) expression.getValue();
                                         ConstantExpression ce =
@@ -2771,18 +2773,10 @@ public class QueryTranslator extends AbstractLangTranslator implements IStatemen
                                         types[j] = type;
                                         //fieldNames[j] = recordType.getFieldNames()[aint32];
                                         i++;
-                                        nestedvarlist.remove(0);
-                                        boolean found = false;
+                                        j = -1;
                                         for (LogicalVariable invar : vars) {
-                                            j = -1;
-                                            for (LogicalVariable nested : nestedvarlist) {
-                                                j++;
-                                                if (nested == invar) {
-                                                    found = true;
-                                                    break;
-                                                }
-                                            }
-                                            if (found) {
+                                            j++;
+                                            if (nestedvarlist.size() > m && invar == nestedvarlist.get(m)) {
                                                 break;
                                             }
 
@@ -3101,13 +3095,18 @@ public class QueryTranslator extends AbstractLangTranslator implements IStatemen
         if (!newprojection.isEmpty()) {
             newselect = new SelectClause(null, new SelectRegular(newprojection), false);
         }
+        int j = 0;
         for (FromTerm oldterm : fromTermOld) {
             if (!oldterm.getLeftVariable().toString().substring(1).equals(datasources.get(0))
                     && !oldterm.getLeftVariable().toString().substring(1).equals(datasources.get(1))) {
                 fromTermNew.add(oldterm);
-            } else if (oldterm.getLeftVariable().toString().substring(1)
-                    .equals(fromterm.getLeftVariable().toString().substring(1))) {
-                fromTermNew.add(fromterm);
+            } else {
+                //            else if (oldterm.getLeftVariable().toString().substring(1)
+                //                    .equals(fromterm.getLeftVariable().toString().substring(1))) {
+                j++;
+                if (j == 1) {
+                    fromTermNew.add(fromterm);
+                }
             }
         }
         //        fromTermNew.add(0, fromterm);

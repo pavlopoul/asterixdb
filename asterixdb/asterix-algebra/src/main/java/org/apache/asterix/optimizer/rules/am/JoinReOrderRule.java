@@ -103,6 +103,20 @@ public class JoinReOrderRule implements IAlgebraicRewriteRule {
                     DatasetDataSource datasourcer = null;
                     AssignOperator assignr = null;
                     //populateMap(childop.getInputs(), datasourcer, assignr, context);
+                    boolean only2joins = false;
+                    if (childop.getInputs().get(0).getValue().getOperatorTag() == LogicalOperatorTag.INNERJOIN) {
+                        InnerJoinOperator inn = (InnerJoinOperator) childop.getInputs().get(0).getValue();
+                        if (inn.getInputs().get(0).getValue().getOperatorTag() != LogicalOperatorTag.INNERJOIN
+                                && inn.getInputs().get(1).getValue().getOperatorTag() != LogicalOperatorTag.INNERJOIN) {
+                            only2joins = true;
+                        }
+                    } else {
+                        InnerJoinOperator inn = (InnerJoinOperator) childop.getInputs().get(0).getValue();
+                        if (inn.getInputs().get(0).getValue().getOperatorTag() != LogicalOperatorTag.INNERJOIN
+                                && inn.getInputs().get(1).getValue().getOperatorTag() != LogicalOperatorTag.INNERJOIN) {
+                            only2joins = true;
+                        }
+                    }
                     populateMap(op.getInputs(), datasourcer, assignr, context);
                     //                    DatasetDataSource datasource = findDataSource(right, lvlout);
                     //                    AssignOperator assignout = null;

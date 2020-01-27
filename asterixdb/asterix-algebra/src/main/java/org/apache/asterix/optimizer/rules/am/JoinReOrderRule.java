@@ -142,9 +142,11 @@ public class JoinReOrderRule implements IAlgebraicRewriteRule {
                         if (only2joins) {
                             key = Math.min(key, inferCardinality((AbstractLogicalOperator) /*child.getValue()*/join,
                                     context, datasourcel, datasourcer, assignl, assignr));
+                            System.out.println(key);
                         } else {
                             key = inferCardinality((AbstractLogicalOperator) /*child.getValue()*/join, context,
                                     datasourcel, datasourcer, assignl, assignr);
+                            System.out.println(key);
                         }
                         if (!only2joins) {
                             if (map.containsKey(key)) {
@@ -183,6 +185,7 @@ public class JoinReOrderRule implements IAlgebraicRewriteRule {
                     }
                     long key = inferCardinality((AbstractLogicalOperator) child.getValue(), context, datasourcel,
                             datasourcer, assignl, assignr);
+                    System.out.println(key);
                     if (map.containsKey(key)) {
                         map.get(key).add(child);
                     } else {

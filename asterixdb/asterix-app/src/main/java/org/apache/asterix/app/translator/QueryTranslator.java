@@ -3049,6 +3049,8 @@ public class QueryTranslator extends AbstractLangTranslator implements IStatemen
             DatasetDataSource dataSource, IAType newRecordType, MetadataProvider mp, List<List<String>> primKey,
             List<IAType> strType, List<String> datasources, Query newQuery)
             throws AlgebricksException, ACIDException, RemoteException {
+        System.out.println(datasources.get(0));
+        System.out.println(datasources.get(1));
         VarIdentifier fromVarId = new VarIdentifier(varexpr.getVariableReference().toString().substring(1));
         VariableExpr fromTermLeftExpr = new VariableExpr(fromVarId);
         Dataset newSet = new Dataset("newdata", recordTypeName, "newdata", recordTypeName, null, null,

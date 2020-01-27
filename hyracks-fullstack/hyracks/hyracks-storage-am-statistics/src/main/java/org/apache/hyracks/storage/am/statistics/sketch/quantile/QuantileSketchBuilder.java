@@ -59,7 +59,7 @@ public class QuantileSketchBuilder
             if (prev == null) {
                 prev = sketch.getElements().firstEntry().getValue();
             }
-            if (r != prev) {
+            if (r > prev) {
                 uniqueValues = sketch.getElements().subMap(prev, r).size();
             }
             prev = r;

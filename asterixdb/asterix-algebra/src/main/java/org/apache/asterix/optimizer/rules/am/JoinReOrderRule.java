@@ -459,6 +459,8 @@ public class JoinReOrderRule implements IAlgebraicRewriteRule {
             }
         }
         if (leftField != null && rightField != null) {
+            System.out.println(
+                    datasourcel.getDataset().getDatasetName() + " " + datasourcer.getDataset().getDatasetName());
             //estimate join cardinality
             return context.getCardinalityEstimator().getJoinCardinality(context.getMetadataProvider(),
                     datasourcel.getDataset().getDataverseName(), datasourcel.getDataset().getDatasetName(), leftField,

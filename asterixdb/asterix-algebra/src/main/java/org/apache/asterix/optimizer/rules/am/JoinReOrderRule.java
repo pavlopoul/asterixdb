@@ -275,10 +275,10 @@ public class JoinReOrderRule implements IAlgebraicRewriteRule {
             TreeMap<Long, List<Mutable<ILogicalOperator>>> twomap = new TreeMap<>();
             twomap.put(map.lastKey(), map.lastEntry().getValue());
             int size = map.size();
-            if (size == 2) {
-                map.clear();
-                return false;
-            }
+            //            if (size == 2) {
+            //                map.clear();
+            //                return false;
+            //            }
             map.remove(map.lastKey());
             twomap.put(map.lastKey(), map.lastEntry().getValue());
             InnerJoinOperator joinA = (InnerJoinOperator) twomap.firstEntry().getValue().get(0).getValue();
@@ -328,12 +328,17 @@ public class JoinReOrderRule implements IAlgebraicRewriteRule {
                         lvrB = ((VariableReferenceExpression) sfceB.getArguments().get(1).getValue())
                                 .getVariableReference();
                     }
+                    DatasetDataSource datasourcelB = findDataSource(joinB, lvlB);
+                    DatasetDataSource datasourcerB = findDataSource(joinB, lvrB);
+                    DatasetDataSource datasourcelA = findDataSource(joinA, lvlA);
+                    DatasetDataSource datasourcerA = findDataSource(joinA, lvrA);
 
-                    if (lvlB == lvlA || lvlB == lvrA) {
+                    //                    if (lvlB == lvlA || lvlB == lvrA) {
+                    if (datasourcelB == datasourcelA || datasourcelB == datasourcerA) {
                         joinB.getInputs().set(0, new MutableObject<ILogicalOperator>(joinA));
                         alo.getInputs().clear();
                         alo.getInputs().add(new MutableObject<ILogicalOperator>(joinB));
-                    } else if (lvrB == lvrA || lvrB == lvlA) {
+                    } else if (datasourcerB == datasourcerA || datasourcerB == datasourcelA) {
                         joinB.getInputs().set(1, new MutableObject<ILogicalOperator>(joinA));
                         alo.getInputs().clear();
                         alo.getInputs().add(new MutableObject<ILogicalOperator>(joinB));

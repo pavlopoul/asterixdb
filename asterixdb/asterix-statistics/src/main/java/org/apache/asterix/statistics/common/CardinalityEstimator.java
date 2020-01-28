@@ -139,8 +139,8 @@ public class CardinalityEstimator implements ICardinalityEstimator {
         }
 
         for (Statistics s : stats) {
-            estimate = Math.max(estimate, s.getSynopsis().uniqueQuery(this.primIndex));
-            // estimate = estimate + s.getSynopsis().uniqueQuery(this.primIndex);
+            // estimate = Math.max(estimate, s.getSynopsis().uniqueQuery(this.primIndex));
+            estimate = estimate + s.getSynopsis().uniqueQuery(this.primIndex);
         }
         return Math.round(estimate);
     }

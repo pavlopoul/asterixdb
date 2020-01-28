@@ -275,6 +275,10 @@ public class JoinReOrderRule implements IAlgebraicRewriteRule {
             TreeMap<Long, List<Mutable<ILogicalOperator>>> twomap = new TreeMap<>();
             twomap.put(map.lastKey(), map.lastEntry().getValue());
             int size = map.size();
+            if (size == 2) {
+                map.clear();
+                return false;
+            }
             map.remove(map.lastKey());
             twomap.put(map.lastKey(), map.lastEntry().getValue());
             InnerJoinOperator joinA = (InnerJoinOperator) twomap.firstEntry().getValue().get(0).getValue();

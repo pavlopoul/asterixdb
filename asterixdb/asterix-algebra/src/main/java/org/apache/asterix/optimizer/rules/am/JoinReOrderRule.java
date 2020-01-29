@@ -357,47 +357,53 @@ public class JoinReOrderRule implements IAlgebraicRewriteRule {
             findDataSource(joinA, lvrA);
             String secprimKey = pKey;
             LogicalVariable secscan = dscanvar;
+            List<Mutable<ILogicalExpression>> arguments =
+                    ((ScalarFunctionCallExpression) ((AssignOperator) alo).getExpressions().get(0).getValue())
+                            .getArguments();
             if (findDataSource(joinA, lv) == null) {
-                ((AssignOperator) alo).getExpressions().set(0, sfceA.getArguments().get(0));
-                ((AssignOperator) alo).getExpressions().add(1, sfceA.getArguments().get(1));
-            } else {
-                List<Mutable<ILogicalExpression>> arguments =
-                        ((ScalarFunctionCallExpression) ((AssignOperator) alo).getExpressions().get(0).getValue())
-                                .getArguments();
-                for (Mutable<ILogicalOperator> input : joinA.getInputs()) {
-                    if (input.getValue().getOperatorTag() == LogicalOperatorTag.ASSIGN) {
-                        AssignOperator assign = (AssignOperator) input.getValue();
-                        for (LogicalVariable variable : assign.getVariables()) {
-                            findDataSource(assign, variable);
-                            IAObject obj = new AString(fieldName);
-                            AsterixConstantValue acv = new AsterixConstantValue(obj);
-                            ConstantExpression ce = new ConstantExpression(acv);
-                            if (!fieldName.equals(((AString) ((AsterixConstantValue) ((ConstantExpression) arguments
-                                    .get(0).getValue()).getValue()).getObject()).getStringValue())) {
-                                arguments.add(new MutableObject<>(ce));
-                                arguments.add(new MutableObject<ILogicalExpression>(
-                                        new VariableReferenceExpression(variable)));
-                            }
+                //                ((AssignOperator) alo).getExpressions().set(0, sfceA.getArguments().get(0));
+                //                ((AssignOperator) alo).getExpressions().add(1, sfceA.getArguments().get(1));
+                arguments.clear();
+            }
+            //            else {
+            //                List<Mutable<ILogicalExpression>> arguments =
+            //                        ((ScalarFunctionCallExpression) ((AssignOperator) alo).getExpressions().get(0).getValue())
+            //                                .getArguments();
+            for (Mutable<ILogicalOperator> input : joinA.getInputs()) {
+                if (input.getValue().getOperatorTag() == LogicalOperatorTag.ASSIGN) {
+                    AssignOperator assign = (AssignOperator) input.getValue();
+                    for (LogicalVariable variable : assign.getVariables()) {
+                        findDataSource(assign, variable);
+                        IAObject obj = new AString(fieldName);
+                        AsterixConstantValue acv = new AsterixConstantValue(obj);
+                        ConstantExpression ce = new ConstantExpression(acv);
+                        if (!fieldName.equals(
+                                ((AString) ((AsterixConstantValue) ((ConstantExpression) arguments.get(0).getValue())
+                                        .getValue()).getObject()).getStringValue())) {
+                            arguments.add(new MutableObject<>(ce));
+                            arguments.add(
+                                    new MutableObject<ILogicalExpression>(new VariableReferenceExpression(variable)));
                         }
                     }
                 }
-                if (!primKey.equals("") && !primKey
-                        .equals(((AString) ((AsterixConstantValue) ((ConstantExpression) arguments.get(0).getValue())
-                                .getValue()).getObject()).getStringValue())) {
-                    AsterixConstantValue acv = new AsterixConstantValue(new AString(primKey));
-                    ConstantExpression ce = new ConstantExpression(acv);
-                    arguments.add(new MutableObject<>(ce));
-                    arguments.add(new MutableObject<ILogicalExpression>(new VariableReferenceExpression(firstscan)));
-                }
-                if (!secprimKey.equals("") && !secprimKey
-                        .equals(((AString) ((AsterixConstantValue) ((ConstantExpression) arguments.get(0).getValue())
-                                .getValue()).getObject()).getStringValue())) {
-                    AsterixConstantValue acv = new AsterixConstantValue(new AString(secprimKey));
-                    ConstantExpression ce = new ConstantExpression(acv);
-                    arguments.add(new MutableObject<>(ce));
-                    arguments.add(new MutableObject<ILogicalExpression>(new VariableReferenceExpression(secscan)));
-                }
             }
+            if (!primKey.equals("") && !primKey.equals(
+                    ((AString) ((AsterixConstantValue) ((ConstantExpression) arguments.get(0).getValue()).getValue())
+                            .getObject()).getStringValue())) {
+                AsterixConstantValue acv = new AsterixConstantValue(new AString(primKey));
+                ConstantExpression ce = new ConstantExpression(acv);
+                arguments.add(new MutableObject<>(ce));
+                arguments.add(new MutableObject<ILogicalExpression>(new VariableReferenceExpression(firstscan)));
+            }
+            if (!secprimKey.equals("") && !secprimKey.equals(
+                    ((AString) ((AsterixConstantValue) ((ConstantExpression) arguments.get(0).getValue()).getValue())
+                            .getObject()).getStringValue())) {
+                AsterixConstantValue acv = new AsterixConstantValue(new AString(secprimKey));
+                ConstantExpression ce = new ConstantExpression(acv);
+                arguments.add(new MutableObject<>(ce));
+                arguments.add(new MutableObject<ILogicalExpression>(new VariableReferenceExpression(secscan)));
+            }
+            //            }
             map.clear();
             return true;
         }

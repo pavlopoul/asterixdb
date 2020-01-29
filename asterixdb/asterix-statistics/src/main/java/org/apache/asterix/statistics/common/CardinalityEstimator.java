@@ -118,7 +118,9 @@ public class CardinalityEstimator implements ICardinalityEstimator {
             // use the last if multiple stats on the same field are available
             if (!fieldStats.isEmpty()) {
                 stats = fieldStats;
-                if (idx.isPrimaryIndex()) {
+                if (!idx.getKeyFieldNames().isEmpty() && idx.getKeyFieldNames().size() < 2
+                        && idx.getKeyFieldNames().get(0).get(0).equals(fieldName.get(0))) {
+                    //if (idx.isPrimaryIndex()) {
                     this.primIndex = true;
                 } else {
                     this.primIndex = false;

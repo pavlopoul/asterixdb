@@ -142,9 +142,9 @@ public abstract class HistogramSynopsis<T extends HistogramBucket> extends Abstr
     @Override
     public long uniqueQuery(boolean primIndex) {
         long distinctValues = 0;
-        if (this.getType() == SynopsisType.ContinuousHistogram) {
-            primIndex = false;
-        }
+        //        if (this.getType() == SynopsisType.ContinuousHistogram) {
+        //            primIndex = false;
+        //        }
         if (primIndex) {
             for (int i = 0; i < getBuckets().size(); i++) {
                 if (getBuckets().get(i).getValue() != 0) {

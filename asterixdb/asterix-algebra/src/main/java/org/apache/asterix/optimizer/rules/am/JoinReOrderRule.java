@@ -377,9 +377,9 @@ public class JoinReOrderRule implements IAlgebraicRewriteRule {
                         IAObject obj = new AString(fieldName);
                         AsterixConstantValue acv = new AsterixConstantValue(obj);
                         ConstantExpression ce = new ConstantExpression(acv);
-                        if (!fieldName.equals(
+                        if (arguments.isEmpty() || (!fieldName.equals(
                                 ((AString) ((AsterixConstantValue) ((ConstantExpression) arguments.get(0).getValue())
-                                        .getValue()).getObject()).getStringValue())) {
+                                        .getValue()).getObject()).getStringValue()))) {
                             arguments.add(new MutableObject<>(ce));
                             arguments.add(
                                     new MutableObject<ILogicalExpression>(new VariableReferenceExpression(variable)));
@@ -387,17 +387,17 @@ public class JoinReOrderRule implements IAlgebraicRewriteRule {
                     }
                 }
             }
-            if (!primKey.equals("") && !primKey.equals(
+            if (arguments.isEmpty() || (!primKey.equals("") && !primKey.equals(
                     ((AString) ((AsterixConstantValue) ((ConstantExpression) arguments.get(0).getValue()).getValue())
-                            .getObject()).getStringValue())) {
+                            .getObject()).getStringValue()))) {
                 AsterixConstantValue acv = new AsterixConstantValue(new AString(primKey));
                 ConstantExpression ce = new ConstantExpression(acv);
                 arguments.add(new MutableObject<>(ce));
                 arguments.add(new MutableObject<ILogicalExpression>(new VariableReferenceExpression(firstscan)));
             }
-            if (!secprimKey.equals("") && !secprimKey.equals(
+            if (arguments.isEmpty() || (!secprimKey.equals("") && !secprimKey.equals(
                     ((AString) ((AsterixConstantValue) ((ConstantExpression) arguments.get(0).getValue()).getValue())
-                            .getObject()).getStringValue())) {
+                            .getObject()).getStringValue()))) {
                 AsterixConstantValue acv = new AsterixConstantValue(new AString(secprimKey));
                 ConstantExpression ce = new ConstantExpression(acv);
                 arguments.add(new MutableObject<>(ce));

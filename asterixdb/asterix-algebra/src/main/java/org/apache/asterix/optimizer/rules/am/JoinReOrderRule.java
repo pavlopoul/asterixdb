@@ -275,6 +275,7 @@ public class JoinReOrderRule implements IAlgebraicRewriteRule {
             TreeMap<Long, List<Mutable<ILogicalOperator>>> twomap = new TreeMap<>();
             twomap.put(map.lastKey(), map.lastEntry().getValue());
             int size = map.size();
+
             //            if (size == 2) {
             //                map.clear();
             //                return false;
@@ -335,13 +336,18 @@ public class JoinReOrderRule implements IAlgebraicRewriteRule {
 
                     //                    if (lvlB == lvlA || lvlB == lvrA) {
                     if (datasourcelB == datasourcelA || datasourcelB == datasourcerA) {
-                        joinB.getInputs().set(0, new MutableObject<ILogicalOperator>(joinA));
+                        InnerJoinOperator finaljoin = new InnerJoinOperator(joinB.getCondition(),
+                                new MutableObject<ILogicalOperator>(joinA), joinB.getInputs().get(1));
+                        //joinB.getInputs().set(0, new MutableObject<ILogicalOperator>(joinA));
+                        context.computeAndSetTypeEnvironmentForOperator(finaljoin);
                         alo.getInputs().clear();
-                        alo.getInputs().add(new MutableObject<ILogicalOperator>(joinB));
+                        alo.getInputs().add(new MutableObject<ILogicalOperator>(finaljoin));
                     } else if (datasourcerB == datasourcerA || datasourcerB == datasourcelA) {
-                        joinB.getInputs().set(1, new MutableObject<ILogicalOperator>(joinA));
+                        InnerJoinOperator finaljoin = new InnerJoinOperator(joinB.getCondition(),
+                                joinB.getInputs().get(0), new MutableObject<ILogicalOperator>(joinA));
+                        context.computeAndSetTypeEnvironmentForOperator(finaljoin);
                         alo.getInputs().clear();
-                        alo.getInputs().add(new MutableObject<ILogicalOperator>(joinB));
+                        alo.getInputs().add(new MutableObject<ILogicalOperator>(finaljoin));
                     }
                 }
                 map.clear();

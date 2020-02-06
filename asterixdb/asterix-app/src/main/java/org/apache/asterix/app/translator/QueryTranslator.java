@@ -141,6 +141,7 @@ import org.apache.asterix.metadata.MetadataTransactionContext;
 import org.apache.asterix.metadata.bootstrap.MetadataBuiltinEntities;
 import org.apache.asterix.metadata.dataset.hints.DatasetHints;
 import org.apache.asterix.metadata.dataset.hints.DatasetHints.DatasetNodegroupCardinalityHint;
+import org.apache.asterix.metadata.dataset.hints.DatasetHints.DatasetStatisticsHint;
 import org.apache.asterix.metadata.declared.DatasetDataSource;
 import org.apache.asterix.metadata.declared.MetadataProvider;
 import org.apache.asterix.metadata.entities.BuiltinTypeMap;
@@ -158,6 +159,7 @@ import org.apache.asterix.metadata.entities.InternalDatasetDetails;
 import org.apache.asterix.metadata.entities.InternalDatasetDetails.FileStructure;
 import org.apache.asterix.metadata.entities.InternalDatasetDetails.PartitioningStrategy;
 import org.apache.asterix.metadata.entities.NodeGroup;
+import org.apache.asterix.metadata.entities.Statistics;
 import org.apache.asterix.metadata.feeds.FeedMetadataUtil;
 import org.apache.asterix.metadata.lock.ExternalDatasetsRegistry;
 import org.apache.asterix.metadata.utils.DatasetUtil;
@@ -925,8 +927,9 @@ public class QueryTranslator extends AbstractLangTranslator implements IStatemen
                     overridesFieldTypes = true;
                 }
                 if (fieldType == null) {
-                    throw new CompilationException(ErrorCode.UNKNOWN_TYPE, sourceLoc, fieldExpr.second == null
-                            ? String.valueOf(fieldExpr.first) : String.valueOf(fieldExpr.second));
+                    throw new CompilationException(ErrorCode.UNKNOWN_TYPE, sourceLoc,
+                            fieldExpr.second == null ? String.valueOf(fieldExpr.first)
+                                    : String.valueOf(fieldExpr.second));
                 }
 
                 // try to add the key & its source to the set of keys, if key couldn't be added,
@@ -2947,14 +2950,14 @@ public class QueryTranslator extends AbstractLangTranslator implements IStatemen
                 statisticsFieldsHint = statisticsFieldsHint.substring(0, statisticsFieldsHint.length() - 1);
                 List<List<String>> indexKeys = new ArrayList<>();
 
-                //                final MetadataTransactionContext writeTxn = MetadataManager.INSTANCE.beginTransaction();
-                //                mp.setMetadataTxnContext(writeTxn);
-                //                List<Statistics> stats = MetadataManager.INSTANCE.getFieldStatistics(writeTxn,
-                //                        dataSource1.getDataset().getDataverseName(), dataSource1.getDataset().getDatasetName(),
-                //                        dataSource1.getDataset().getDatasetName(),
-                //                        dataSource1.getDataset().getHints().get(DatasetStatisticsHint.NAME).split(",")[0], false);
-                //int statsSize = stats.get(0).getSynopsis().getSize();
-                int statsSize = mp.getApplicationContext().getStatisticsProperties().getStatisticsSize();
+                final MetadataTransactionContext writeTxn = MetadataManager.INSTANCE.beginTransaction();
+                mp.setMetadataTxnContext(writeTxn);
+                List<Statistics> stats = MetadataManager.INSTANCE.getFieldStatistics(writeTxn,
+                        dataSource1.getDataset().getDataverseName(), dataSource1.getDataset().getDatasetName(),
+                        dataSource1.getDataset().getDatasetName(),
+                        dataSource1.getDataset().getHints().get(DatasetStatisticsHint.NAME).split(",")[0], false);
+                int statsSize = stats.get(0).getSynopsis().getSize();
+                //int statsSize = mp.getApplicationContext().getStatisticsProperties().getStatisticsSize();
                 List<IFieldExtractor> extractors = StatisticsUtil.computeStatisticsFieldExtractors(
                         mp.getStorageComponentProvider().getTypeTraitProvider(), recType, indexKeys, true, /*false,*/mp
                                 .getApplicationContext().getStatisticsProperties().isStatisticsOnPrimaryKeysEnabled(),

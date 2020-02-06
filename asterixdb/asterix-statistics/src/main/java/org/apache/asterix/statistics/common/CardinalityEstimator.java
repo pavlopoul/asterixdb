@@ -90,6 +90,7 @@ public class CardinalityEstimator implements ICardinalityEstimator {
                 getFieldStats(metadataProvider, outerDataverseName, outerDatasetName, outerFieldName);
 
         double result = 0.0;
+        double resultout = 0.0;
         long innerUniqueValues =
                 getUniqueCardinality(metadataProvider, innerDataverseName, innerDatasetName, innerFieldName);
         long outerUniqueValues =
@@ -106,9 +107,9 @@ public class CardinalityEstimator implements ICardinalityEstimator {
             result += s.getSynopsis().joinQuery(s.getSynopsis(), this.primIndex);
         }
         for (Statistics sec : outerStats) {
-            result *= sec.getSynopsis().joinQuery(sec.getSynopsis(), this.primIndex);
+            resultout += sec.getSynopsis().joinQuery(sec.getSynopsis(), this.primIndex);
         }
-        return Math.round(result) / Math.max(innerUniqueValues, outerUniqueValues);
+        return Math.round(result * resultout) / Math.max(innerUniqueValues, outerUniqueValues);
     }
 
     private List<Statistics> getFieldStats(IMetadataProvider metadataProvider, String dataverseName, String datasetName,

@@ -22,7 +22,6 @@
 package org.apache.hyracks.storage.am.lsm.common.api;
 
 import org.apache.hyracks.api.exceptions.HyracksDataException;
-import org.apache.hyracks.api.io.FileReference;
 import org.apache.hyracks.storage.am.lsm.common.api.ILSMIOOperation.LSMIOOperationType;
 import org.apache.hyracks.storage.am.lsm.common.impls.ComponentStatistics;
 import org.apache.hyracks.storage.common.IIndexBulkLoader;
@@ -32,6 +31,8 @@ public interface ISynopsisBuilder extends IIndexBulkLoader {
     void gatherComponentStatistics(IStatisticsManager statisticsManager, ILSMDiskComponent component,
             LSMIOOperationType opType) throws HyracksDataException;
 
+    //    void gatherIntermediateStatistics(IStatisticsManager statisticsManager, ComponentStatistics component,
+    //            FileReference partition) throws HyracksDataException;
     void gatherIntermediateStatistics(IStatisticsManager statisticsManager, ComponentStatistics component,
-            FileReference partition) throws HyracksDataException;
+            int partition) throws HyracksDataException;
 }

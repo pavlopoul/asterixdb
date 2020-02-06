@@ -35,6 +35,11 @@ public class ContinuousHistogramSynopsis extends EquiHeightHistogramSynopsis<His
         super(domainStart, domainEnd, maxLevel, elementsNum, bucketsNum, buckets, null);
     }
 
+    public ContinuousHistogramSynopsis(ContinuousHistogramSynopsis synopsis) {
+        this(synopsis.getDomainStart(), synopsis.getDomainEnd(), synopsis.getMaxLevel(),
+                synopsis.getElementsPerBucket(), synopsis.getBuckets().size(), synopsis.getBuckets());
+    }
+
     @Override
     public SynopsisType getType() {
         return SynopsisType.ContinuousHistogram;

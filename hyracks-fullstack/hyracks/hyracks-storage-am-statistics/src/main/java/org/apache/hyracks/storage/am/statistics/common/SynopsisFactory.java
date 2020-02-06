@@ -26,6 +26,7 @@ import java.util.PriorityQueue;
 
 import org.apache.hyracks.api.dataflow.value.ITypeTraits;
 import org.apache.hyracks.api.exceptions.HyracksDataException;
+import org.apache.hyracks.storage.am.lsm.common.api.ISynopsis;
 import org.apache.hyracks.storage.am.lsm.common.api.ISynopsis.SynopsisType;
 import org.apache.hyracks.storage.am.lsm.common.api.ISynopsisElement;
 import org.apache.hyracks.storage.am.statistics.historgram.ContinuousHistogramSynopsis;
@@ -65,6 +66,27 @@ public class SynopsisFactory {
                         (Collection<WaveletCoefficient>) synopsisElements, true, true);
             default:
                 throw new HyracksDataException("Cannot instantiate new synopsis of type " + type);
+        }
+    }
+
+    public static AbstractSynopsis<? extends ISynopsisElement<Long>> createSynopsisCopy(ISynopsis synopsis)
+            throws HyracksDataException {
+
+        switch (synopsis.getType()) {
+            case UniformHistogram:
+                return (UniformHistogramSynopsis) synopsis;
+            case ContinuousHistogram:
+            case QuantileSketch:
+                return new ContinuousHistogramSynopsis((ContinuousHistogramSynopsis) synopsis);
+            case EquiWidthHistogram:
+                return (EquiWidthHistogramSynopsis) synopsis;
+            case Wavelet:
+            case GroupCountSketch:
+                return (WaveletSynopsis) synopsis;
+            case PrefixSumWavelet:
+                return (PrefixSumWaveletSynopsis) synopsis;
+            default:
+                throw new HyracksDataException("Cannot instantiate new synopsis of type " + synopsis.getType());
         }
     }
 

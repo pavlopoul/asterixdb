@@ -113,5 +113,4 @@ public class StatisticsFactory extends AbstractStatisticsFactory {
                 throw new HyracksDataException("Cannot instantiate new synopsis builder for type " + type);
         }
     }
-
 }

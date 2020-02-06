@@ -21,7 +21,6 @@
 package org.apache.hyracks.storage.am.statistics.common;
 
 import org.apache.hyracks.api.exceptions.HyracksDataException;
-import org.apache.hyracks.api.io.FileReference;
 import org.apache.hyracks.dataflow.common.data.accessors.ITupleReference;
 import org.apache.hyracks.storage.am.lsm.common.api.ILSMDiskComponent;
 import org.apache.hyracks.storage.am.lsm.common.api.ILSMIOOperation.LSMIOOperationType;
@@ -89,7 +88,7 @@ public class CombinedSynopsisBuilder implements ISynopsisBuilder {
 
     @Override
     public void gatherIntermediateStatistics(IStatisticsManager statisticsManager, ComponentStatistics component,
-            FileReference partition) throws HyracksDataException {
+            int partition) throws HyracksDataException {
         // TODO Auto-generated method stub
 
     }

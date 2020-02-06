@@ -23,7 +23,6 @@ package org.apache.hyracks.storage.am.lsm.common.api;
 import java.util.List;
 
 import org.apache.hyracks.api.exceptions.HyracksDataException;
-import org.apache.hyracks.api.io.FileReference;
 import org.apache.hyracks.storage.am.lsm.common.impls.ComponentStatistics;
 
 public interface IStatisticsManager {
@@ -36,6 +35,8 @@ public interface IStatisticsManager {
     void addStatistics(ISynopsis synopsis, String dataverse, String dataset, String index, String field,
             boolean isAntimatter, ILSMDiskComponent component);
 
+    //    void addIntermediateStatistics(ISynopsis synopsis, String dataverse, String dataset, String index, String field,
+    //            boolean isAntimatter, ComponentStatistics component, FileReference partition) throws HyracksDataException;
     void addIntermediateStatistics(ISynopsis synopsis, String dataverse, String dataset, String index, String field,
-            boolean isAntimatter, ComponentStatistics component, FileReference partition) throws HyracksDataException;
+            boolean isAntimatter, ComponentStatistics component, int partition) throws HyracksDataException;
 }

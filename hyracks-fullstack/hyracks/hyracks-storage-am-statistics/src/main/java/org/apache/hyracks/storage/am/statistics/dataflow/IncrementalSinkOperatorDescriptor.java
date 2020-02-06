@@ -168,9 +168,9 @@ public class IncrementalSinkOperatorDescriptor extends AbstractOperatorDescripto
                     fieldPermutation[0] = 1;
                     tuple.setFieldPermutation(fieldPermutation);
                     component = new ComponentStatistics(0l, 0l);
+
                     builder =
                             IncrementalSinkOperatorDescriptor.this.statisticsFactory.createStatistics(component, true);
-
                 }
 
                 @Override
@@ -201,7 +201,7 @@ public class IncrementalSinkOperatorDescriptor extends AbstractOperatorDescripto
                         builder.end();
                         builder.gatherIntermediateStatistics(
                                 statsManagerProvider.getStatisticsManager(ctx.getJobletContext().getServiceContext()),
-                                component, state.getOut().getFileReference());
+                                component, /*state.getOut().getFileReference()*/partition);
                     }
 
                     ctx.setStateObject(state);

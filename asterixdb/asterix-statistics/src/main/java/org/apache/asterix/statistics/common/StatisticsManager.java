@@ -34,7 +34,6 @@ import org.apache.commons.collections4.MultiValuedMap;
 import org.apache.commons.collections4.multimap.HashSetValuedHashMap;
 import org.apache.hyracks.api.application.INCServiceContext;
 import org.apache.hyracks.api.exceptions.HyracksDataException;
-import org.apache.hyracks.api.io.FileReference;
 import org.apache.hyracks.storage.am.btree.impls.BTree;
 import org.apache.hyracks.storage.am.lsm.common.api.ILSMDiskComponent;
 import org.apache.hyracks.storage.am.lsm.common.api.IStatisticsManager;
@@ -213,14 +212,18 @@ public class StatisticsManager implements IStatisticsManager {
 
     @Override
     public void addIntermediateStatistics(ISynopsis synopsis, String dataverse, String dataset, String index,
-            String field, boolean isAntimatter, ComponentStatistics component, FileReference partition)
+            String field, boolean isAntimatter, ComponentStatistics component, int partition)
             throws HyracksDataException {
         StatisticsEntry newEntry = new StatisticsEntry(synopsis, dataverse, dataset, index, field);
-        String[] partitions = partition.getDeviceHandle().getMount().getPath().split("/");
+        //        StatisticsEntry newEntry =
+        //                new StatisticsEntry(SynopsisFactory.createSynopsisCopy(synopsis), dataverse, dataset, index, field);
+        //String[] partitions = partition.getDeviceHandle().getMount().getPath().split("/");
         synopsisInterMap.put(component, newEntry);
         ICcAddressedMessage msg = new ReportFlushComponentStatisticsMessage(newEntry, ncContext.getNodeId(),
-                partitions[partitions.length - 2],
-                new ComponentStatisticsId(component.getNumAntimatterTuples(), component.getNumTuples()), isAntimatter);
+                //                partitions[partitions.length - 2],
+                "partition_" + String.valueOf(partition),
+                new ComponentStatisticsId(/*component.getNumAntimatterTuples()*/0l, /*component.getNumTuples()*/0l),
+                isAntimatter);
         sendMessage(msg);
     }
 

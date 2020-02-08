@@ -54,6 +54,7 @@ import org.apache.hyracks.algebricks.core.algebra.operators.logical.AbstractLogi
 import org.apache.hyracks.algebricks.core.algebra.operators.logical.AssignOperator;
 import org.apache.hyracks.algebricks.core.algebra.operators.logical.DataSourceScanOperator;
 import org.apache.hyracks.algebricks.core.algebra.operators.logical.InnerJoinOperator;
+import org.apache.hyracks.algebricks.core.algebra.operators.logical.SelectOperator;
 import org.apache.hyracks.algebricks.core.algebra.operators.logical.visitors.CardinalityInferenceVisitor;
 import org.apache.hyracks.algebricks.core.rewriter.base.IAlgebraicRewriteRule;
 
@@ -65,6 +66,7 @@ public class JoinReOrderRule implements IAlgebraicRewriteRule {
     private String fieldName = "";
     private String pKey = "";
     private LogicalVariable dscanvar;
+    private SelectOperator select;
 
     protected boolean checkAndReturnExpr(AbstractLogicalOperator op, IOptimizationContext context)
             throws AlgebricksException {
@@ -298,6 +300,23 @@ public class JoinReOrderRule implements IAlgebraicRewriteRule {
             int inputs = -1;
             for (Mutable<ILogicalOperator> mlo : joinA.getInputs()) {
                 inputs++;
+                LogicalVariable lv = findSelect(mlo.getValue());
+                if (lv != null) {
+                    DatasetDataSource ds = findDataSource((AbstractLogicalOperator) mlo.getValue(), lv);
+                    DatasetDataSource ds1;
+                    if (inputs == 0) {
+                        ds1 = findDataSource((AbstractLogicalOperator) mlo.getValue(), lvlA);
+                    } else {
+                        ds1 = findDataSource((AbstractLogicalOperator) mlo.getValue(), lvrA);
+                    }
+                    if (ds.equals(ds1)) {
+                        joinA.getInputs().set(inputs, new MutableObject<>(select));
+                    }
+                }
+            }
+            inputs = -1;
+            for (Mutable<ILogicalOperator> mlo : joinA.getInputs()) {
+                inputs++;
                 if (mlo.getValue().getOperatorTag() == LogicalOperatorTag.INNERJOIN) {
                     if (inputs == 0) {
                         findDataSource((AbstractLogicalOperator) mlo.getValue(), lvlA);
@@ -376,8 +395,15 @@ public class JoinReOrderRule implements IAlgebraicRewriteRule {
             //                        ((ScalarFunctionCallExpression) ((AssignOperator) alo).getExpressions().get(0).getValue())
             //                                .getArguments();
             for (Mutable<ILogicalOperator> input : joinA.getInputs()) {
-                if (input.getValue().getOperatorTag() == LogicalOperatorTag.ASSIGN) {
-                    AssignOperator assign = (AssignOperator) input.getValue();
+                if (input.getValue().getOperatorTag() == LogicalOperatorTag.ASSIGN
+                        || input.getValue().getOperatorTag() == LogicalOperatorTag.SELECT) {
+
+                    AssignOperator assign;
+                    if (input.getValue().getOperatorTag() == LogicalOperatorTag.ASSIGN) {
+                        assign = (AssignOperator) input.getValue();
+                    } else {
+                        assign = (AssignOperator) ((SelectOperator) input.getValue()).getInputs().get(0).getValue();
+                    }
                     for (LogicalVariable variable : assign.getVariables()) {
                         findDataSource(assign, variable);
                         IAObject obj = new AString(fieldName);
@@ -415,6 +441,23 @@ public class JoinReOrderRule implements IAlgebraicRewriteRule {
         }
         return false;
 
+    }
+
+    public LogicalVariable findSelect(ILogicalOperator op) {
+        if (op.getOperatorTag() == LogicalOperatorTag.SELECT) {
+            select = (SelectOperator) op;
+            Mutable<ILogicalExpression> condition = ((SelectOperator) op).getCondition();
+
+            ScalarFunctionCallExpression sfce = (ScalarFunctionCallExpression) condition.getValue();
+            LogicalVariable lvl =
+                    ((VariableReferenceExpression) sfce.getArguments().get(0).getValue()).getVariableReference();
+            return lvl;
+        }
+        LogicalVariable lv = null;
+        for (Mutable<ILogicalOperator> opChild : op.getInputs()) {
+            lv = findSelect(opChild.getValue());
+        }
+        return lv;
     }
 
     private long inferCardinality(AbstractLogicalOperator op, IOptimizationContext context,

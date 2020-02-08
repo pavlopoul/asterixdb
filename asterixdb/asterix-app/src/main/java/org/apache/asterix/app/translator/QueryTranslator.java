@@ -3119,8 +3119,6 @@ public class QueryTranslator extends AbstractLangTranslator implements IStatemen
         Datatype newDatatype = new Datatype("newdata", recordTypeName, newRecordType, false);
         final MetadataTransactionContext writeTxn = MetadataManager.INSTANCE.beginTransaction();
         mp.setMetadataTxnContext(writeTxn);
-        //final MetadataTransactionContext writeTxn = mp.getMetadataTxnContext();
-        //        mp.setMetadataTxnContext(writeTxn);
         if (MetadataManager.INSTANCE.getDataset(writeTxn, "newdata", newSet.getDatasetName()) != null) {
             MetadataManager.INSTANCE.dropFromCache(writeTxn, newDataverse);
             MetadataManager.INSTANCE.dropDataverse(writeTxn, newDataverse.getDataverseName());
@@ -3145,11 +3143,15 @@ public class QueryTranslator extends AbstractLangTranslator implements IStatemen
             for (Expression e : whereExpr.getExprList()) {
                 OperatorExpr oE = (OperatorExpr) e;
                 FieldAccessor fE1 = (FieldAccessor) oE.getExprList().get(0);
-                FieldAccessor fE2 = (FieldAccessor) oE.getExprList().get(1);
                 if (fE1.getExpr().toString().substring(1).equals(datasources.get(0))
                         || fE1.getExpr().toString().substring(1).equals(datasources.get(1))) {
-                    if (fE2.getExpr().toString().substring(1).equals(datasources.get(0))
-                            || fE2.getExpr().toString().substring(1).equals(datasources.get(1))) {
+                    if (oE.getExprList().get(1).getKind() == Kind.FIELD_ACCESSOR_EXPRESSION) {
+                        FieldAccessor fE2 = (FieldAccessor) oE.getExprList().get(1);
+                        if (fE2.getExpr().toString().substring(1).equals(datasources.get(0))
+                                || fE2.getExpr().toString().substring(1).equals(datasources.get(1))) {
+                            continue;
+                        }
+                    } else {
                         continue;
                     }
                 }
@@ -3157,6 +3159,9 @@ public class QueryTranslator extends AbstractLangTranslator implements IStatemen
             }
             for (int i = 1; i < whereExpr.getOpList().size(); i++) {
                 newWhereExpr.addOperator(whereExpr.getOpList().get(i));
+            }
+            if (newWhereExpr.getExprList().size() == newWhereExpr.getOpList().size()) {
+                newWhereExpr.getOpList().remove(newWhereExpr.getOpList().size() - 1);
             }
             if (newWhereExpr.getOpList().size() == 0) {
                 OperatorExpr oE = (OperatorExpr) newWhereExpr.getExprList().get(0);
@@ -3176,14 +3181,18 @@ public class QueryTranslator extends AbstractLangTranslator implements IStatemen
                 for (Expression e : newWhereExpr.getExprList()) {
                     OperatorExpr oE = (OperatorExpr) e;
                     FieldAccessor fE1 = (FieldAccessor) oE.getExprList().get(0);
-                    FieldAccessor fE2 = (FieldAccessor) oE.getExprList().get(1);
+                    //                    FieldAccessor fE2 = (FieldAccessor) oE.getExprList().get(1);
                     if (fE1.getExpr().toString().substring(1).equals(datasources.get(0))
                             || fE1.getExpr().toString().substring(1).equals(datasources.get(1))) {
                         fE1 = new FieldAccessor(fromTermLeftExpr, fE1.getIdent());
                         oE.getExprList().set(0, fE1);
-                    } else if (fE2.getExpr().toString().substring(1).equals(datasources.get(0))
-                            || fE2.getExpr().toString().substring(1).equals(datasources.get(1))) {
-                        fE2 = new FieldAccessor(fromTermLeftExpr, fE2.getIdent());
+                    } else if (oE.getExprList().get(1).getKind() == Kind.FIELD_ACCESSOR_EXPRESSION
+                            && (((FieldAccessor) oE.getExprList().get(1)).getExpr().toString().substring(1)
+                                    .equals(datasources.get(0))
+                                    || ((FieldAccessor) oE.getExprList().get(1)).getExpr().toString().substring(1)
+                                            .equals(datasources.get(1)))) {
+                        FieldAccessor fE2 = new FieldAccessor(fromTermLeftExpr,
+                                ((FieldAccessor) oE.getExprList().get(1)).getIdent());
                         oE.getExprList().set(1, fE2);
                     } else {
                         continue;

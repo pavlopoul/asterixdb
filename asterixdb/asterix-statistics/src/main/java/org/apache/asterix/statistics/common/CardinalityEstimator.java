@@ -101,6 +101,8 @@ public class CardinalityEstimator implements ICardinalityEstimator {
         for (Statistics s : innerStats) {
             result += s.getSynopsis().joinQuery(s.getSynopsis(), this.primIndex);
         }
+        System.out.println(result + ", " + resultout);
+        System.out.println(innerUniqueValues + ", " + outerUniqueValues);
         for (Statistics sec : outerStats) {
             resultout += sec.getSynopsis().joinQuery(sec.getSynopsis(), this.primIndex);
         }

@@ -98,18 +98,14 @@ public class CardinalityEstimator implements ICardinalityEstimator {
         if ((innerStats == null || innerStats.isEmpty()) && (outerStats == null || outerStats.isEmpty())) {
             return CardinalityInferenceVisitor.UNKNOWN;
         }
-        //        for (Statistics s : innerStats) {
-        //            for (Statistics sec : outerStats) {
-        //                result += s.getSynopsis().joinQuery(sec.getSynopsis(), this.primIndex);
-        //            }
-        //        }
         for (Statistics s : innerStats) {
             result += s.getSynopsis().joinQuery(s.getSynopsis(), this.primIndex);
         }
         for (Statistics sec : outerStats) {
             resultout += sec.getSynopsis().joinQuery(sec.getSynopsis(), this.primIndex);
         }
-        return Math.round(result * resultout) / Math.max(innerUniqueValues, outerUniqueValues);
+        return Math.round(Math.max(1, result) * Math.max(1, resultout))
+                / Math.max(innerUniqueValues, outerUniqueValues);
     }
 
     private List<Statistics> getFieldStats(IMetadataProvider metadataProvider, String dataverseName, String datasetName,
@@ -148,7 +144,6 @@ public class CardinalityEstimator implements ICardinalityEstimator {
         }
 
         for (Statistics s : stats) {
-            // estimate = Math.max(estimate, s.getSynopsis().uniqueQuery(this.primIndex));
             estimate = estimate + s.getSynopsis().uniqueQuery(this.primIndex);
         }
         return Math.round(estimate);

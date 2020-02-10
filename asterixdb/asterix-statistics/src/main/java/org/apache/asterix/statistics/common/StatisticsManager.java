@@ -222,7 +222,7 @@ public class StatisticsManager implements IStatisticsManager {
         ICcAddressedMessage msg = new ReportFlushComponentStatisticsMessage(newEntry, ncContext.getNodeId(),
                 //                partitions[partitions.length - 2],
                 "partition_" + String.valueOf(partition),
-                new ComponentStatisticsId(/*component.getNumAntimatterTuples()*/0l, /*component.getNumTuples()*/0l),
+                new ComponentStatisticsId(/*component.getNumAntimatterTuples()*/10l, /*component.getNumTuples()*/10l),
                 isAntimatter);
         sendMessage(msg);
     }

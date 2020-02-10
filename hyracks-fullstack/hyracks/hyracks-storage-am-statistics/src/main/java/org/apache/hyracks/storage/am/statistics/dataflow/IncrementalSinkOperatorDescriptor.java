@@ -167,7 +167,7 @@ public class IncrementalSinkOperatorDescriptor extends AbstractOperatorDescripto
                     int[] fieldPermutation = new int[2];
                     fieldPermutation[0] = 1;
                     tuple.setFieldPermutation(fieldPermutation);
-                    component = new ComponentStatistics(0l, 0l);
+                    component = new ComponentStatistics(10l, 10l);
 
                     builder =
                             IncrementalSinkOperatorDescriptor.this.statisticsFactory.createStatistics(component, true);

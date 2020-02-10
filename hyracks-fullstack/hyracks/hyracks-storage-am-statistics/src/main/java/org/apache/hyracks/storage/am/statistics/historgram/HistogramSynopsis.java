@@ -97,12 +97,10 @@ public abstract class HistogramSynopsis<T extends HistogramBucket> extends Abstr
     public double joinQuery(ISynopsis synopsis, boolean primIndex) {
         HistogramSynopsis<T> histogram = (HistogramSynopsis<T>) synopsis;
         double leftEstimate = 0.0;
-        double rightEstimate = 1.0;
         double estimate = 0.0;
         for (int i = 0; i < getBuckets().size(); i++) {
             if (getBuckets().get(i).getValue() != 0.0) {
                 if (getType() == SynopsisType.ContinuousHistogram) {
-                    //                    leftEstimate += getBuckets().get(i).getHeight();
                     leftEstimate += getBuckets().get(i).getValue();
                 } else {
                     leftEstimate += getBuckets().get(i).getValue();
@@ -110,43 +108,13 @@ public abstract class HistogramSynopsis<T extends HistogramBucket> extends Abstr
             }
         }
 
-        //        for (int i = 0; i < histogram.getBuckets().size(); i++) {
-        //            if (histogram.getBuckets().get(i).getValue() != 0.0) {
-        //                if (histogram.getType() == SynopsisType.ContinuousHistogram) {
-        //                    //                    rightEstimate += histogram.getBuckets().get(i).getHeight();
-        //                    rightEstimate += histogram.getBuckets().get(i).getValue();
-        //                } else {
-        //                    rightEstimate += histogram.getBuckets().get(i).getValue();
-        //                }
-        //            }
-        //        }
-        //            if (getBuckets().size() != 0) {
-        //                heightl = getBuckets().get(0).getHeight();
-        //            }
-        //            if (histogram.getBuckets().size() != 0) {
-        //                heightr = histogram.getBuckets().get(0).getHeight();
-        //            }
-        //        for (int i = 0; i < getBuckets().size(); i++) {
-        //            if (getBuckets().get(i).getValue() != 0.0) {
-        //                leftEstimate += getBuckets().get(i).getValue() / heightl;
-        //            }
-        //        }
-        //
-        //        for (int i = 0; i < histogram.getBuckets().size(); i++) {
-        //            if (histogram.getBuckets().get(i).getValue() != 0.0) {
-        //                rightEstimate += histogram.getBuckets().get(i).getValue() / heightr;
-        //            }
-        //        }
-        estimate = Math.max(1, leftEstimate * rightEstimate);
+        estimate = leftEstimate;
         return estimate;
     }
 
     @Override
     public long uniqueQuery(boolean primIndex) {
         long distinctValues = 0;
-        //        if (this.getType() == SynopsisType.ContinuousHistogram) {
-        //            primIndex = false;
-        //        }
         if (primIndex) {
             for (int i = 0; i < getBuckets().size(); i++) {
                 if (getBuckets().get(i).getValue() != 0) {

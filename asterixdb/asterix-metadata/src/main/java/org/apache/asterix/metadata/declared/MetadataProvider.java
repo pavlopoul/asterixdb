@@ -402,6 +402,7 @@ public class MetadataProvider implements IMetadataProvider<DataSourceId, String>
     public void addStatistics(String dataverseName, String datasetName, String indexName, String fieldName, String node,
             String partition, ComponentStatisticsId componentId, boolean isAntimatter, ISynopsis synopsis)
             throws AlgebricksException {
+        dropStatistics(dataverseName, datasetName, indexName, fieldName, node, partition, componentId, isAntimatter);
         MetadataManager.INSTANCE.addStatistics(mdTxnCtx, new Statistics(dataverseName, datasetName, indexName,
                 fieldName, node, partition, componentId, false, isAntimatter, synopsis));
     }
@@ -486,8 +487,11 @@ public class MetadataProvider implements IMetadataProvider<DataSourceId, String>
         if (primaryIndex != null && (dataset.getDatasetType() != DatasetType.EXTERNAL)) {
             isSecondary = !indexName.equals(primaryIndex.getIndexName());
         }
-        Index theIndex = isSecondary ? MetadataManager.INSTANCE.getIndex(mdTxnCtx, dataset.getDataverseName(),
-                dataset.getDatasetName(), indexName) : primaryIndex;
+        Index theIndex =
+                isSecondary
+                        ? MetadataManager.INSTANCE.getIndex(mdTxnCtx, dataset.getDataverseName(),
+                                dataset.getDatasetName(), indexName)
+                        : primaryIndex;
         int numPrimaryKeys = dataset.getPrimaryKeys().size();
         RecordDescriptor outputRecDesc = JobGenHelper.mkRecordDescriptor(typeEnv, opSchema, context);
         Pair<IFileSplitProvider, AlgebricksPartitionConstraint> spPc =

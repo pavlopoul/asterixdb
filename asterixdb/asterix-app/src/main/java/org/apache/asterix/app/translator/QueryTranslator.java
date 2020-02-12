@@ -927,8 +927,9 @@ public class QueryTranslator extends AbstractLangTranslator implements IStatemen
                     overridesFieldTypes = true;
                 }
                 if (fieldType == null) {
-                    throw new CompilationException(ErrorCode.UNKNOWN_TYPE, sourceLoc, fieldExpr.second == null
-                            ? String.valueOf(fieldExpr.first) : String.valueOf(fieldExpr.second));
+                    throw new CompilationException(ErrorCode.UNKNOWN_TYPE, sourceLoc,
+                            fieldExpr.second == null ? String.valueOf(fieldExpr.first)
+                                    : String.valueOf(fieldExpr.second));
                 }
 
                 // try to add the key & its source to the set of keys, if key couldn't be added,
@@ -2820,6 +2821,10 @@ public class QueryTranslator extends AbstractLangTranslator implements IStatemen
                                 }
                             }
                     }
+                    //                    DataSourceScanOperator scan = (DataSourceScanOperator) op;
+                    //                    List<List<String>> primaryKeys =
+                    //                            ((InternalDatasetDetails) ((DatasetDataSource) scan.getDataSource()).getDataset()
+                    //                                    .getDatasetDetails()).getPrimaryKey();
                 }
                 IScalarEvaluatorFactory[] args = new IScalarEvaluatorFactory[fieldNames.length * 2];
                 for (int j = 0; j < fieldNames.length * 2; j = j + 2) {
@@ -2844,105 +2849,16 @@ public class QueryTranslator extends AbstractLangTranslator implements IStatemen
                 queries++;
                 IAType newRecordType =
                         new ARecordType(recordTypeName + String.valueOf(queries), fieldNames, types, false);
-                //                for (Entry<OperatorDescriptorId, List<IConnectorDescriptor>> entry : jobSpec.getOperatorInputMap()
-                //                        .entrySet()) {
-                //                    if (jobSpec.getOperatorMap().get(entry.getKey()) instanceof AlgebricksMetaOperatorDescriptor) {
-                //                        if (!jobSpec.getOperatorOutputMap().containsKey(entry.getKey())) {
-                //                            List<IConnectorDescriptor> toBeRemoved = entry.getValue();
-                //                            for (IConnectorDescriptor conn : toBeRemoved) {
-                //                                OperatorDescriptorId id = jobSpec.getConnectorOperatorMap().get(conn.getConnectorId())
-                //                                        .getKey().getKey().getOperatorId();
-                //                                IConnectorDescriptor conn2 = jobSpec.getOperatorInputMap().get(id).get(0);
-                //                                OperatorDescriptorId id2 = jobSpec.getConnectorOperatorMap().get(conn2.getConnectorId())
-                //                                        .getKey().getKey().getOperatorId();
-                //                                jobSpec.getConnectorMap().remove(conn2.getConnectorId());
-                //                                jobSpec.getConnectorOperatorMap().remove(conn2.getConnectorId());
-                //                                jobSpec.getConnectorMap().remove(conn.getConnectorId());
-                //                                jobSpec.getConnectorOperatorMap().remove(conn.getConnectorId());
-                //                                jobSpec.getOperatorMap().remove(entry.getKey());
-                //                                jobSpec.getOperatorMap().remove(id);
-                //                                jobSpec.getOperatorMap().remove(id2);
-                //                            }
-                //                        }
-                //                    }
-                //                }
-                //                List<ConnectorDescriptorId> connId = new ArrayList<>();
-                //                for (Entry<ConnectorDescriptorId, IConnectorDescriptor> entry : jobSpec.getConnectorMap().entrySet()) {
-                //                    if (!jobSpec.getConnectorOperatorMap().containsKey(entry.getKey())) {
-                //                        connId.add(entry.getKey());
-                //                    }
-                //                }
-                //                for (ConnectorDescriptorId cid : connId) {
-                //                    jobSpec.getConnectorMap().remove(cid);
-                //                }
                 newQuery = makeConnectionQuery(varexpr, recordTypeName + String.valueOf(queries), dataSource1,
                         newRecordType, mp, primKey, strType, datasources, newQuery);
                 OperatorDescriptorId odId = null;
                 OperatorDescriptorId id = null;
                 for (Entry<OperatorDescriptorId, IOperatorDescriptor> entry : jobSpec.getOperatorMap().entrySet()) {
-                    //                    if (entry.getValue() instanceof OptimizedHybridHashJoinOperatorDescriptor) {
-                    //                        odId = entry.getKey();
-                    //                    }
                     if (entry.getValue() instanceof IncrementalSinkOperatorDescriptor) {
                         id = entry.getKey();
                     }
                 }
-                //                IScalarEvaluatorFactory[] evalFactories = new IScalarEvaluatorFactory[1];
-                //                evalFactories[0] = crc;
-                //                rdesc = jobSpec.getOperatorMap().get(odId).getOutputRecordDescriptors();
-                //                ISerializerDeserializer[] fields = new ISerializerDeserializer[rdesc[0].getFieldCount() + 1];
-                //
-                //                ITypeTraits[] typeTraits = new ITypeTraits[rdesc[0].getFieldCount() + 1];
-                //                for (int k = 0; k < fields.length - 1; k++) {
-                //                    fields[k] = rdesc[0].getFields()[k];
-                //                    typeTraits[k] = rdesc[0].getTypeTraits()[k];
-                //                }
-                //                fields[fields.length - 1] = SerializerDeserializerProvider.INSTANCE.getSerializerDeserializer(recType);
-                //                typeTraits[fields.length - 1] = typeTraits[0];
-                //                int[] outColumns = new int[1];
-                //                outColumns[0] = evars.size();
-                //                int[] projectionList = new int[evars.size()];
-                //                int[] aprojectionList = new int[evars.size() + 1];
-                //                for (int j = 0; j < projectionList.length; j++) {
-                //                    projectionList[j] = j;
-                //                }
-                //                for (int j = 0; j < aprojectionList.length; j++) {
-                //                    aprojectionList[j] = j;
-                //                }
-                //                ISerializerDeserializer[] newfields = new ISerializerDeserializer[1];
-                //                ITypeTraits[] newtypeTraits = new ITypeTraits[1];
-                //                newfields[0] = fields[fields.length - 1];
-                //                typeTraits[0] = typeTraits[fields.length - 1];
-                //                StreamProjectRuntimeFactory proruntime = new StreamProjectRuntimeFactory(projectionList, false);
-                //                RecordDescriptor projectDesc = rdesc[0];
-                //                RecordDescriptor assignDesc = new RecordDescriptor(fields, typeTraits);
-                //                AssignRuntimeFactory runtime =
-                //                        new AssignRuntimeFactory(outColumns, evalFactories, aprojectionList, false);
-                //                StreamProjectRuntimeFactory proruntime2 = new StreamProjectRuntimeFactory(outColumns, false);
-                //                RecordDescriptor projectDesc2 = new RecordDescriptor(newfields, newtypeTraits);
-                //                IPushRuntimeFactory[] runtimeFactories = new IPushRuntimeFactory[3];
-                //                runtimeFactories[0] = proruntime;
-                //                internalRecordDescriptors[0] = projectDesc;
-                //                runtimeFactories[1] = runtime;
-                //                internalRecordDescriptors[1] = assignDesc;
-                //                runtimeFactories[2] = proruntime2;
-                //                internalRecordDescriptors[2] = projectDesc2;
-                //                IPushRuntimeFactory[] outRuntimeFactories = new IPushRuntimeFactory[1];
-                //                outRuntimeFactories[0] = null;
-                //                int[] outPositions = new int[1];
-                //                outPositions[0] = 0;
-                //                AlgebricksMetaOperatorDescriptor amod = new AlgebricksMetaOperatorDescriptor(jobSpec, 1, 1,
-                //                        runtimeFactories, internalRecordDescriptors, outRuntimeFactories, outPositions);
-                //                String[] readerLocations =
-                //                        mp.getApplicationContext().getClusterStateManager().getClusterLocations().getLocations();
-                //                PartitionConstraintHelper.addAbsoluteLocationConstraint(jobSpec, amod, readerLocations);
-
-                //                ((IncrementalSinkOperatorDescriptor) jobSpec.getOperatorMap().get(id)).setRecDesc(projectDesc2);
-                //                String statisticsFieldsHint = dataSource1.getDataset().getHints().get(DatasetStatisticsHint.NAME);
                 String statisticsFieldsHint = "";
-                //                for (DatasetDataSource source : hints) {
-                //                    statisticsFieldsHint += source.getDataset().getHints().get(DatasetStatisticsHint.NAME) + ",";
-                //                }
                 for (String source : fieldNames) {
                     statisticsFieldsHint += source + ",";
                 }
@@ -2973,19 +2889,6 @@ public class QueryTranslator extends AbstractLangTranslator implements IStatemen
                         mp.getStorageComponentProvider().getStatisticsManagerProvider();
                 ((IncrementalSinkOperatorDescriptor) jobSpec.getOperatorMap().get(id))
                         .setManagerProvider(statisticsManagerProvider);
-                //                for (Entry<ConnectorDescriptorId, org.apache.commons.lang3.tuple.Pair<org.apache.commons.lang3.tuple.Pair<IOperatorDescriptor, Integer>, org.apache.commons.lang3.tuple.Pair<IOperatorDescriptor, Integer>>> entry : jobSpec
-                //                        .getConnectorOperatorMap().entrySet()) {
-                //                    if (entry.getValue().getLeft().getKey() instanceof IncrementalSinkOperatorDescriptor
-                //                            || entry.getValue().getRight().getKey() instanceof IncrementalSinkOperatorDescriptor) {
-                //                        jobSpec.getConnectorOperatorMap().remove(entry.getKey());
-                //                        jobSpec.getConnectorMap().remove(entry.getKey());
-                //                    }
-                //                }
-
-                //                jobSpec.connect(new OneToOneConnectorDescriptor(jobSpec), jobSpec.getOperatorMap().get(odId), 0, amod,
-                //                        0);
-                //                jobSpec.connect(new OneToOneConnectorDescriptor(jobSpec), amod, 0, jobSpec.getOperatorMap().get(id), 0);
-                //  jobSpec.getUserConstraints().
                 removeFromConnectors(0, jobSpec, jobSpec.getConnectorOperatorMap());
             } else {
                 finished = true;

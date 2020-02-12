@@ -101,11 +101,13 @@ public class CardinalityEstimator implements ICardinalityEstimator {
         for (Statistics s : innerStats) {
             result += s.getSynopsis().joinQuery(s.getSynopsis(), this.primIndex);
         }
-        System.out.println(result + ", " + resultout);
-        System.out.println(innerUniqueValues + ", " + outerUniqueValues);
+
         for (Statistics sec : outerStats) {
             resultout += sec.getSynopsis().joinQuery(sec.getSynopsis(), this.primIndex);
         }
+
+        System.out.println(result + ", " + resultout);
+        System.out.println(innerUniqueValues + ", " + outerUniqueValues);
         return Math.round(Math.max(1, result) * Math.max(1, resultout))
                 / Math.max(innerUniqueValues, outerUniqueValues);
     }

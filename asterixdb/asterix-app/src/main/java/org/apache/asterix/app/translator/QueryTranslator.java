@@ -2796,28 +2796,32 @@ public class QueryTranslator extends AbstractLangTranslator implements IStatemen
                         if (vars != null)
                             for (LogicalVariable var : vars) {
                                 j++;
-                                if (var == ((DataSourceScanOperator) op).getVariables().get(0)) {
-                                    DataSourceScanOperator scan = (DataSourceScanOperator) op;
+                                int nestedvars = -1;
+                                for (LogicalVariable svar : ((DataSourceScanOperator) op).getVariables()) {
+                                    nestedvars++;
+                                    if (var == svar) {
+                                        DataSourceScanOperator scan = (DataSourceScanOperator) op;
 
-                                    IAType type = (IAType) scan.getDataSource().getSchemaTypes()[0];
-                                    types[j] = type;
-                                    DatasetDataSource datasource = (DatasetDataSource) scan.getDataSource();
-                                    ARecordType rType = (ARecordType) datasource.getItemType();
-                                    //fieldNames[j] = rType.getFieldNames()[0];
-                                    if (datasources.isEmpty()) {
-                                        datasources.add(scan.getVariables().get(scan.getVariables().size() - 1)
-                                                .toString().substring(2));
-                                    }
-                                    for (String datasource1 : datasources) {
-                                        if (!datasource1.equals(scan.getVariables().get(scan.getVariables().size() - 1)
-                                                .toString().substring(2))) {
+                                        IAType type = (IAType) scan.getDataSource().getSchemaTypes()[nestedvars];
+                                        types[j] = type;
+                                        DatasetDataSource datasource = (DatasetDataSource) scan.getDataSource();
+                                        ARecordType rType = (ARecordType) datasource.getItemType();
+                                        //fieldNames[j] = rType.getFieldNames()[0];
+                                        if (datasources.isEmpty()) {
                                             datasources.add(scan.getVariables().get(scan.getVariables().size() - 1)
                                                     .toString().substring(2));
-                                            hints.add(datasource);
-                                            break;
                                         }
+                                        for (String datasource1 : datasources) {
+                                            if (!datasource1.equals(scan.getVariables()
+                                                    .get(scan.getVariables().size() - 1).toString().substring(2))) {
+                                                datasources.add(scan.getVariables().get(scan.getVariables().size() - 1)
+                                                        .toString().substring(2));
+                                                hints.add(datasource);
+                                                break;
+                                            }
+                                        }
+                                        i++;
                                     }
-                                    i++;
                                 }
                             }
                     }
@@ -2849,8 +2853,14 @@ public class QueryTranslator extends AbstractLangTranslator implements IStatemen
                 queries++;
                 IAType newRecordType =
                         new ARecordType(recordTypeName + String.valueOf(queries), fieldNames, types, false);
+
+                String statisticsFieldsHint = "";
+                for (String source : fieldNames) {
+                    statisticsFieldsHint += source + ",";
+                }
+                statisticsFieldsHint = statisticsFieldsHint.substring(0, statisticsFieldsHint.length() - 1);
                 newQuery = makeConnectionQuery(varexpr, recordTypeName + String.valueOf(queries), dataSource1,
-                        newRecordType, mp, primKey, strType, datasources, newQuery);
+                        newRecordType, mp, primKey, strType, datasources, newQuery, statisticsFieldsHint);
                 OperatorDescriptorId odId = null;
                 OperatorDescriptorId id = null;
                 for (Entry<OperatorDescriptorId, IOperatorDescriptor> entry : jobSpec.getOperatorMap().entrySet()) {
@@ -2858,19 +2868,26 @@ public class QueryTranslator extends AbstractLangTranslator implements IStatemen
                         id = entry.getKey();
                     }
                 }
-                String statisticsFieldsHint = "";
-                for (String source : fieldNames) {
-                    statisticsFieldsHint += source + ",";
-                }
-                statisticsFieldsHint = statisticsFieldsHint.substring(0, statisticsFieldsHint.length() - 1);
+                //                String statisticsFieldsHint = "";
+                //                for (String source : fieldNames) {
+                //                    statisticsFieldsHint += source + ",";
+                //                }
+                //                statisticsFieldsHint = statisticsFieldsHint.substring(0, statisticsFieldsHint.length() - 1);
                 List<List<String>> indexKeys = new ArrayList<>();
 
                 final MetadataTransactionContext writeTxn = MetadataManager.INSTANCE.beginTransaction();
                 mp.setMetadataTxnContext(writeTxn);
+                String fieldName = "";
+                if (dataSource1.getDataset().getHints().get(DatasetStatisticsHint.NAME) == null) {
+                    fieldName = ((InternalDatasetDetails) dataSource1.getDataset().getDatasetDetails()).getPrimaryKey()
+                            .get(0).get(0);
+                } else {
+                    String[] fields = dataSource1.getDataset().getHints().get(DatasetStatisticsHint.NAME).split(",");
+                    fieldName = fields[0];
+                }
                 List<Statistics> stats = MetadataManager.INSTANCE.getFieldStatistics(writeTxn,
                         dataSource1.getDataset().getDataverseName(), dataSource1.getDataset().getDatasetName(),
-                        dataSource1.getDataset().getDatasetName(),
-                        dataSource1.getDataset().getHints().get(DatasetStatisticsHint.NAME).split(",")[0], false);
+                        dataSource1.getDataset().getDatasetName(), fieldName, false);
                 int statsSize = stats.get(0).getSynopsis().getSize();
                 //int statsSize = mp.getApplicationContext().getStatisticsProperties().getStatisticsSize();
                 List<IFieldExtractor> extractors = StatisticsUtil.computeStatisticsFieldExtractors(
@@ -2953,15 +2970,17 @@ public class QueryTranslator extends AbstractLangTranslator implements IStatemen
 
     private Query makeConnectionQuery(VariableReferenceExpression varexpr, String recordTypeName,
             DatasetDataSource dataSource, IAType newRecordType, MetadataProvider mp, List<List<String>> primKey,
-            List<IAType> strType, List<String> datasources, Query newQuery)
+            List<IAType> strType, List<String> datasources, Query newQuery, String statisticsFieldHint)
             throws AlgebricksException, ACIDException, RemoteException {
         VarIdentifier fromVarId = new VarIdentifier(varexpr.getVariableReference().toString().substring(1));
         VariableExpr fromTermLeftExpr = new VariableExpr(fromVarId);
+        //        Map<String, String> hints = dataSource.getDataset().getHints();
+        //        hints.put("STATISTICS", statisticsFieldHint);
         Dataset newSet = new Dataset("newdata", recordTypeName, "newdata", recordTypeName, null, null,
                 "newdata." + recordTypeName, "prefix", dataSource.getDataset().getCompactionPolicyProperties(),
                 new InternalDatasetDetails(FileStructure.BTREE, PartitioningStrategy.HASH, new ArrayList<>(),
                         new ArrayList<>(), new ArrayList<>(), new ArrayList<>(), false, new ArrayList<>()),
-                /*new HashMap<>()*/dataSource.getDataset().getHints(), DatasetType.READER, /*1*/queries, 0, 0, "none");
+                dataSource.getDataset().getHints(), DatasetType.READER, /*1*/queries, 0, 0, "none");
         List<Expression> exprList = addArgs(newSet.getDataverseName() + "." + newSet.getDatasetName());
         CallExpr datasrouceCallFunction = new CallExpr(new FunctionSignature(BuiltinFunctions.DATASET), exprList);
         FromTerm fromterm = new FromTerm(datasrouceCallFunction, fromTermLeftExpr, null, null);

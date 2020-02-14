@@ -209,7 +209,7 @@ public class JoinReOrderRule implements IAlgebraicRewriteRule {
                 if (datasource != null) {
                     if (child.getValue().getOperatorTag() == LogicalOperatorTag.ASSIGN) {
                         mut = child;
-                    } else {
+                    } else if (child.getValue().getOperatorTag() == LogicalOperatorTag.DATASOURCESCAN) {
                         mut = child;
                     }
                     break;
@@ -333,14 +333,26 @@ public class JoinReOrderRule implements IAlgebraicRewriteRule {
             }
             inputs = -1;
             for (Mutable<ILogicalOperator> mlo : joinA.getInputs()) {
-                inputs++;
+                //inputs++;
+                inputs = 0;
                 if (mlo.getValue().getOperatorTag() == LogicalOperatorTag.INNERJOIN) {
-                    if (inputs == 0) {
-                        findDataSource((AbstractLogicalOperator) mlo.getValue(), lvlA);
-                    } else {
-                        findDataSource((AbstractLogicalOperator) mlo.getValue(), lvrA);
+                    //if (inputs == 0) {
+                    DatasetDataSource ds = findDataSource((AbstractLogicalOperator) mlo.getValue(), lvlA);
+                    if (ds != null) {
+                        joinA.getInputs().set(inputs, mut);
+
                     }
-                    joinA.getInputs().set(inputs, mut);
+                    inputs++;
+                    DatasetDataSource dsr = findDataSource((AbstractLogicalOperator) mlo.getValue(), lvrA);
+                    if (dsr != null) {
+                        joinA.getInputs().set(inputs, mut);
+
+                    }
+                    //findDataSource((AbstractLogicalOperator) mlo.getValue(), lvlA);
+                    //                    } else {
+                    //                        findDataSource((AbstractLogicalOperator) mlo.getValue(), lvrA);
+                    //                    }
+                    //                    joinA.getInputs().set(inputs, mut);
                 }
             }
             if (size == 2) {

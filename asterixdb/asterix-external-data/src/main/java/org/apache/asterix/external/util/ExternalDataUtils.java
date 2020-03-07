@@ -29,6 +29,7 @@ import org.apache.asterix.external.api.IDataParserFactory;
 import org.apache.asterix.external.api.IExternalDataSourceFactory.DataSourceType;
 import org.apache.asterix.external.api.IInputStreamFactory;
 import org.apache.asterix.external.api.IRecordReaderFactory;
+import org.apache.asterix.om.base.temporal.ADateParserFactory;
 import org.apache.asterix.om.types.ARecordType;
 import org.apache.asterix.om.types.ATypeTag;
 import org.apache.asterix.om.types.AUnionType;
@@ -168,6 +169,7 @@ public class ExternalDataUtils {
         m.put(ATypeTag.DOUBLE, DoubleParserFactory.INSTANCE);
         m.put(ATypeTag.BIGINT, LongParserFactory.INSTANCE);
         m.put(ATypeTag.STRING, UTF8StringParserFactory.INSTANCE);
+        m.put(ATypeTag.DATE, ADateParserFactory.INSTANCE);
         return m;
     }
 

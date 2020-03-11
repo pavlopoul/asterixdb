@@ -55,7 +55,6 @@ import org.apache.asterix.dataflow.data.common.PartialAggregationTypeComputer;
 import org.apache.asterix.external.feed.watch.FeedActivityDetails;
 import org.apache.asterix.formats.base.IDataFormat;
 import org.apache.asterix.jobgen.QueryLogicalExpressionJobGen;
-import org.apache.asterix.lang.common.base.Expression.Kind;
 import org.apache.asterix.lang.common.base.IAstPrintVisitorFactory;
 import org.apache.asterix.lang.common.base.IQueryRewriter;
 import org.apache.asterix.lang.common.base.IReturningStatement;
@@ -67,9 +66,6 @@ import org.apache.asterix.lang.common.statement.Query;
 import org.apache.asterix.lang.common.statement.StartFeedStatement;
 import org.apache.asterix.lang.common.struct.VarIdentifier;
 import org.apache.asterix.lang.common.util.FunctionUtil;
-import org.apache.asterix.lang.sqlpp.clause.FromClause;
-import org.apache.asterix.lang.sqlpp.clause.FromTerm;
-import org.apache.asterix.lang.sqlpp.expression.SelectExpression;
 import org.apache.asterix.lang.sqlpp.rewrites.SqlppQueryRewriter;
 import org.apache.asterix.metadata.declared.MetadataProvider;
 import org.apache.asterix.om.base.IAObject;
@@ -159,7 +155,6 @@ public class APIFramework {
     private final IRuleSetFactory ruleSetFactory;
     private final ExecutionPlans executionPlans;
     public boolean finished = false;
-    public JobSpecification spec;
     public List<ILogicalOperator> operators;
     public JobGenContext context;
     public PlanCompiler pc;
@@ -212,8 +207,8 @@ public class APIFramework {
 
     public JobSpecification compileQuery(IClusterInfoCollector clusterInfoCollector, MetadataProvider metadataProvider,
             Query query, int varCounter, String outputDatasetName, SessionOutput output,
-            ICompiledDmlStatement statement, Map<VarIdentifier, IAObject> externalVars,
-            List<ILogicalOperator> operators, boolean first, Query newQuery) throws AlgebricksException, ACIDException {
+            ICompiledDmlStatement statement, Map<VarIdentifier, IAObject> externalVars)
+            throws AlgebricksException, ACIDException {
 
         // establish facts
         final boolean isQuery = query != null;
@@ -233,13 +228,7 @@ public class APIFramework {
         ILangExpressionToPlanTranslator t =
                 translatorFactory.createExpressionToPlanTranslator(metadataProvider, varCounter, externalVars);
         ILogicalPlan plan = null;
-        if (newQuery == null) {
-            plan = isLoad ? t.translateLoad(statement) : t.translate(query, outputDatasetName, statement);
-        } else {
-            ILogicalPlan newplan =
-                    isLoad ? t.translateLoad(statement) : t.translate(newQuery, outputDatasetName, statement);
-            plan = newplan;
-        }
+        plan = isLoad ? t.translateLoad(statement) : t.translate(query, outputDatasetName, statement);
 
         if ((isQuery || isLoad) && !conf.is(SessionConfig.FORMAT_ONLY_PHYSICAL_OPS)
                 && conf.is(SessionConfig.OOB_LOGICAL_PLAN)) {
@@ -315,30 +304,11 @@ public class APIFramework {
 
         JobEventListenerFactory jobEventListenerFactory =
                 new JobEventListenerFactory(txnId, metadataProvider.isWriteTransaction());
-        if (isLoad) {
-            finished = true;
-            spec = compiler.createLoadJob(metadataProvider.getApplicationContext(), jobEventListenerFactory);
-        } else {
-            boolean notJoinInPlan = true;
-            if (newQuery != null) {
-                query = newQuery;
-            }
-            if (query.getBody().getKind() == Kind.SELECT_EXPRESSION) {
-                SelectExpression select = (SelectExpression) query.getBody();
-                FromClause fromold = select.getSelectSetOperation().getLeftInput().getSelectBlock().getFromClause();
-                List<FromTerm> fromTerms = fromold.getFromTerms();
-                if (fromTerms.size() > 3) {
-                    notJoinInPlan = false;
-                }
-            }
-            operators = compiler.traversePlan(metadataProvider.getApplicationContext(), first, context, pc);
-            spec = compiler.createJob(metadataProvider.getApplicationContext(), jobEventListenerFactory, operators,
-                    first, notJoinInPlan);
-            finished = compiler.getFinished(metadataProvider.getApplicationContext(), first, context, pc);
-            this.operators = compiler.getOperators();
-        }
+        JobSpecification spec = compiler.createJob(metadataProvider.getApplicationContext(), jobEventListenerFactory);
 
-        if (isQuery) {
+        if (isQuery)
+
+        {
             // Sets a required capacity, only for read-only queries.
             // DDLs and DMLs are considered not that frequent.
             // limit the computation locations to the locations that will be used in the query

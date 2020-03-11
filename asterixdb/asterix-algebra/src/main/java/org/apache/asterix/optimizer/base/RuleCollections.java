@@ -81,11 +81,11 @@ import org.apache.asterix.optimizer.rules.SetupCommitExtensionOpRule;
 import org.apache.asterix.optimizer.rules.SimilarityCheckRule;
 import org.apache.asterix.optimizer.rules.SweepIllegalNonfunctionalFunctions;
 import org.apache.asterix.optimizer.rules.UnnestToDataScanRule;
-import org.apache.asterix.optimizer.rules.am.CostBasedRule;
 import org.apache.asterix.optimizer.rules.am.IntroduceJoinAccessMethodRule;
 import org.apache.asterix.optimizer.rules.am.IntroduceLSMComponentFilterRule;
 import org.apache.asterix.optimizer.rules.am.IntroducePrimaryIndexForAggregationRule;
 import org.apache.asterix.optimizer.rules.am.IntroduceSelectAccessMethodRule;
+import org.apache.asterix.optimizer.rules.am.JoinReOrderRule;
 import org.apache.asterix.optimizer.rules.subplan.AsterixMoveFreeVariableOperatorOutOfSubplanRule;
 import org.apache.asterix.optimizer.rules.subplan.InlineSubplanInputForNestedTupleSourceRule;
 import org.apache.asterix.optimizer.rules.temporal.TranslateIntervalExpressionRule;
@@ -407,8 +407,8 @@ public final class RuleCollections {
     public static List<IAlgebraicRewriteRule> buildInferCardinalityRuleCollection() {
         List<IAlgebraicRewriteRule> cardinalityRewrites = new LinkedList<>();
         //cardinalityRewrites.add(new InferCardinalityRule());
-        //cardinalityRewrites.add(new JoinReOrderRule());
-        cardinalityRewrites.add(new CostBasedRule());
+        cardinalityRewrites.add(new JoinReOrderRule());
+        //        cardinalityRewrites.add(new CostBasedRule());
         return cardinalityRewrites;
     }
 }

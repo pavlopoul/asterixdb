@@ -62,6 +62,7 @@ public class JoinReOrderRule implements IAlgebraicRewriteRule {
 
     private Mutable<ILogicalOperator> mut;
     private TreeMap<Long, List<Mutable<ILogicalOperator>>> map = new TreeMap<>(Collections.reverseOrder());
+    private List<Mutable<ILogicalOperator>> selectSet = new ArrayList<>();
     private AbstractLogicalOperator alo, sOp, lOp;
     private String fieldName = "";
     private String[] pKey;
@@ -169,33 +170,38 @@ public class JoinReOrderRule implements IAlgebraicRewriteRule {
                     }
 
                 } else {
-                    LogicalVariable lvl = ((VariableReferenceExpression) sfce.getArguments().get(0).getValue())
-                            .getVariableReference();
-                    DatasetDataSource datasourcel = findDataSource(join, lvl);
-                    AssignOperator assignl = null;
-                    lOp = sOp;
-                    if (sOp.getOperatorTag() == LogicalOperatorTag.ASSIGN) {
-                        assignl = (AssignOperator) sOp;
-                    }
-                    LogicalVariable lvr = ((VariableReferenceExpression) sfce.getArguments().get(1).getValue())
-                            .getVariableReference();
-                    datasourcer = findDataSource(join, lvr);
-                    if (sOp.getOperatorTag() == LogicalOperatorTag.ASSIGN) {
-                        assignr = (AssignOperator) sOp;
+                    if (join.getInputs().get(0).getValue().getOperatorTag() == LogicalOperatorTag.SELECT
+                            || join.getInputs().get(1).getValue().getOperatorTag() == LogicalOperatorTag.SELECT) {
+                        selectSet.add(new MutableObject<>(join));
                     } else {
-                        assignr = null;
+                        LogicalVariable lvl = ((VariableReferenceExpression) sfce.getArguments().get(0).getValue())
+                                .getVariableReference();
+                        DatasetDataSource datasourcel = findDataSource(join, lvl);
+                        AssignOperator assignl = null;
+                        lOp = sOp;
+                        if (sOp.getOperatorTag() == LogicalOperatorTag.ASSIGN) {
+                            assignl = (AssignOperator) sOp;
+                        }
+                        LogicalVariable lvr = ((VariableReferenceExpression) sfce.getArguments().get(1).getValue())
+                                .getVariableReference();
+                        datasourcer = findDataSource(join, lvr);
+                        if (sOp.getOperatorTag() == LogicalOperatorTag.ASSIGN) {
+                            assignr = (AssignOperator) sOp;
+                        } else {
+                            assignr = null;
+                        }
+                        long key = inferCardinality((AbstractLogicalOperator) child.getValue(), context, datasourcel,
+                                datasourcer, assignl, assignr);
+                        System.out.println(key);
+                        if (map.containsKey(key)) {
+                            map.get(key).add(child);
+                        } else {
+                            map.put(key, new ArrayList<>());
+                            map.get(key).add(child);
+                        }
                     }
-                    long key = inferCardinality((AbstractLogicalOperator) child.getValue(), context, datasourcel,
-                            datasourcer, assignl, assignr);
-                    System.out.println(key);
-                    if (map.containsKey(key)) {
-                        map.get(key).add(child);
-                    } else {
-                        map.put(key, new ArrayList<>());
-                        map.get(key).add(child);
-                    }
+                    populateMap(child.getValue().getInputs(), datasourcer, assignr, context, only2joins);
                 }
-                populateMap(child.getValue().getInputs(), datasourcer, assignr, context, only2joins);
             }
         }
     }
@@ -291,115 +297,145 @@ public class JoinReOrderRule implements IAlgebraicRewriteRule {
     public boolean rewritePost(Mutable<ILogicalOperator> opRef, IOptimizationContext context)
             throws AlgebricksException {
         if (alo != null && !map.isEmpty()) {
-            TreeMap<Long, List<Mutable<ILogicalOperator>>> twomap = new TreeMap<>();
-            twomap.put(map.lastKey(), map.lastEntry().getValue());
-            int size = map.size();
+            InnerJoinOperator joinA;
+            LogicalVariable lvrA;
+            LogicalVariable lvlA;
+            if (!selectSet.isEmpty()) {
+                joinA = (InnerJoinOperator) selectSet.get(0).getValue();
+                Mutable<ILogicalExpression> conditionA = joinA.getCondition();
 
-            //            if (size == 2) {
-            //                map.clear();
-            //                return false;
-            //            }
-            map.remove(map.lastKey());
-            twomap.put(map.lastKey(), map.lastEntry().getValue());
-            InnerJoinOperator joinA = (InnerJoinOperator) twomap.firstEntry().getValue().get(0).getValue();
+                ScalarFunctionCallExpression sfceA = (ScalarFunctionCallExpression) conditionA.getValue();
 
-            Mutable<ILogicalExpression> conditionA = joinA.getCondition();
+                lvrA = ((VariableReferenceExpression) sfceA.getArguments().get(1).getValue()).getVariableReference();
+                lvlA = ((VariableReferenceExpression) sfceA.getArguments().get(0).getValue()).getVariableReference();
+                int inputs = -1;
+                for (Mutable<ILogicalOperator> mlo : joinA.getInputs()) {
+                    inputs = 0;
+                    if (mlo.getValue().getOperatorTag() == LogicalOperatorTag.INNERJOIN) {
+                        DatasetDataSource ds = findDataSource((AbstractLogicalOperator) mlo.getValue(), lvlA);
+                        if (ds != null) {
+                            joinA.getInputs().set(inputs, mut);
 
-            ScalarFunctionCallExpression sfceA = (ScalarFunctionCallExpression) conditionA.getValue();
-            if (sfceA.getFunctionIdentifier().getName() == "and") {
-                map.clear();
-                return false;
-            }
-            LogicalVariable lvrA =
-                    ((VariableReferenceExpression) sfceA.getArguments().get(1).getValue()).getVariableReference();
-            LogicalVariable lvlA =
-                    ((VariableReferenceExpression) sfceA.getArguments().get(0).getValue()).getVariableReference();
-            int inputs = -1;
-            for (Mutable<ILogicalOperator> mlo : joinA.getInputs()) {
-                inputs++;
-                LogicalVariable lv = findSelect(mlo.getValue());
-                if (lv != null) {
-                    DatasetDataSource ds = findDataSource((AbstractLogicalOperator) mlo.getValue(), lv);
-                    DatasetDataSource ds1;
-                    if (inputs == 0) {
-                        ds1 = findDataSource((AbstractLogicalOperator) mlo.getValue(), lvlA);
-                    } else {
-                        ds1 = findDataSource((AbstractLogicalOperator) mlo.getValue(), lvrA);
-                    }
-                    if (ds.equals(ds1)) {
-                        joinA.getInputs().set(inputs, new MutableObject<>(select));
+                        }
+                        inputs++;
+                        DatasetDataSource dsr = findDataSource((AbstractLogicalOperator) mlo.getValue(), lvrA);
+                        if (dsr != null) {
+                            joinA.getInputs().set(inputs, mut);
+
+                        }
                     }
                 }
-            }
-            inputs = -1;
-            for (Mutable<ILogicalOperator> mlo : joinA.getInputs()) {
-                //inputs++;
-                inputs = 0;
-                if (mlo.getValue().getOperatorTag() == LogicalOperatorTag.INNERJOIN) {
-                    //if (inputs == 0) {
-                    DatasetDataSource ds = findDataSource((AbstractLogicalOperator) mlo.getValue(), lvlA);
-                    if (ds != null) {
-                        joinA.getInputs().set(inputs, mut);
+            } else {
+                TreeMap<Long, List<Mutable<ILogicalOperator>>> twomap = new TreeMap<>();
+                twomap.put(map.lastKey(), map.lastEntry().getValue());
+                int size = map.size();
 
-                    }
-                    inputs++;
-                    DatasetDataSource dsr = findDataSource((AbstractLogicalOperator) mlo.getValue(), lvrA);
-                    if (dsr != null) {
-                        joinA.getInputs().set(inputs, mut);
+                //            if (size == 2) {
+                //                map.clear();
+                //                return false;
+                //            }
+                map.remove(map.lastKey());
+                twomap.put(map.lastKey(), map.lastEntry().getValue());
+                joinA = (InnerJoinOperator) twomap.firstEntry().getValue().get(0).getValue();
 
-                    }
-                    //findDataSource((AbstractLogicalOperator) mlo.getValue(), lvlA);
-                    //                    } else {
-                    //                        findDataSource((AbstractLogicalOperator) mlo.getValue(), lvrA);
-                    //                    }
-                    //                    joinA.getInputs().set(inputs, mut);
+                Mutable<ILogicalExpression> conditionA = joinA.getCondition();
+
+                ScalarFunctionCallExpression sfceA = (ScalarFunctionCallExpression) conditionA.getValue();
+                if (sfceA.getFunctionIdentifier().getName() == "and") {
+                    map.clear();
+                    return false;
                 }
-            }
-            if (size == 2) {
-                InnerJoinOperator joinB = (InnerJoinOperator) twomap.lastEntry().getValue().get(0).getValue();
-                Mutable<ILogicalExpression> conditionB = joinB.getCondition();
+                lvrA = ((VariableReferenceExpression) sfceA.getArguments().get(1).getValue()).getVariableReference();
+                lvlA = ((VariableReferenceExpression) sfceA.getArguments().get(0).getValue()).getVariableReference();
+                int inputs = -1;
+                //            for (Mutable<ILogicalOperator> mlo : joinA.getInputs()) {
+                //                inputs++;
+                //                LogicalVariable lv = findSelect(mlo.getValue());
+                //                if (lv != null) {
+                //                    DatasetDataSource ds = findDataSource((AbstractLogicalOperator) mlo.getValue(), lv);
+                //                    DatasetDataSource ds1;
+                //                    if (inputs == 0) {
+                //                        ds1 = findDataSource((AbstractLogicalOperator) mlo.getValue(), lvlA);
+                //                    } else {
+                //                        ds1 = findDataSource((AbstractLogicalOperator) mlo.getValue(), lvrA);
+                //                    }
+                //                    if (ds.equals(ds1)) {
+                //                        joinA.getInputs().set(inputs, new MutableObject<>(select));
+                //                    }
+                //                }
+                //            }
+                //            inputs = -1;
+                for (Mutable<ILogicalOperator> mlo : joinA.getInputs()) {
+                    //inputs++;
+                    inputs = 0;
+                    if (mlo.getValue().getOperatorTag() == LogicalOperatorTag.INNERJOIN) {
+                        //if (inputs == 0) {
+                        DatasetDataSource ds = findDataSource((AbstractLogicalOperator) mlo.getValue(), lvlA);
+                        if (ds != null) {
+                            joinA.getInputs().set(inputs, mut);
 
-                ScalarFunctionCallExpression sfceB = (ScalarFunctionCallExpression) conditionB.getValue();
-                LogicalVariable lvlB;
-                LogicalVariable lvrB;
-                if (joinB.getInputs().get(0).getValue().getOperatorTag() != LogicalOperatorTag.INNERJOIN
-                        && joinB.getInputs().get(1).getValue().getOperatorTag() != LogicalOperatorTag.INNERJOIN) {
-                    if (sfceB.getFunctionIdentifier().getName() == "and") {
-                        ScalarFunctionCallExpression sfc =
-                                (ScalarFunctionCallExpression) sfceB.getArguments().get(0).getValue();
-                        lvlB = ((VariableReferenceExpression) sfc.getArguments().get(0).getValue())
-                                .getVariableReference();
-                        lvrB = ((VariableReferenceExpression) sfc.getArguments().get(1).getValue())
-                                .getVariableReference();
-                    } else {
-                        lvlB = ((VariableReferenceExpression) sfceB.getArguments().get(0).getValue())
-                                .getVariableReference();
-                        lvrB = ((VariableReferenceExpression) sfceB.getArguments().get(1).getValue())
-                                .getVariableReference();
-                    }
-                    DatasetDataSource datasourcelB = findDataSource(joinB, lvlB);
-                    DatasetDataSource datasourcerB = findDataSource(joinB, lvrB);
-                    DatasetDataSource datasourcelA = findDataSource(joinA, lvlA);
-                    DatasetDataSource datasourcerA = findDataSource(joinA, lvrA);
+                        }
+                        inputs++;
+                        DatasetDataSource dsr = findDataSource((AbstractLogicalOperator) mlo.getValue(), lvrA);
+                        if (dsr != null) {
+                            joinA.getInputs().set(inputs, mut);
 
-                    //                    if (lvlB == lvlA || lvlB == lvrA) {
-                    if (datasourcelB == datasourcelA || datasourcelB == datasourcerA) {
-                        InnerJoinOperator finaljoin = new InnerJoinOperator(joinB.getCondition(),
-                                new MutableObject<ILogicalOperator>(joinA), joinB.getInputs().get(1));
-                        //joinB.getInputs().set(0, new MutableObject<ILogicalOperator>(joinA));
-                        context.computeAndSetTypeEnvironmentForOperator(finaljoin);
-                        alo.getInputs().clear();
-                        alo.getInputs().add(new MutableObject<ILogicalOperator>(finaljoin));
-                    } else if (datasourcerB == datasourcerA || datasourcerB == datasourcelA) {
-                        InnerJoinOperator finaljoin = new InnerJoinOperator(joinB.getCondition(),
-                                joinB.getInputs().get(0), new MutableObject<ILogicalOperator>(joinA));
-                        context.computeAndSetTypeEnvironmentForOperator(finaljoin);
-                        alo.getInputs().clear();
-                        alo.getInputs().add(new MutableObject<ILogicalOperator>(finaljoin));
+                        }
+                        //findDataSource((AbstractLogicalOperator) mlo.getValue(), lvlA);
+                        //                    } else {
+                        //                        findDataSource((AbstractLogicalOperator) mlo.getValue(), lvrA);
+                        //                    }
+                        //                    joinA.getInputs().set(inputs, mut);
                     }
                 }
-                map.clear();
-                return true;
+
+                if (size == 2 && twomap.firstEntry().getValue().size() == 1
+                        && twomap.lastEntry().getValue().size() == 1) {
+                    InnerJoinOperator joinB = (InnerJoinOperator) twomap.lastEntry().getValue().get(0).getValue();
+                    Mutable<ILogicalExpression> conditionB = joinB.getCondition();
+
+                    ScalarFunctionCallExpression sfceB = (ScalarFunctionCallExpression) conditionB.getValue();
+                    LogicalVariable lvlB;
+                    LogicalVariable lvrB;
+                    if (joinB.getInputs().get(0).getValue().getOperatorTag() != LogicalOperatorTag.INNERJOIN
+                            && joinB.getInputs().get(1).getValue().getOperatorTag() != LogicalOperatorTag.INNERJOIN) {
+                        if (sfceB.getFunctionIdentifier().getName() == "and") {
+                            ScalarFunctionCallExpression sfc =
+                                    (ScalarFunctionCallExpression) sfceB.getArguments().get(0).getValue();
+                            lvlB = ((VariableReferenceExpression) sfc.getArguments().get(0).getValue())
+                                    .getVariableReference();
+                            lvrB = ((VariableReferenceExpression) sfc.getArguments().get(1).getValue())
+                                    .getVariableReference();
+                        } else {
+                            lvlB = ((VariableReferenceExpression) sfceB.getArguments().get(0).getValue())
+                                    .getVariableReference();
+                            lvrB = ((VariableReferenceExpression) sfceB.getArguments().get(1).getValue())
+                                    .getVariableReference();
+                        }
+                        DatasetDataSource datasourcelB = findDataSource(joinB, lvlB);
+                        DatasetDataSource datasourcerB = findDataSource(joinB, lvrB);
+                        DatasetDataSource datasourcelA = findDataSource(joinA, lvlA);
+                        DatasetDataSource datasourcerA = findDataSource(joinA, lvrA);
+
+                        //                    if (lvlB == lvlA || lvlB == lvrA) {
+                        if (datasourcelB == datasourcelA || datasourcelB == datasourcerA) {
+                            InnerJoinOperator finaljoin = new InnerJoinOperator(joinB.getCondition(),
+                                    new MutableObject<ILogicalOperator>(joinA), joinB.getInputs().get(1));
+                            //joinB.getInputs().set(0, new MutableObject<ILogicalOperator>(joinA));
+                            context.computeAndSetTypeEnvironmentForOperator(finaljoin);
+                            alo.getInputs().clear();
+                            alo.getInputs().add(new MutableObject<ILogicalOperator>(finaljoin));
+                        } else if (datasourcerB == datasourcerA || datasourcerB == datasourcelA) {
+                            InnerJoinOperator finaljoin = new InnerJoinOperator(joinB.getCondition(),
+                                    joinB.getInputs().get(0), new MutableObject<ILogicalOperator>(joinA));
+                            context.computeAndSetTypeEnvironmentForOperator(finaljoin);
+                            alo.getInputs().clear();
+                            alo.getInputs().add(new MutableObject<ILogicalOperator>(finaljoin));
+                        }
+                    }
+                    map.clear();
+                    return true;
+                }
             }
             alo.getInputs().clear();
             alo.getInputs().add(new MutableObject<ILogicalOperator>(joinA));

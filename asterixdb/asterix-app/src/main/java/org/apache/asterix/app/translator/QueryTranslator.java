@@ -927,8 +927,9 @@ public class QueryTranslator extends AbstractLangTranslator implements IStatemen
                     overridesFieldTypes = true;
                 }
                 if (fieldType == null) {
-                    throw new CompilationException(ErrorCode.UNKNOWN_TYPE, sourceLoc, fieldExpr.second == null
-                            ? String.valueOf(fieldExpr.first) : String.valueOf(fieldExpr.second));
+                    throw new CompilationException(ErrorCode.UNKNOWN_TYPE, sourceLoc,
+                            fieldExpr.second == null ? String.valueOf(fieldExpr.first)
+                                    : String.valueOf(fieldExpr.second));
                 }
 
                 // try to add the key & its source to the set of keys, if key couldn't be added,
@@ -3036,7 +3037,7 @@ public class QueryTranslator extends AbstractLangTranslator implements IStatemen
                                         ((FieldAccessor) oldselect.getSelectRegular().getProjections().get(0)
                                                 .getExpression()).getIdent()),
                                 oldselect.getSelectRegular().getProjections().get(0).getName(), false, false));
-
+                break;
             }
         }
         if (!newprojection.isEmpty()) {
@@ -3142,6 +3143,10 @@ public class QueryTranslator extends AbstractLangTranslator implements IStatemen
                     }
 
                 }
+            }
+            int opSize = newWhereExpr.getExprList().size() - 1;
+            while (newWhereExpr.getOpList().size() > opSize) {
+                newWhereExpr.getOpList().remove(newWhereExpr.getOpList().size() - 1);
             }
             WhereClause newwhere = new WhereClause(newWhereExpr);
             SelectBlock selectBlock = new SelectBlock(newselect, fromClause, null, newwhere, null, null, null);

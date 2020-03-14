@@ -59,13 +59,14 @@ public class QuantileSketchBuilder
             if (prev == null) {
                 prev = sketch.getElements().firstEntry().getValue();
             }
-            if (r > prev) {
-                uniqueValues = sketch.getElements().subMap(prev, r).size();
-            }
+            //            if (r > prev) {
+            //                uniqueValues = sketch.getElements().subMap(prev, r).size();
+            //            }
             prev = r;
         }
         if (prev != null) {
-            synopsis.getElements().add(new HistogramBucket(prev, bucketHeight, uniqueValues + 1, height));
+            //            synopsis.getElements().add(new HistogramBucket(prev, bucketHeight, uniqueValues + 1, height));
+            synopsis.getElements().add(new HistogramBucket(prev, bucketHeight, sketch.getElements().size(), height));
         }
     }
 

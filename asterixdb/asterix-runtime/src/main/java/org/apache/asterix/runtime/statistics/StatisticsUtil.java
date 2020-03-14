@@ -25,6 +25,8 @@ import org.apache.asterix.dataflow.data.nontagged.serde.AIntegerSerializerDeseri
 import org.apache.asterix.formats.nontagged.SerializerDeserializerProvider;
 import org.apache.asterix.om.pointables.nonvisitor.ARecordPointable;
 import org.apache.asterix.om.types.ARecordType;
+import org.apache.asterix.om.types.ATypeTag;
+import org.apache.asterix.om.types.AUnionType;
 import org.apache.asterix.om.types.IAType;
 import org.apache.asterix.om.types.hierachy.ATypeHierarchy;
 import org.apache.asterix.om.types.hierachy.ATypeHierarchy.Domain;
@@ -66,6 +68,9 @@ public class StatisticsUtil {
         if (isPrimaryIndex && unorderedStatisticsFields != null && unorderedStatisticsFields.length > 0) {
             for (int i = 0; i < unorderedStatisticsFields.length; i++) {
                 IAType statisticsType = recordType.getFieldType(unorderedStatisticsFields[i]);
+                if (statisticsType.getTypeTag() == ATypeTag.UNION) {
+                    statisticsType = ((AUnionType) statisticsType).getActualType();
+                }
                 if (ATypeHierarchy.belongsToDomain(statisticsType.getTypeTag(), Domain.INTEGER)) {
                     AIntegerSerializerDeserializer serDe =
                             (AIntegerSerializerDeserializer) SerializerDeserializerProvider.INSTANCE

@@ -26,6 +26,7 @@ import java.util.List;
 import java.util.TreeMap;
 
 import org.apache.asterix.metadata.declared.DatasetDataSource;
+import org.apache.asterix.metadata.entities.InternalDatasetDetails;
 import org.apache.asterix.om.base.AInt32;
 import org.apache.asterix.om.base.AString;
 import org.apache.asterix.om.base.IAObject;
@@ -247,8 +248,10 @@ public class JoinReOrderRule implements IAlgebraicRewriteRule {
                     pKey = new String[size];
                     dscanvar = new LogicalVariable[size];
                     for (int j = 0; j < size; j++) {
-                        pKey[j] = ((ARecordType) ((DatasetDataSource) scan.getDataSource()).getItemType())
-                                .getFieldNames()[j];
+                        //                        pKey[j] = ((ARecordType) ((DatasetDataSource) scan.getDataSource()).getItemType())
+                        //                                .getFieldNames()[j];
+                        pKey[j] = ((InternalDatasetDetails) ((DatasetDataSource) scan.getDataSource()).getDataset()
+                                .getDatasetDetails()).getPrimaryKey().get(j).get(0);
                         dscanvar[j] = scan.getVariables().get(j);
                     }
 
@@ -259,17 +262,22 @@ public class JoinReOrderRule implements IAlgebraicRewriteRule {
             scan = (DataSourceScanOperator) op;
         }
         if (!vfromAssign) {
+            int k = -1;
             for (LogicalVariable scanVar : scan.getVariables()) {
+                k++;
                 if (lv == scanVar) {
                     vfromAssign = true;
-                    fieldName =
-                            ((ARecordType) ((DatasetDataSource) scan.getDataSource()).getItemType()).getFieldNames()[0];
+                    fieldName = ((InternalDatasetDetails) ((DatasetDataSource) scan.getDataSource()).getDataset()
+                            .getDatasetDetails()).getPrimaryKey().get(k).get(0);
+                    //((ARecordType) ((DatasetDataSource) scan.getDataSource()).getItemType()).getFieldNames()[0];
                     int size = scan.getVariables().size() - 1;
                     pKey = new String[size];
                     dscanvar = new LogicalVariable[size];
                     for (int j = 0; j < size; j++) {
-                        pKey[j] = ((ARecordType) ((DatasetDataSource) scan.getDataSource()).getItemType())
-                                .getFieldNames()[j];
+                        //                        pKey[j] = ((ARecordType) ((DatasetDataSource) scan.getDataSource()).getItemType())
+                        //                                .getFieldNames()[j];
+                        pKey[j] = ((InternalDatasetDetails) ((DatasetDataSource) scan.getDataSource()).getDataset()
+                                .getDatasetDetails()).getPrimaryKey().get(j).get(0);
                         dscanvar[j] = scan.getVariables().get(j);
                     }
                     sOp = scan;
@@ -335,7 +343,9 @@ public class JoinReOrderRule implements IAlgebraicRewriteRule {
                 //                return false;
                 //            }
                 map.remove(map.lastKey());
-                twomap.put(map.lastKey(), map.lastEntry().getValue());
+                if (size > 1) {
+                    twomap.put(map.lastKey(), map.lastEntry().getValue());
+                }
                 joinA = (InnerJoinOperator) twomap.firstEntry().getValue().get(0).getValue();
 
                 Mutable<ILogicalExpression> conditionA = joinA.getCondition();
@@ -389,9 +399,15 @@ public class JoinReOrderRule implements IAlgebraicRewriteRule {
                     }
                 }
 
-                if (size == 2 && twomap.firstEntry().getValue().size() == 1
-                        && twomap.lastEntry().getValue().size() == 1) {
-                    InnerJoinOperator joinB = (InnerJoinOperator) twomap.lastEntry().getValue().get(0).getValue();
+                if ((size == 2 && twomap.firstEntry().getValue().size() == 1
+                        && twomap.lastEntry().getValue().size() == 1) || size == 1) {
+                    InnerJoinOperator joinB;
+                    if (size == 1) {
+                        joinB = (InnerJoinOperator) twomap.lastEntry().getValue().get(1).getValue();
+
+                    } else {
+                        joinB = (InnerJoinOperator) twomap.lastEntry().getValue().get(0).getValue();
+                    }
                     Mutable<ILogicalExpression> conditionB = joinB.getCondition();
 
                     ScalarFunctionCallExpression sfceB = (ScalarFunctionCallExpression) conditionB.getValue();

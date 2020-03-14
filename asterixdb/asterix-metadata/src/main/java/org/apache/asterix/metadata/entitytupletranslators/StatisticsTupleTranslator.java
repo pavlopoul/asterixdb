@@ -55,6 +55,8 @@ import org.apache.asterix.om.base.AString;
 import org.apache.asterix.om.base.IACursor;
 import org.apache.asterix.om.types.AOrderedListType;
 import org.apache.asterix.om.types.ARecordType;
+import org.apache.asterix.om.types.ATypeTag;
+import org.apache.asterix.om.types.AUnionType;
 import org.apache.asterix.om.types.BuiltinType;
 import org.apache.hyracks.algebricks.common.exceptions.AlgebricksException;
 import org.apache.hyracks.api.dataflow.value.ISerializerDeserializer;
@@ -141,8 +143,16 @@ public class StatisticsTupleTranslator extends AbstractTupleTranslator<Statistic
         Map<Long, Integer> uniqueElems = new HashMap<>();
         Dataset ds = metadataNode.getDataset(txnId, dataverseName, datasetName);
         Datatype type = metadataNode.getDatatype(txnId, ds.getItemTypeDataverseName(), ds.getItemTypeName());
-        ITypeTraits keyTypeTraits =
-                TypeTraitProvider.INSTANCE.getTypeTrait(((ARecordType) type.getDatatype()).getFieldType(fieldName));
+
+        ITypeTraits keyTypeTraits;
+        if (((ARecordType) type.getDatatype()).getFieldType(fieldName).getTypeTag() == ATypeTag.UNION) {
+            keyTypeTraits = TypeTraitProvider.INSTANCE.getTypeTrait(
+                    ((AUnionType) ((ARecordType) type.getDatatype()).getFieldType(fieldName)).getActualType());
+        } else {
+
+            keyTypeTraits =
+                    TypeTraitProvider.INSTANCE.getTypeTrait(((ARecordType) type.getDatatype()).getFieldType(fieldName));
+        }
         try {
             while (cursor.next()) {
                 ARecord coeff = (ARecord) cursor.get();

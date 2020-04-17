@@ -45,6 +45,7 @@ public class QuantileSketchBuilder
         //extract quantiles from the sketch, i.e. create an equi-height histogram
         List<Long> ranks = sketch.finish();
         long height = Math.max(sketch.length() / (Math.max(ranks.size(), 1)), 1);
+        long cardinality = sketch.finishHll();
         // take into account that rank values could contain duplicates
         Long prev = null;
         long bucketHeight = 0;
@@ -66,13 +67,15 @@ public class QuantileSketchBuilder
         }
         if (prev != null) {
             //            synopsis.getElements().add(new HistogramBucket(prev, bucketHeight, uniqueValues + 1, height));
-            synopsis.getElements().add(new HistogramBucket(prev, bucketHeight, sketch.getElements().size(), height));
+            //            synopsis.getElements().add(new HistogramBucket(prev, bucketHeight, sketch.getElements().size(), height));
+            synopsis.getElements().add(new HistogramBucket(prev, bucketHeight, cardinality, height));
         }
     }
 
     @Override
     public void addValue(long value) {
         sketch.insert(value);
+        sketch.insertToHll(value);
     }
 
     @Override

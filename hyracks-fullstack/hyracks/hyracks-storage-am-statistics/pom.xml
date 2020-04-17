@@ -137,5 +137,10 @@
       <artifactId>hyracks-dataflow-std</artifactId>
       <version>0.3.5-SNAPSHOT</version>
     </dependency>
+    <dependency>
+      <groupId>net.agkn</groupId>
+      <artifactId>hll</artifactId>
+      <version>1.6.0</version>
+    </dependency>
   </dependencies>
 </project>

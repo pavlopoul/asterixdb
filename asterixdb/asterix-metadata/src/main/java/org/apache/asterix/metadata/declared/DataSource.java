@@ -25,6 +25,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
+import org.apache.asterix.om.types.ARecordType;
 import org.apache.asterix.om.types.IAType;
 import org.apache.hyracks.algebricks.common.constraints.AlgebricksPartitionConstraint;
 import org.apache.hyracks.algebricks.common.exceptions.AlgebricksException;
@@ -122,6 +123,11 @@ public abstract class DataSource implements IDataSource<DataSourceId> {
 
     public Map<String, Serializable> getProperties() {
         return properties;
+    }
+
+    @Override
+    public int fieldsSize() {
+        return ((ARecordType) itemType).getFieldNames().length;
     }
 
     public IAType getItemType() {

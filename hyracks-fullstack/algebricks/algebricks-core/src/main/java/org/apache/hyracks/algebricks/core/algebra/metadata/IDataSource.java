@@ -37,4 +37,6 @@ public interface IDataSource<T> {
     public boolean isScanAccessPathALeaf();
 
     public INodeDomain getDomain();
+
+    int fieldsSize();
 }

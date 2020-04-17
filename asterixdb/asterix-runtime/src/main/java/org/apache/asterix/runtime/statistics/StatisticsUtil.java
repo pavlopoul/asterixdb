@@ -116,6 +116,9 @@ public class StatisticsUtil {
                 }
                 recPointable.set(tuple.getFieldData(hyracksFieldIdx), tuple.getFieldStart(hyracksFieldIdx),
                         tuple.getFieldLength(hyracksFieldIdx));
+                if (recPointable.isClosedFieldNull(recordType, statisticsFieldIdx)) {
+                    return -1l;
+                }
                 return serde.getLongValue(recPointable.getByteArray(),
                         recPointable.getClosedFieldOffset(recordType, statisticsFieldIdx));
 

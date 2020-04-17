@@ -36,6 +36,8 @@ public class CardinalityEstimator implements ICardinalityEstimator {
 
     private long estimationTime;
 
+    private List<Statistics> statistics;
+
     private CardinalityEstimator() {
     }
 
@@ -43,7 +45,7 @@ public class CardinalityEstimator implements ICardinalityEstimator {
     public long getRangeCardinality(IMetadataProvider metadataProvider, String dataverseName, String datasetName,
             List<String> fieldName, long rangeStart, long rangeStop) throws AlgebricksException {
 
-        getUniqueCardinality(metadataProvider, dataverseName, datasetName, fieldName);
+        //getUniqueCardinality(metadataProvider, dataverseName, datasetName, fieldName);
         List<Statistics> stats = null;
         List<Index> datasetIndexes =
                 ((MetadataProvider) metadataProvider).getDatasetIndexes(dataverseName, datasetName);
@@ -81,35 +83,51 @@ public class CardinalityEstimator implements ICardinalityEstimator {
     }
 
     @Override
+    public long getTableCardinality(IMetadataProvider metadataProvider, String dataverseName, String datasetName,
+            List<String> fieldName) throws AlgebricksException {
+        statistics = getFieldStats(metadataProvider, dataverseName, datasetName, fieldName);
+        long result = 0l;
+        for (Statistics s : statistics) {
+            result += s.getSynopsis().joinQuery(s.getSynopsis(), this.primIndex);
+        }
+        return result;
+    }
+
+    @Override
     public long getJoinCardinality(IMetadataProvider metadataProvider, String innerDataverseName,
             String innerDatasetName, List<String> innerFieldName, String outerDataverseName, String outerDatasetName,
             List<String> outerFieldName) throws AlgebricksException {
-        List<Statistics> innerStats =
-                getFieldStats(metadataProvider, innerDataverseName, innerDatasetName, innerFieldName);
-        List<Statistics> outerStats =
-                getFieldStats(metadataProvider, outerDataverseName, outerDatasetName, outerFieldName);
+        //        List<Statistics> innerStats =
+        //                getFieldStats(metadataProvider, innerDataverseName, innerDatasetName, innerFieldName);
+        //        List<Statistics> outerStats =
+        //                getFieldStats(metadataProvider, outerDataverseName, outerDatasetName, outerFieldName);
+        //
+        //        double result = 0.0;
+        //        double resultout = 0.0;
+        long result = getTableCardinality(metadataProvider, innerDataverseName, innerDatasetName, innerFieldName);
+        long innerUniqueValues = getUniqueCardinality(statistics);
 
-        double result = 0.0;
-        double resultout = 0.0;
-        long innerUniqueValues =
-                getUniqueCardinality(metadataProvider, innerDataverseName, innerDatasetName, innerFieldName);
-        long outerUniqueValues =
-                getUniqueCardinality(metadataProvider, outerDataverseName, outerDatasetName, outerFieldName);
-        if ((innerStats == null || innerStats.isEmpty()) && (outerStats == null || outerStats.isEmpty())) {
-            return CardinalityInferenceVisitor.UNKNOWN;
-        }
-        for (Statistics s : innerStats) {
-            result += s.getSynopsis().joinQuery(s.getSynopsis(), this.primIndex);
-        }
+        long resultout = getTableCardinality(metadataProvider, outerDataverseName, outerDatasetName, outerFieldName);
 
-        for (Statistics sec : outerStats) {
-            resultout += sec.getSynopsis().joinQuery(sec.getSynopsis(), this.primIndex);
-        }
+        //        long innerUniqueValues =
+        //                getUniqueCardinality(metadataProvider, innerDataverseName, innerDatasetName, innerFieldName);
+        //        long outerUniqueValues =
+        //                getUniqueCardinality(metadataProvider, outerDataverseName, outerDatasetName, outerFieldName);
+        long outerUniqueValues = getUniqueCardinality(statistics);
+        //        if ((innerStats == null || innerStats.isEmpty()) && (outerStats == null || outerStats.isEmpty())) {
+        //            return CardinalityInferenceVisitor.UNKNOWN;
+        //        }
+        //        for (Statistics s : innerStats) {
+        //            result += s.getSynopsis().joinQuery(s.getSynopsis(), this.primIndex);
+        //        }
+        //
+        //        for (Statistics sec : outerStats) {
+        //            resultout += sec.getSynopsis().joinQuery(sec.getSynopsis(), this.primIndex);
+        //        }
 
         System.out.println(result + ", " + resultout);
         System.out.println(innerUniqueValues + ", " + outerUniqueValues);
-        return Math.round(Math.max(1, result) * Math.max(1, resultout))
-                / Math.max(innerUniqueValues, outerUniqueValues);
+        return Math.max(1, result) * Math.max(1, resultout) / Math.max(innerUniqueValues, outerUniqueValues);
     }
 
     private List<Statistics> getFieldStats(IMetadataProvider metadataProvider, String dataverseName, String datasetName,
@@ -137,15 +155,16 @@ public class CardinalityEstimator implements ICardinalityEstimator {
         return stats;
     }
 
-    @Override
-    public long getUniqueCardinality(IMetadataProvider metadataProvider, String dataverseName, String datasetName,
-            List<String> fieldName) throws AlgebricksException {
+    //@Override
+    //    public long getUniqueCardinality(IMetadataProvider metadataProvider, String dataverseName, String datasetName,
+    //            List<String> fieldName) throws AlgebricksException {
+    public long getUniqueCardinality(List<Statistics> stats) throws AlgebricksException {
 
         long estimate = 1;
-        List<Statistics> stats = getFieldStats(metadataProvider, dataverseName, datasetName, fieldName);
-        if (stats == null || stats.isEmpty()) {
-            return CardinalityInferenceVisitor.UNKNOWN;
-        }
+        //        List<Statistics> stats = getFieldStats(metadataProvider, dataverseName, datasetName, fieldName);
+        //        if (stats == null || stats.isEmpty()) {
+        //            return CardinalityInferenceVisitor.UNKNOWN;
+        //        }
 
         for (Statistics s : stats) {
             estimate = estimate + s.getSynopsis().uniqueQuery(this.primIndex);

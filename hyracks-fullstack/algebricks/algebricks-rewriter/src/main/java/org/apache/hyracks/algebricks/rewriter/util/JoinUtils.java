@@ -29,6 +29,7 @@ import org.apache.hyracks.algebricks.core.algebra.base.ILogicalExpression;
 import org.apache.hyracks.algebricks.core.algebra.base.ILogicalOperator;
 import org.apache.hyracks.algebricks.core.algebra.base.IOptimizationContext;
 import org.apache.hyracks.algebricks.core.algebra.base.LogicalExpressionTag;
+import org.apache.hyracks.algebricks.core.algebra.base.LogicalOperatorTag;
 import org.apache.hyracks.algebricks.core.algebra.base.LogicalVariable;
 import org.apache.hyracks.algebricks.core.algebra.expressions.AbstractFunctionCallExpression;
 import org.apache.hyracks.algebricks.core.algebra.expressions.BroadcastExpressionAnnotation;
@@ -39,6 +40,7 @@ import org.apache.hyracks.algebricks.core.algebra.functions.AlgebricksBuiltinFun
 import org.apache.hyracks.algebricks.core.algebra.functions.AlgebricksBuiltinFunctions.ComparisonKind;
 import org.apache.hyracks.algebricks.core.algebra.functions.FunctionIdentifier;
 import org.apache.hyracks.algebricks.core.algebra.operators.logical.AbstractBinaryJoinOperator;
+import org.apache.hyracks.algebricks.core.algebra.operators.logical.DataSourceScanOperator;
 import org.apache.hyracks.algebricks.core.algebra.operators.logical.visitors.LogicalPropertiesVisitor;
 import org.apache.hyracks.algebricks.core.algebra.operators.physical.AbstractJoinPOperator.JoinPartitioningType;
 import org.apache.hyracks.algebricks.core.algebra.operators.physical.HybridHashJoinPOperator;
@@ -61,13 +63,35 @@ public class JoinUtils {
         List<LogicalVariable> varsLeft = op.getInputs().get(0).getValue().getSchema();
         List<LogicalVariable> varsRight = op.getInputs().get(1).getValue().getSchema();
         if (isHashJoinCondition(op.getCondition().getValue(), varsLeft, varsRight, sideLeft, sideRight)) {
-            BroadcastSide side = getBroadcastJoinSide(op.getCondition().getValue(), varsLeft, varsRight);
+            long sizel = getBytes(op.getInputs().get(0).getValue().getInputs().get(0).getValue());
+            long sizer = getBytes(op.getInputs().get(1).getValue().getInputs().get(0).getValue());
+            //
+            long size = 0;
+            BroadcastSide side = null;
+            if (sizel > 0 && sizel <= 270000 || sizer > 0 && sizer <= 270000) {
+                if (sizer <= 270000 && sizel <= 270000) {
+                    if (sizer < sizel) {
+                        side = BroadcastSide.RIGHT;
+                        size = sizer;
+                    } else {
+                        side = BroadcastSide.LEFT;
+                        size = sizel;
+                    }
+                } else if (sizer <= 270000) {
+                    side = BroadcastSide.RIGHT;
+                    size = sizer;
+                } else {
+                    side = BroadcastSide.LEFT;
+                    size = sizel;
+                }
+            }
+            //BroadcastSide side = getBroadcastJoinSide(op.getCondition().getValue(), varsLeft, varsRight);
             if (side == null) {
-                setHashJoinOp(op, JoinPartitioningType.PAIRWISE, sideLeft, sideRight, context);
+                setHashJoinOp(op, JoinPartitioningType.PAIRWISE, sideLeft, sideRight, context, size);
             } else {
                 switch (side) {
                     case RIGHT:
-                        setHashJoinOp(op, JoinPartitioningType.BROADCAST, sideLeft, sideRight, context);
+                        setHashJoinOp(op, JoinPartitioningType.BROADCAST, sideLeft, sideRight, context, size);
                         break;
                     case LEFT:
                         if (op.getJoinKind() == AbstractBinaryJoinOperator.JoinKind.INNER) {
@@ -76,9 +100,9 @@ public class JoinUtils {
                             ILogicalOperator tmp = opRef0.getValue();
                             opRef0.setValue(opRef1.getValue());
                             opRef1.setValue(tmp);
-                            setHashJoinOp(op, JoinPartitioningType.BROADCAST, sideRight, sideLeft, context);
+                            setHashJoinOp(op, JoinPartitioningType.BROADCAST, sideRight, sideLeft, context, size);
                         } else {
-                            setHashJoinOp(op, JoinPartitioningType.PAIRWISE, sideLeft, sideRight, context);
+                            setHashJoinOp(op, JoinPartitioningType.PAIRWISE, sideLeft, sideRight, context, size);
                         }
                         break;
                     default:
@@ -86,7 +110,9 @@ public class JoinUtils {
                         throw new IllegalStateException(side.toString());
                 }
             }
-        } else {
+        } else
+
+        {
             setNestedLoopJoinOp(op, context);
         }
     }
@@ -97,7 +123,7 @@ public class JoinUtils {
     }
 
     private static void setHashJoinOp(AbstractBinaryJoinOperator op, JoinPartitioningType partitioningType,
-            List<LogicalVariable> sideLeft, List<LogicalVariable> sideRight, IOptimizationContext context)
+            List<LogicalVariable> sideLeft, List<LogicalVariable> sideRight, IOptimizationContext context, long size)
             throws AlgebricksException {
         op.setPhysicalOperator(new HybridHashJoinPOperator(op.getJoinKind(), partitioningType, sideLeft, sideRight,
                 context.getPhysicalOptimizationConfig().getMaxFramesForJoin(),
@@ -105,7 +131,8 @@ public class JoinUtils {
                 context.getPhysicalOptimizationConfig().getMaxRecordsPerFrame(),
                 context.getPhysicalOptimizationConfig().getFudgeFactor()));
         if (partitioningType == JoinPartitioningType.BROADCAST) {
-            hybridToInMemHashJoin(op, context);
+            //hybridToInMemHashJoin(op, context);
+            inMemHashJoin(op, size);
         }
     }
 
@@ -134,6 +161,28 @@ public class JoinUtils {
             }
         }
 
+    }
+
+    private static void inMemHashJoin(AbstractBinaryJoinOperator op, long numOfTuples) {
+        HybridHashJoinPOperator hhj = (HybridHashJoinPOperator) op.getPhysicalOperator();
+        op.setPhysicalOperator(new InMemoryHashJoinPOperator(hhj.getKind(), hhj.getPartitioningType(),
+                hhj.getKeysLeftBranch(), hhj.getKeysRightBranch(), (int) numOfTuples * 2, hhj.getMemSizeInFrames()));
+    }
+
+    private static long getBytes(ILogicalOperator op) {
+        int fields = 0;
+        if (op.getOperatorTag() == LogicalOperatorTag.ASSIGN || op.getOperatorTag() == LogicalOperatorTag.DATASOURCESCAN
+                || op.getOperatorTag() == LogicalOperatorTag.INNERJOIN) {
+            if (op.getOperatorTag() == LogicalOperatorTag.ASSIGN) {
+                fields = ((DataSourceScanOperator) op.getInputs().get(0).getValue()).getDataSource().fieldsSize();
+            } else if (op.getOperatorTag() == LogicalOperatorTag.DATASOURCESCAN) {
+                fields = ((DataSourceScanOperator) op).getDataSource().fieldsSize();
+            } else {
+                fields = 4;
+            }
+            return op.getCardinality() * fields * 4;
+        } else
+            return 0;
     }
 
     private static boolean isHashJoinCondition(ILogicalExpression e, Collection<LogicalVariable> inLeftAll,

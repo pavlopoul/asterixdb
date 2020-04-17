@@ -193,6 +193,7 @@ public class JoinReOrderRule implements IAlgebraicRewriteRule {
                         }
                         long key = inferCardinality((AbstractLogicalOperator) child.getValue(), context, datasourcel,
                                 datasourcer, assignl, assignr);
+                        child.getValue().setCardinality(key);
                         System.out.println(key);
                         if (map.containsKey(key)) {
                             map.get(key).add(child);
@@ -634,6 +635,26 @@ public class JoinReOrderRule implements IAlgebraicRewriteRule {
             }
         }
         if (leftField != null && rightField != null) {
+            if (assignl != null) {
+                assignl.setCardinality(context.getCardinalityEstimator().getTableCardinality(
+                        context.getMetadataProvider(), datasourcel.getDataset().getDataverseName(),
+                        datasourcel.getDataset().getDatasetName(), leftField));
+            } else {
+                op.getInputs().get(0).getValue()
+                        .setCardinality(context.getCardinalityEstimator().getTableCardinality(
+                                context.getMetadataProvider(), datasourcel.getDataset().getDataverseName(),
+                                datasourcel.getDataset().getDatasetName(), leftField));
+            }
+            if (assignr != null) {
+                assignr.setCardinality(context.getCardinalityEstimator().getTableCardinality(
+                        context.getMetadataProvider(), datasourcer.getDataset().getDataverseName(),
+                        datasourcer.getDataset().getDatasetName(), rightField));
+            } else {
+                op.getInputs().get(1).getValue()
+                        .setCardinality(context.getCardinalityEstimator().getTableCardinality(
+                                context.getMetadataProvider(), datasourcer.getDataset().getDataverseName(),
+                                datasourcer.getDataset().getDatasetName(), rightField));
+            }
             System.out.println(
                     datasourcel.getDataset().getDatasetName() + " " + datasourcer.getDataset().getDatasetName());
             //estimate join cardinality

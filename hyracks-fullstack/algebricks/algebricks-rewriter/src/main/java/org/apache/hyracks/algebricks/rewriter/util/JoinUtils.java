@@ -171,8 +171,9 @@ public class JoinUtils {
 
     private static long getBytes(ILogicalOperator op) {
         int fields = 0;
-        if (op.getOperatorTag() == LogicalOperatorTag.ASSIGN || op.getOperatorTag() == LogicalOperatorTag.DATASOURCESCAN
-                || op.getOperatorTag() == LogicalOperatorTag.INNERJOIN) {
+        if (op.getCardinality() != null && (op.getOperatorTag() == LogicalOperatorTag.ASSIGN
+                || op.getOperatorTag() == LogicalOperatorTag.DATASOURCESCAN
+                || op.getOperatorTag() == LogicalOperatorTag.INNERJOIN)) {
             if (op.getOperatorTag() == LogicalOperatorTag.ASSIGN) {
                 fields = ((DataSourceScanOperator) op.getInputs().get(0).getValue()).getDataSource().fieldsSize();
             } else if (op.getOperatorTag() == LogicalOperatorTag.DATASOURCESCAN) {

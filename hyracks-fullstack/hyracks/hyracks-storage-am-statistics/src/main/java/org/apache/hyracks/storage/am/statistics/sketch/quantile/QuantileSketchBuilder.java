@@ -66,8 +66,7 @@ public class QuantileSketchBuilder
             prev = r;
         }
         if (prev != null) {
-            //            synopsis.getElements().add(new HistogramBucket(prev, bucketHeight, uniqueValues + 1, height));
-            //            synopsis.getElements().add(new HistogramBucket(prev, bucketHeight, sketch.getElements().size(), height));
+            //synopsis.getElements().add(new HistogramBucket(prev, bucketHeight, sketch.getElements().size(), height));
             synopsis.getElements().add(new HistogramBucket(prev, bucketHeight, cardinality, height));
         }
     }

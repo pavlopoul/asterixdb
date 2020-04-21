@@ -164,8 +164,8 @@ public class IncrementalSinkOperatorDescriptor extends AbstractOperatorDescripto
                     state = new MaterializerTaskState(ctx.getJobletContext().getJobId(),
                             new TaskId(getActivityId(), partition));
                     state.open(ctx);
-                    int[] fieldPermutation = new int[2];
-                    fieldPermutation[0] = 1;
+                    int[] fieldPermutation = new int[1];
+                    fieldPermutation[0] = 0;
                     tuple.setFieldPermutation(fieldPermutation);
                     component = new ComponentStatistics(10l, 10l);
 

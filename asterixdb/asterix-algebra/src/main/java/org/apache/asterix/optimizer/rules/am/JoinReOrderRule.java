@@ -22,7 +22,9 @@ import static org.apache.asterix.optimizer.rules.am.BTreeAccessMethod.LimitType.
 
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.TreeMap;
 
 import org.apache.asterix.metadata.declared.DatasetDataSource;
@@ -69,6 +71,7 @@ public class JoinReOrderRule implements IAlgebraicRewriteRule {
     private String[] pKey;
     private LogicalVariable[] dscanvar;
     private SelectOperator select;
+    private Map<DatasetDataSource, List<Node>> fields = new HashMap<>();
 
     protected boolean checkAndReturnExpr(AbstractLogicalOperator op, IOptimizationContext context)
             throws AlgebricksException {
@@ -145,11 +148,11 @@ public class JoinReOrderRule implements IAlgebraicRewriteRule {
                         }
                         if (only2joins) {
                             key = Math.min(key, inferCardinality((AbstractLogicalOperator) /*child.getValue()*/join,
-                                    context, datasourcel, datasourcer, assignl, assignr));
+                                    context, datasourcel, datasourcer, assignl, assignr, lvl, lvr));
                             System.out.println(key);
                         } else {
                             key = inferCardinality((AbstractLogicalOperator) /*child.getValue()*/join, context,
-                                    datasourcel, datasourcer, assignl, assignr);
+                                    datasourcel, datasourcer, assignl, assignr, lvl, lvr);
                             System.out.println(key);
                         }
                         if (!only2joins) {
@@ -171,28 +174,46 @@ public class JoinReOrderRule implements IAlgebraicRewriteRule {
                     }
 
                 } else {
+                    //                    if (join.getInputs().get(0).getValue().getOperatorTag() == LogicalOperatorTag.SELECT
+                    //                            || join.getInputs().get(1).getValue().getOperatorTag() == LogicalOperatorTag.SELECT) {
+                    //                        selectSet.add(new MutableObject<>(join));
+                    //                    } else {
+                    LogicalVariable lvl = ((VariableReferenceExpression) sfce.getArguments().get(0).getValue())
+                            .getVariableReference();
+                    DatasetDataSource datasourcel = findDataSource(join, lvl);
+                    String leftField = fieldName;
+                    AssignOperator assignl = null;
+                    lOp = sOp;
+                    if (sOp.getOperatorTag() == LogicalOperatorTag.ASSIGN) {
+                        assignl = (AssignOperator) sOp;
+                    }
+                    LogicalVariable lvr = ((VariableReferenceExpression) sfce.getArguments().get(1).getValue())
+                            .getVariableReference();
+                    datasourcer = findDataSource(join, lvr);
                     if (join.getInputs().get(0).getValue().getOperatorTag() == LogicalOperatorTag.SELECT
                             || join.getInputs().get(1).getValue().getOperatorTag() == LogicalOperatorTag.SELECT) {
                         selectSet.add(new MutableObject<>(join));
-                    } else {
-                        LogicalVariable lvl = ((VariableReferenceExpression) sfce.getArguments().get(0).getValue())
-                                .getVariableReference();
-                        DatasetDataSource datasourcel = findDataSource(join, lvl);
-                        AssignOperator assignl = null;
-                        lOp = sOp;
-                        if (sOp.getOperatorTag() == LogicalOperatorTag.ASSIGN) {
-                            assignl = (AssignOperator) sOp;
+                        if (fields.containsKey(datasourcel)) {
+                            populateFields(false, datasourcel, leftField, lvl);
                         }
-                        LogicalVariable lvr = ((VariableReferenceExpression) sfce.getArguments().get(1).getValue())
-                                .getVariableReference();
-                        datasourcer = findDataSource(join, lvr);
+                        if (fields.containsKey(datasourcer)) {
+                            populateFields(false, datasourcer, fieldName, lvr);
+                        }
+                        if (!fields.containsKey(datasourcel)) {
+                            populateFields(true, datasourcel, leftField, lvl);
+                        }
+                        if (!fields.containsKey(datasourcer)) {
+                            populateFields(true, datasourcer, fieldName, lvr);
+                        }
+
+                    } else {
                         if (sOp.getOperatorTag() == LogicalOperatorTag.ASSIGN) {
                             assignr = (AssignOperator) sOp;
                         } else {
                             assignr = null;
                         }
                         long key = inferCardinality((AbstractLogicalOperator) child.getValue(), context, datasourcel,
-                                datasourcer, assignl, assignr);
+                                datasourcer, assignl, assignr, lvl, lvr);
                         child.getValue().setCardinality(key);
                         System.out.println(key);
                         if (map.containsKey(key)) {
@@ -322,6 +343,7 @@ public class JoinReOrderRule implements IAlgebraicRewriteRule {
                     inputs = 0;
                     if (mlo.getValue().getOperatorTag() == LogicalOperatorTag.INNERJOIN) {
                         DatasetDataSource ds = findDataSource((AbstractLogicalOperator) mlo.getValue(), lvlA);
+
                         if (ds != null) {
                             joinA.getInputs().set(inputs, mut);
 
@@ -390,7 +412,6 @@ public class JoinReOrderRule implements IAlgebraicRewriteRule {
                         DatasetDataSource dsr = findDataSource((AbstractLogicalOperator) mlo.getValue(), lvrA);
                         if (dsr != null) {
                             joinA.getInputs().set(inputs, mut);
-
                         }
                         //findDataSource((AbstractLogicalOperator) mlo.getValue(), lvlA);
                         //                    } else {
@@ -458,10 +479,22 @@ public class JoinReOrderRule implements IAlgebraicRewriteRule {
             alo.getInputs().add(new MutableObject<ILogicalOperator>(joinA));
             LogicalVariable lv = ((VariableReferenceExpression) ((ScalarFunctionCallExpression) ((AssignOperator) alo)
                     .getExpressions().get(0).getValue()).getArguments().get(1).getValue()).getVariableReference();
-            findDataSource(joinA, lvlA);
+            DatasetDataSource dsl = findDataSource(joinA, lvlA);
+            for (Node n : fields.get(dsl)) {
+                if (n.field.equals(fieldName)) {
+                    n.participation--;
+                    break;
+                }
+            }
             String[] primKey = pKey;
             LogicalVariable[] firstscan = dscanvar;
-            findDataSource(joinA, lvrA);
+            DatasetDataSource dsr = findDataSource(joinA, lvrA);
+            for (Node n : fields.get(dsr)) {
+                if (n.field.equals(fieldName)) {
+                    n.participation--;
+                    break;
+                }
+            }
             String[] secprimKey = pKey;
             LogicalVariable[] secscan = dscanvar;
             List<Mutable<ILogicalExpression>> arguments =
@@ -476,76 +509,94 @@ public class JoinReOrderRule implements IAlgebraicRewriteRule {
             //                List<Mutable<ILogicalExpression>> arguments =
             //                        ((ScalarFunctionCallExpression) ((AssignOperator) alo).getExpressions().get(0).getValue())
             //                                .getArguments();
-            for (Mutable<ILogicalOperator> input : joinA.getInputs()) {
-                if (input.getValue().getOperatorTag() == LogicalOperatorTag.ASSIGN
-                        || input.getValue().getOperatorTag() == LogicalOperatorTag.SELECT) {
-
-                    AssignOperator assign;
-                    if (input.getValue().getOperatorTag() == LogicalOperatorTag.ASSIGN) {
-                        assign = (AssignOperator) input.getValue();
-                    } else {
-                        assign = (AssignOperator) ((SelectOperator) input.getValue()).getInputs().get(0).getValue();
-                    }
-                    for (LogicalVariable variable : assign.getVariables()) {
-                        findDataSource(assign, variable);
-                        IAObject obj = new AString(fieldName);
-                        AsterixConstantValue acv = new AsterixConstantValue(obj);
-                        ConstantExpression ce = new ConstantExpression(acv);
-                        if (arguments.isEmpty() || (!fieldName.equals(
-                                ((AString) ((AsterixConstantValue) ((ConstantExpression) arguments.get(0).getValue())
-                                        .getValue()).getObject()).getStringValue()))) {
-                            arguments.add(new MutableObject<>(ce));
-                            arguments.add(
-                                    new MutableObject<ILogicalExpression>(new VariableReferenceExpression(variable)));
-                        }
-                    }
+            //            for (Mutable<ILogicalOperator> input : joinA.getInputs()) {
+            //                if (input.getValue().getOperatorTag() == LogicalOperatorTag.ASSIGN
+            //                        || input.getValue().getOperatorTag() == LogicalOperatorTag.SELECT) {
+            //
+            //                    AssignOperator assign;
+            //                    if (input.getValue().getOperatorTag() == LogicalOperatorTag.ASSIGN) {
+            //                        assign = (AssignOperator) input.getValue();
+            //                    } else {
+            //                        assign = (AssignOperator) ((SelectOperator) input.getValue()).getInputs().get(0).getValue();
+            //                    }
+            //                    for (LogicalVariable variable : assign.getVariables()) {
+            //                        findDataSource(assign, variable);
+            //                        IAObject obj = new AString(fieldName);
+            //                        AsterixConstantValue acv = new AsterixConstantValue(obj);
+            //                        ConstantExpression ce = new ConstantExpression(acv);
+            //                        if (arguments.isEmpty() || (!fieldName.equals(
+            //                                ((AString) ((AsterixConstantValue) ((ConstantExpression) arguments.get(0).getValue())
+            //                                        .getValue()).getObject()).getStringValue()))) {
+            //                            arguments.add(new MutableObject<>(ce));
+            //                            arguments.add(
+            //                                    new MutableObject<ILogicalExpression>(new VariableReferenceExpression(variable)));
+            //                        }
+            //                    }
+            //                }
+            //            }
+            //            if (arguments.isEmpty() || primKey.length != 0) {
+            //                int vars = 0;
+            //                for (String primK : primKey) {
+            //                    if ((!primK.equals(
+            //                            ((AString) ((AsterixConstantValue) ((ConstantExpression) arguments.get(0).getValue())
+            //                                    .getValue()).getObject()).getStringValue()))) {
+            //                        AsterixConstantValue acv = new AsterixConstantValue(new AString(primK));
+            //                        ConstantExpression ce = new ConstantExpression(acv);
+            //                        arguments.add(new MutableObject<>(ce));
+            //                        arguments.add(new MutableObject<ILogicalExpression>(
+            //                                new VariableReferenceExpression(firstscan[vars])));
+            //
+            //                        vars++;
+            //                        //                    if((!primKey[0].equals(
+            //                        //                    ((AString) ((AsterixConstantValue) ((ConstantExpression) arguments.get(0).getValue()).getValue())
+            //                        //                            .getObject()).getStringValue()))) {
+            //                        //                AsterixConstantValue acv = new AsterixConstantValue(new AString(primKey));
+            //                        //                ConstantExpression ce = new ConstantExpression(acv);
+            //                        //                arguments.add(new MutableObject<>(ce));
+            //                        //                arguments.add(new MutableObject<ILogicalExpression>(new VariableReferenceExpression(firstscan)));
+            //                    }
+            //                }
+            //            }
+            //
+            //            if (arguments.isEmpty() || secprimKey.length != 0) {
+            //                int vars = 0;
+            //                for (String primK : secprimKey) {
+            //                    if ((!primK.equals(
+            //                            ((AString) ((AsterixConstantValue) ((ConstantExpression) arguments.get(0).getValue())
+            //                                    .getValue()).getObject()).getStringValue()))) {
+            //                        AsterixConstantValue acv = new AsterixConstantValue(new AString(primK));
+            //                        ConstantExpression ce = new ConstantExpression(acv);
+            //                        arguments.add(new MutableObject<>(ce));
+            //                        arguments.add(
+            //                                new MutableObject<ILogicalExpression>(new VariableReferenceExpression(secscan[vars])));
+            //
+            //                        vars++;
+            //                        //                    if((!primKey[0].equals(
+            //                        //                    ((AString) ((AsterixConstantValue) ((ConstantExpression) arguments.get(0).getValue()).getValue())
+            //                        //                            .getObject()).getStringValue()))) {
+            //                        //                AsterixConstantValue acv = new AsterixConstantValue(new AString(primKey));
+            //                        //                ConstantExpression ce = new ConstantExpression(acv);
+            //                        //                arguments.add(new MutableObject<>(ce));
+            //                        //                arguments.add(new MutableObject<ILogicalExpression>(new VariableReferenceExpression(firstscan)));
+            //                    }
+            //                }
+            //            }
+            for (Node n : fields.get(dsl)) {
+                if (n.participation > 0) {
+                    IAObject obj = new AString(n.field);
+                    AsterixConstantValue acv = new AsterixConstantValue(obj);
+                    ConstantExpression ce = new ConstantExpression(acv);
+                    arguments.add(new MutableObject<>(ce));
+                    arguments.add(new MutableObject<ILogicalExpression>(new VariableReferenceExpression(n.lv)));
                 }
             }
-            if (arguments.isEmpty() || primKey.length != 0) {
-                int vars = 0;
-                for (String primK : primKey) {
-                    if ((!primK.equals(
-                            ((AString) ((AsterixConstantValue) ((ConstantExpression) arguments.get(0).getValue())
-                                    .getValue()).getObject()).getStringValue()))) {
-                        AsterixConstantValue acv = new AsterixConstantValue(new AString(primK));
-                        ConstantExpression ce = new ConstantExpression(acv);
-                        arguments.add(new MutableObject<>(ce));
-                        arguments.add(new MutableObject<ILogicalExpression>(
-                                new VariableReferenceExpression(firstscan[vars])));
-
-                        vars++;
-                        //                    if((!primKey[0].equals(
-                        //                    ((AString) ((AsterixConstantValue) ((ConstantExpression) arguments.get(0).getValue()).getValue())
-                        //                            .getObject()).getStringValue()))) {
-                        //                AsterixConstantValue acv = new AsterixConstantValue(new AString(primKey));
-                        //                ConstantExpression ce = new ConstantExpression(acv);
-                        //                arguments.add(new MutableObject<>(ce));
-                        //                arguments.add(new MutableObject<ILogicalExpression>(new VariableReferenceExpression(firstscan)));
-                    }
-                }
-            }
-
-            if (arguments.isEmpty() || secprimKey.length != 0) {
-                int vars = 0;
-                for (String primK : secprimKey) {
-                    if ((!primK.equals(
-                            ((AString) ((AsterixConstantValue) ((ConstantExpression) arguments.get(0).getValue())
-                                    .getValue()).getObject()).getStringValue()))) {
-                        AsterixConstantValue acv = new AsterixConstantValue(new AString(primK));
-                        ConstantExpression ce = new ConstantExpression(acv);
-                        arguments.add(new MutableObject<>(ce));
-                        arguments.add(
-                                new MutableObject<ILogicalExpression>(new VariableReferenceExpression(secscan[vars])));
-
-                        vars++;
-                        //                    if((!primKey[0].equals(
-                        //                    ((AString) ((AsterixConstantValue) ((ConstantExpression) arguments.get(0).getValue()).getValue())
-                        //                            .getObject()).getStringValue()))) {
-                        //                AsterixConstantValue acv = new AsterixConstantValue(new AString(primKey));
-                        //                ConstantExpression ce = new ConstantExpression(acv);
-                        //                arguments.add(new MutableObject<>(ce));
-                        //                arguments.add(new MutableObject<ILogicalExpression>(new VariableReferenceExpression(firstscan)));
-                    }
+            for (Node n : fields.get(dsr)) {
+                if (n.participation > 0) {
+                    IAObject obj = new AString(n.field);
+                    AsterixConstantValue acv = new AsterixConstantValue(obj);
+                    ConstantExpression ce = new ConstantExpression(acv);
+                    arguments.add(new MutableObject<>(ce));
+                    arguments.add(new MutableObject<ILogicalExpression>(new VariableReferenceExpression(n.lv)));
                 }
             }
             //            if (arguments.isEmpty() || (!secprimKey.equals("") && !secprimKey.equals(
@@ -583,7 +634,7 @@ public class JoinReOrderRule implements IAlgebraicRewriteRule {
 
     private long inferCardinality(AbstractLogicalOperator op, IOptimizationContext context,
             DatasetDataSource datasourcel, DatasetDataSource datasourcer, AssignOperator assignl,
-            AssignOperator assignr) throws AlgebricksException {
+            AssignOperator assignr, LogicalVariable left, LogicalVariable right) throws AlgebricksException {
         context.addToDontApplySet(this, op);
 
         ILogicalExpression condExpr = null;
@@ -635,6 +686,18 @@ public class JoinReOrderRule implements IAlgebraicRewriteRule {
             }
         }
         if (leftField != null && rightField != null) {
+            if (fields.containsKey(datasourcel)) {
+                populateFields(false, datasourcel, leftField.get(0), left);
+            }
+            if (fields.containsKey(datasourcer)) {
+                populateFields(false, datasourcer, rightField.get(0), right);
+            }
+            if (!fields.containsKey(datasourcel)) {
+                populateFields(true, datasourcel, leftField.get(0), left);
+            }
+            if (!fields.containsKey(datasourcer)) {
+                populateFields(true, datasourcer, rightField.get(0), right);
+            }
             if (assignl != null) {
                 assignl.setCardinality(context.getCardinalityEstimator().getTableCardinality(
                         context.getMetadataProvider(), datasourcel.getDataset().getDataverseName(),
@@ -715,10 +778,15 @@ public class JoinReOrderRule implements IAlgebraicRewriteRule {
                 if (funcVarIndex == -1) {
                     continue;
                 }
-
-                ARecordType recordType = (ARecordType) datasource.getItemType();
+                int k = -1;
                 List<String> fieldName = new ArrayList<>();
-                fieldName.add(recordType.getFieldNames()[0]);
+                for (LogicalVariable scanVar : scan.getVariables()) {
+                    k++;
+                    if (var == scanVar) {
+                        fieldName.add(((InternalDatasetDetails) ((DatasetDataSource) scan.getDataSource()).getDataset()
+                                .getDatasetDetails()).getPrimaryKey().get(k).get(0));
+                    }
+                }
                 optFuncExpr.setFieldName(funcVarIndex, fieldName);
                 return true;
             }
@@ -744,4 +812,37 @@ public class JoinReOrderRule implements IAlgebraicRewriteRule {
         return false;
     }
 
+    private void populateFields(boolean notInFields, DatasetDataSource ds, String field, LogicalVariable lv) {
+        if (notInFields) {
+            fields.put(ds, new ArrayList<>());
+            Node n = new Node(field, 1, lv);
+            fields.get(ds).add(n);
+        } else {
+            Boolean found = false;
+            for (Node n : fields.get(ds)) {
+                if (n.field.equals(field)) {
+                    found = true;
+                    n.participation++;
+                    break;
+                }
+            }
+            if (!found) {
+                fields.get(ds).add(new Node(field, 1, lv));
+            }
+        }
+
+    }
+
+}
+
+class Node {
+    String field;
+    int participation;
+    LogicalVariable lv;
+
+    public Node(String field, int participation, LogicalVariable lv) {
+        this.field = field;
+        this.participation = participation;
+        this.lv = lv;
+    }
 }

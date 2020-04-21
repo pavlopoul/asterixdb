@@ -49,6 +49,9 @@ public class StatisticsUtil {
             size = indexKeys.size();
             //throw new AsterixException("Cannot collect statistics on composite fields");
         }
+        if (indexKeys.size() == 0) {
+            size = 0;
+        }
         List<IFieldExtractor> result = new ArrayList<>();
         // TODO: allow nested fields
         if (indexKeys.size() != 0) {

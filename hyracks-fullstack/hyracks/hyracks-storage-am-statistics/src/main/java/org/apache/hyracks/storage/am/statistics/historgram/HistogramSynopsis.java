@@ -115,18 +115,11 @@ public abstract class HistogramSynopsis<T extends HistogramBucket> extends Abstr
     @Override
     public long uniqueQuery(boolean primIndex) {
         long distinctValues = 0;
-        //        if (primIndex) {
-        //            for (int i = 0; i < getBuckets().size(); i++) {
-        //                if (getBuckets().get(i).getValue() != 0) {
-        //                    distinctValues += getBuckets().get(i).getValue();
-        //                }
-        //            }
-        //        } else {
-        for (int i = 0; i < getBuckets().size(); i++) {
-            if (getBuckets().get(i).getUniqueValue() != 0) {
-                distinctValues += getBuckets().get(i).getUniqueValue();
-            }
-        }
+        int size = getBuckets().size();
+        //for (int i = 0; i < getBuckets().size(); i++) {
+        //if (getBuckets().get(i).getUniqueValue() != 0) {
+        distinctValues = getBuckets().get(size - 1).getUniqueValue();
+        //}
         //        }
 
         return distinctValues;

@@ -60,6 +60,7 @@ import org.apache.asterix.common.config.DatasetConfig.ExternalFilePendingOp;
 import org.apache.asterix.common.config.DatasetConfig.IndexType;
 import org.apache.asterix.common.config.DatasetConfig.TransactionState;
 import org.apache.asterix.common.config.GlobalConfig;
+import org.apache.asterix.common.config.StatisticsProperties;
 import org.apache.asterix.common.dataflow.ICcApplicationContext;
 import org.apache.asterix.common.exceptions.ACIDException;
 import org.apache.asterix.common.exceptions.AsterixException;
@@ -927,8 +928,9 @@ public class QueryTranslator extends AbstractLangTranslator implements IStatemen
                     overridesFieldTypes = true;
                 }
                 if (fieldType == null) {
-                    throw new CompilationException(ErrorCode.UNKNOWN_TYPE, sourceLoc, fieldExpr.second == null
-                            ? String.valueOf(fieldExpr.first) : String.valueOf(fieldExpr.second));
+                    throw new CompilationException(ErrorCode.UNKNOWN_TYPE, sourceLoc,
+                            fieldExpr.second == null ? String.valueOf(fieldExpr.first)
+                                    : String.valueOf(fieldExpr.second));
                 }
 
                 // try to add the key & its source to the set of keys, if key couldn't be added,
@@ -2019,7 +2021,7 @@ public class QueryTranslator extends AbstractLangTranslator implements IStatemen
     }
 
     public boolean getFinished(Query newQuery) {
-        Query nq = (Query) statements.get(1);
+        Query nq = (Query) statements.get(2);
         if (newQuery != null) {
             nq = newQuery;
         }
@@ -2680,9 +2682,47 @@ public class QueryTranslator extends AbstractLangTranslator implements IStatemen
         return argExprs;
     }
 
+    private void createAndRunJobWithout(IHyracksClientConnection hcc, EnumSet<JobFlag> jobFlags, Mutable<JobId> jId,
+            IStatementCompiler compiler, IMetadataLocker locker, ResultDelivery resultDelivery, IResultPrinter printer,
+            String clientContextId, IStatementExecutorContext ctx) throws Exception {
+        locker.lock();
+        final JobSpecification jobSpec = compiler.compile(null, false, null);
+        ClientJobRequest req = null;
+        if (jobSpec == null) {
+            return;
+        }
+        final JobId jobId = JobUtils.runJob(hcc, jobSpec, jobFlags, false);
+        if (ctx != null && clientContextId != null) {
+            req = new ClientJobRequest(ctx, clientContextId, jobId);
+            ctx.put(clientContextId, req); // Adds the running job into the context.
+        }
+        if (jId != null) {
+            jId.setValue(jobId);
+        }
+        if (ResultDelivery.ASYNC == resultDelivery) {
+            printer.print(jobId);
+            hcc.waitForCompletion(jobId);
+        } else {
+            hcc.waitForCompletion(jobId);
+            printer.print(jobId);
+
+        }
+        locker.unlock();
+        if (req != null) {
+            req.complete();
+        }
+    }
+
     private void createAndRunJob(IHyracksClientConnection hcc, EnumSet<JobFlag> jobFlags, Mutable<JobId> jId,
             IStatementCompiler compiler, IMetadataLocker locker, ResultDelivery resultDelivery, IResultPrinter printer,
             String clientContextId, IStatementExecutorContext ctx, MetadataProvider mp) throws Exception {
+        if (((String) mp.getConfig().get(StatisticsProperties.STATISTICS_INCREMENTAL)) == null) {
+            StatisticsProperties sp = mp.getApplicationContext().getStatisticsProperties();
+            createAndRunJobWithout(hcc, jobFlags, jId, compiler, locker, resultDelivery, printer, clientContextId, ctx);
+            return;
+        }
+        Boolean sp = mp.getApplicationContext().getStatisticsProperties().isStatisticsIncremental();
+        //mp.g
         ClientJobRequest req = null;
         JobSpecification jobSpec = null;
         List<ILogicalOperator> operators = new ArrayList<>();
@@ -2739,10 +2779,9 @@ public class QueryTranslator extends AbstractLangTranslator implements IStatemen
                             hints.clear();
                             i = 0;
                         }
-                    }
-                    if (op.getOperatorTag() == LogicalOperatorTag.ASSIGN) {
+                    } else if (op.getOperatorTag() == LogicalOperatorTag.ASSIGN) {
                         int j = -1;
-                        if (vars != null)
+                        if (vars.size() > 0)
                             for (LogicalVariable var : vars) {
                                 j++;
                                 if (var == ((AssignOperator) op).getVariables().get(0)) {
@@ -2785,14 +2824,13 @@ public class QueryTranslator extends AbstractLangTranslator implements IStatemen
                                             (ScalarFunctionCallExpression) expressions.get(0).getValue();
                                     varexpr = (VariableReferenceExpression) sfce1.getArguments().get(0).getValue();
                                     recordTypeName = varexpr.getVariableReference().toString().substring(2);
-                                    datasources.add(recordTypeName);
+                                    //                                    datasources.add(recordTypeName);
                                     break;
                                 }
                             }
-                    }
-                    if (op.getOperatorTag() == LogicalOperatorTag.DATASOURCESCAN) {
+                    } else if (op.getOperatorTag() == LogicalOperatorTag.DATASOURCESCAN) {
                         int j = -1;
-                        if (vars != null)
+                        if (vars.size() > 0)
                             for (LogicalVariable var : vars) {
                                 j++;
                                 int nestedvars = -1;
@@ -2806,6 +2844,12 @@ public class QueryTranslator extends AbstractLangTranslator implements IStatemen
                                         DatasetDataSource datasource = (DatasetDataSource) scan.getDataSource();
                                         ARecordType rType = (ARecordType) datasource.getItemType();
                                         //fieldNames[j] = rType.getFieldNames()[0];
+                                        if (dataSource1 == null) {
+                                            dataSource1 = datasource;
+                                            varexpr = new VariableReferenceExpression(
+                                                    scan.getVariables().get(scan.getVariables().size() - 1));
+                                            recordTypeName = varexpr.getVariableReference().toString().substring(2);
+                                        }
                                         if (datasources.isEmpty()) {
                                             datasources.add(scan.getVariables().get(scan.getVariables().size() - 1)
                                                     .toString().substring(2));
@@ -2821,8 +2865,16 @@ public class QueryTranslator extends AbstractLangTranslator implements IStatemen
                                         }
                                         i++;
                                     }
+
                                 }
                             }
+                        DataSourceScanOperator scan = (DataSourceScanOperator) op;
+                        String shortcut =
+                                scan.getVariables().get(scan.getVariables().size() - 1).toString().substring(2);
+                        if (!datasources.contains(shortcut)) {
+                            datasources.add(shortcut);
+                        }
+
                     }
                     //                    DataSourceScanOperator scan = (DataSourceScanOperator) op;
                     //                    List<List<String>> primaryKeys =
@@ -2843,12 +2895,12 @@ public class QueryTranslator extends AbstractLangTranslator implements IStatemen
                 }
                 ARecordType recType = new ARecordType(null, fieldNames, types, false);
                 //                ClosedRecordConstructorEvalFactory crc = new ClosedRecordConstructorEvalFactory(args, recType);
-                List<List<String>> primKey = new ArrayList<>();
-                List<String> str = new ArrayList<>();
-                str.add(fieldNames[1]);
-                primKey.add(str);
-                List<IAType> strType = new ArrayList<>();
-                strType.add(types[1]);
+                //                List<List<String>> primKey = new ArrayList<>();
+                //                List<String> str = new ArrayList<>();
+                //                str.add(fieldNames[0]);
+                //                primKey.add(str);
+                //                List<IAType> strType = new ArrayList<>();
+                //                strType.add(types[0]);
                 queries++;
                 IAType newRecordType =
                         new ARecordType(recordTypeName + String.valueOf(queries), fieldNames, types, false);
@@ -2872,7 +2924,7 @@ public class QueryTranslator extends AbstractLangTranslator implements IStatemen
                 }
                 statisticsFieldsHint = statisticsFieldsHint.substring(0, statisticsFieldsHint.length() - 1);
                 newQuery = makeConnectionQuery(varexpr, recordTypeName + String.valueOf(queries), dataSource1,
-                        newRecordType, mp, primKey, strType, datasources, newQuery, statisticsFieldsHint);
+                        newRecordType, mp, /*primKey, strType,*/ datasources, newQuery, statisticsFieldsHint);
                 //OperatorDescriptorId odId = null;
                 OperatorDescriptorId id = null;
                 for (Entry<OperatorDescriptorId, IOperatorDescriptor> entry : jobSpec.getOperatorMap().entrySet()) {
@@ -2991,8 +3043,9 @@ public class QueryTranslator extends AbstractLangTranslator implements IStatemen
     }
 
     private Query makeConnectionQuery(VariableReferenceExpression varexpr, String recordTypeName,
-            DatasetDataSource dataSource, IAType newRecordType, MetadataProvider mp, List<List<String>> primKey,
-            List<IAType> strType, List<String> datasources, Query newQuery, String statisticsFieldHint)
+            DatasetDataSource dataSource, IAType newRecordType, MetadataProvider mp,
+            /*List<List<String>> primKey,
+            List<IAType> strType,*/ List<String> datasources, Query newQuery, String statisticsFieldHint)
             throws AlgebricksException, ACIDException, RemoteException {
         VarIdentifier fromVarId = new VarIdentifier(varexpr.getVariableReference().toString().substring(1));
         VariableExpr fromTermLeftExpr = new VariableExpr(fromVarId);
@@ -3008,7 +3061,7 @@ public class QueryTranslator extends AbstractLangTranslator implements IStatemen
         FromTerm fromterm = new FromTerm(datasrouceCallFunction, fromTermLeftExpr, null, null);
         Query oldQuery = null;
         if (newQuery == null) {
-            oldQuery = (Query) statements.get(1);
+            oldQuery = (Query) statements.get(2);
         } else {
             oldQuery = newQuery;
         }

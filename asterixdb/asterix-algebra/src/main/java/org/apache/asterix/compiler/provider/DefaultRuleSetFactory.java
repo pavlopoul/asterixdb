@@ -20,7 +20,9 @@ package org.apache.asterix.compiler.provider;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 
+import org.apache.asterix.common.config.StatisticsProperties;
 import org.apache.asterix.common.dataflow.ICcApplicationContext;
 import org.apache.asterix.optimizer.base.RuleCollections;
 import org.apache.hyracks.algebricks.common.exceptions.AlgebricksException;
@@ -34,9 +36,9 @@ import org.apache.hyracks.algebricks.core.rewriter.base.IAlgebraicRewriteRule;
 public class DefaultRuleSetFactory implements IRuleSetFactory {
 
     @Override
-    public List<Pair<AbstractRuleController, List<IAlgebraicRewriteRule>>> getLogicalRewrites(
+    public List<Pair<AbstractRuleController, List<IAlgebraicRewriteRule>>> getLogicalRewrites(Map<String, Object> map,
             ICcApplicationContext appCtx) throws AlgebricksException {
-        return buildLogical(appCtx);
+        return buildLogical(map, appCtx);
     }
 
     @Override
@@ -45,7 +47,7 @@ public class DefaultRuleSetFactory implements IRuleSetFactory {
         return buildPhysical(appCtx);
     }
 
-    public static List<Pair<AbstractRuleController, List<IAlgebraicRewriteRule>>> buildLogical(
+    public static List<Pair<AbstractRuleController, List<IAlgebraicRewriteRule>>> buildLogical(Map<String, Object> map,
             ICcApplicationContext appCtx) {
         List<Pair<AbstractRuleController, List<IAlgebraicRewriteRule>>> defaultLogicalRewrites = new ArrayList<>();
         SequentialFixpointRuleController seqCtrlNoDfs = new SequentialFixpointRuleController(false);
@@ -71,7 +73,9 @@ public class DefaultRuleSetFactory implements IRuleSetFactory {
         defaultLogicalRewrites.add(new Pair<>(seqOnceCtrl, RuleCollections.buildDataExchangeRuleCollection()));
         defaultLogicalRewrites.add(new Pair<>(seqCtrlNoDfs, RuleCollections.buildConsolidationRuleCollection()));
         defaultLogicalRewrites.add(new Pair<>(seqOnceCtrl, RuleCollections.buildFulltextContainsRuleCollection()));
-        defaultLogicalRewrites.add(new Pair<>(seqOnceCtrl, RuleCollections.buildInferCardinalityRuleCollection()));
+        if (map.get(StatisticsProperties.STATISTICS_INCREMENTAL) != null) {
+            defaultLogicalRewrites.add(new Pair<>(seqOnceCtrl, RuleCollections.buildInferCardinalityRuleCollection()));
+        }
         defaultLogicalRewrites.add(new Pair<>(seqCtrlNoDfs, RuleCollections.buildAccessMethodRuleCollection()));
         defaultLogicalRewrites.add(new Pair<>(seqCtrlNoDfs, RuleCollections.buildPlanCleanupRuleCollection()));
 

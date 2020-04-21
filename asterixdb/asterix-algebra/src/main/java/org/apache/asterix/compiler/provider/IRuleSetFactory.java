@@ -19,6 +19,7 @@
 package org.apache.asterix.compiler.provider;
 
 import java.util.List;
+import java.util.Map;
 
 import org.apache.asterix.common.dataflow.ICcApplicationContext;
 import org.apache.hyracks.algebricks.common.exceptions.AlgebricksException;
@@ -32,7 +33,7 @@ public interface IRuleSetFactory {
      * @return the logical rewrites
      * @throws AlgebricksException
      */
-    public List<Pair<AbstractRuleController, List<IAlgebraicRewriteRule>>> getLogicalRewrites(
+    public List<Pair<AbstractRuleController, List<IAlgebraicRewriteRule>>> getLogicalRewrites(Map<String, Object> map,
             ICcApplicationContext appCtx) throws AlgebricksException;
 
     /**

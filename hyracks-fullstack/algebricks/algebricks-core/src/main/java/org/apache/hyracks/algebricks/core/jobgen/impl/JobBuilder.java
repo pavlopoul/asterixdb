@@ -318,7 +318,7 @@ public class JobBuilder implements IHyracksJobBuilder {
                 //                    continue;
                 //                }
                 outOpDesc = new IncrementalSinkOperatorDescriptor(jobSpec, null,
-                        /*null,*/ ((AlgebricksMetaOperatorDescriptor) inOpDesc).getPipeline().getRecordDescriptors()[1],
+                        /*null,*/ ((AlgebricksMetaOperatorDescriptor) inOpDesc).getPipeline().getRecordDescriptors()[2],
                         null);
             }
             Pair<IConnectorDescriptor, TargetConstraint> connPair = connectors.get(exchg);

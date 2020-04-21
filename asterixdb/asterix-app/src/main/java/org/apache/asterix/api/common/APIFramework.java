@@ -151,7 +151,7 @@ public class APIFramework {
             SqlppExpressionToPlanTranslator.REWRITE_IN_AS_OR_OPTION, "hash_merge", "output-record-type",
             AbstractIntroduceAccessMethodRule.NO_INDEX_ONLY_PLAN_OPTION,
             StatisticsProperties.STATISTICS_PRIMARY_KEYS_ENABLED, StatisticsProperties.STATISTICS_SYNOPSIS_SIZE_KEY,
-            StatisticsProperties.STATISTICS_SYNOPSIS_TYPE_KEY);
+            StatisticsProperties.STATISTICS_SYNOPSIS_TYPE_KEY, StatisticsProperties.STATISTICS_INCREMENTAL);
 
     private final IRewriterFactory rewriterFactory;
     private final IAstPrintVisitorFactory astPrintVisitorFactory;
@@ -217,6 +217,8 @@ public class APIFramework {
 
         // establish facts
         final boolean isQuery = query != null;
+        final boolean isIncremental =
+                metadataProvider.getConfig().get(StatisticsProperties.STATISTICS_INCREMENTAL) != null;;
         final boolean isLoad = statement != null && statement.getKind() == Statement.Kind.LOAD;
         final SourceLocation sourceLoc =
                 query != null ? query.getSourceLocation() : statement != null ? statement.getSourceLocation() : null;
@@ -253,7 +255,8 @@ public class APIFramework {
         HeuristicCompilerFactoryBuilder builder =
                 new HeuristicCompilerFactoryBuilder(OptimizationContextFactory.INSTANCE);
         builder.setPhysicalOptimizationConfig(physOptConf);
-        builder.setLogicalRewrites(ruleSetFactory.getLogicalRewrites(metadataProvider.getApplicationContext()));
+        builder.setLogicalRewrites(ruleSetFactory.getLogicalRewrites(metadataProvider.getConfig(),
+                metadataProvider.getApplicationContext()));
         builder.setPhysicalRewrites(ruleSetFactory.getPhysicalRewrites(metadataProvider.getApplicationContext()));
         IDataFormat format = metadataProvider.getDataFormat();
         ICompilerFactory compilerFactory = builder.create();
@@ -315,7 +318,7 @@ public class APIFramework {
 
         JobEventListenerFactory jobEventListenerFactory =
                 new JobEventListenerFactory(txnId, metadataProvider.isWriteTransaction());
-        if (isLoad) {
+        if (isLoad || !isIncremental) {
             finished = true;
             spec = compiler.createLoadJob(metadataProvider.getApplicationContext(), jobEventListenerFactory);
         } else {

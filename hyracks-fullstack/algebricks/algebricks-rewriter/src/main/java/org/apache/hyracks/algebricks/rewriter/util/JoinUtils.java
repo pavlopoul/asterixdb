@@ -173,7 +173,8 @@ public class JoinUtils {
         int fields = 0;
         if (op.getCardinality() != null && (op.getOperatorTag() == LogicalOperatorTag.ASSIGN
                 || op.getOperatorTag() == LogicalOperatorTag.DATASOURCESCAN
-                || op.getOperatorTag() == LogicalOperatorTag.INNERJOIN)) {
+                || op.getOperatorTag() == LogicalOperatorTag.INNERJOIN
+                || op.getOperatorTag() == LogicalOperatorTag.SELECT)) {
             if (op.getOperatorTag() == LogicalOperatorTag.ASSIGN) {
                 fields = ((DataSourceScanOperator) op.getInputs().get(0).getValue()).getDataSource().fieldsSize();
             } else if (op.getOperatorTag() == LogicalOperatorTag.DATASOURCESCAN) {

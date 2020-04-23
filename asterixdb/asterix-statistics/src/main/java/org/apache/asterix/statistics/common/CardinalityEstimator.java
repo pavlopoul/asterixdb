@@ -45,7 +45,6 @@ public class CardinalityEstimator implements ICardinalityEstimator {
     public long getRangeCardinality(IMetadataProvider metadataProvider, String dataverseName, String datasetName,
             List<String> fieldName, long rangeStart, long rangeStop) throws AlgebricksException {
 
-        //getUniqueCardinality(metadataProvider, dataverseName, datasetName, fieldName);
         List<Statistics> stats = null;
         List<Index> datasetIndexes =
                 ((MetadataProvider) metadataProvider).getDatasetIndexes(dataverseName, datasetName);
@@ -90,40 +89,19 @@ public class CardinalityEstimator implements ICardinalityEstimator {
         for (Statistics s : statistics) {
             result += s.getSynopsis().joinQuery(s.getSynopsis(), this.primIndex);
         }
-        return result;
+        return (long) Math.ceil(result);
     }
 
     @Override
     public long getJoinCardinality(IMetadataProvider metadataProvider, String innerDataverseName,
             String innerDatasetName, List<String> innerFieldName, String outerDataverseName, String outerDatasetName,
             List<String> outerFieldName) throws AlgebricksException {
-        //        List<Statistics> innerStats =
-        //                getFieldStats(metadataProvider, innerDataverseName, innerDatasetName, innerFieldName);
-        //        List<Statistics> outerStats =
-        //                getFieldStats(metadataProvider, outerDataverseName, outerDatasetName, outerFieldName);
-        //
-        //        double result = 0.0;
-        //        double resultout = 0.0;
         long result = getTableCardinality(metadataProvider, innerDataverseName, innerDatasetName, innerFieldName);
         long innerUniqueValues = getUniqueCardinality(statistics);
 
         long resultout = getTableCardinality(metadataProvider, outerDataverseName, outerDatasetName, outerFieldName);
 
-        //        long innerUniqueValues =
-        //                getUniqueCardinality(metadataProvider, innerDataverseName, innerDatasetName, innerFieldName);
-        //        long outerUniqueValues =
-        //                getUniqueCardinality(metadataProvider, outerDataverseName, outerDatasetName, outerFieldName);
         long outerUniqueValues = getUniqueCardinality(statistics);
-        //        if ((innerStats == null || innerStats.isEmpty()) && (outerStats == null || outerStats.isEmpty())) {
-        //            return CardinalityInferenceVisitor.UNKNOWN;
-        //        }
-        //        for (Statistics s : innerStats) {
-        //            result += s.getSynopsis().joinQuery(s.getSynopsis(), this.primIndex);
-        //        }
-        //
-        //        for (Statistics sec : outerStats) {
-        //            resultout += sec.getSynopsis().joinQuery(sec.getSynopsis(), this.primIndex);
-        //        }
 
         System.out.println(result + ", " + resultout);
         System.out.println(innerUniqueValues + ", " + outerUniqueValues);
@@ -161,10 +139,6 @@ public class CardinalityEstimator implements ICardinalityEstimator {
     public long getUniqueCardinality(List<Statistics> stats) throws AlgebricksException {
 
         long estimate = 1;
-        //        List<Statistics> stats = getFieldStats(metadataProvider, dataverseName, datasetName, fieldName);
-        //        if (stats == null || stats.isEmpty()) {
-        //            return CardinalityInferenceVisitor.UNKNOWN;
-        //        }
 
         for (Statistics s : stats) {
             estimate = estimate + s.getSynopsis().uniqueQuery(this.primIndex);

@@ -44,22 +44,22 @@ public class QuantileSketchBuilder
     public void finishSynopsisBuild() throws HyracksDataException {
         //extract quantiles from the sketch, i.e. create an equi-height histogram
         List<Long> ranks = sketch.finish();
-        long height = Math.max(sketch.length() / (Math.max(ranks.size(), 1)), 1);
+        double height = sketch.length() / (double) (Math.max(ranks.size(), 1));
         long cardinality = sketch.finishHll();
         // take into account that rank values could contain duplicates
         Long prev = null;
-        long bucketHeight = 0;
+        double bucketHeight = 0;
         long uniqueValues = 0;
         for (Long r : ranks) {
             if (prev != null && r != prev) {
 
-                synopsis.getElements().add(new HistogramBucket(prev, bucketHeight, uniqueValues, height));
+                synopsis.getElements().add(new HistogramBucket(prev, bucketHeight, uniqueValues, (long) height));
                 bucketHeight = 0;
             }
             bucketHeight += height;
-            if (prev == null) {
-                prev = sketch.getElements().firstEntry().getValue();
-            }
+            //            if (prev == null) {
+            //                prev = sketch.getElements().firstEntry().getValue();
+            //            }
             //            if (r > prev) {
             //                uniqueValues = sketch.getElements().subMap(prev, r).size();
             //            }
@@ -67,7 +67,7 @@ public class QuantileSketchBuilder
         }
         if (prev != null) {
             //synopsis.getElements().add(new HistogramBucket(prev, bucketHeight, sketch.getElements().size(), height));
-            synopsis.getElements().add(new HistogramBucket(prev, bucketHeight, cardinality, height));
+            synopsis.getElements().add(new HistogramBucket(prev, bucketHeight, cardinality, (long) height));
         }
     }
 

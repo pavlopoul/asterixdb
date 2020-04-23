@@ -95,20 +95,13 @@ public abstract class HistogramSynopsis<T extends HistogramBucket> extends Abstr
 
     @Override
     public double joinQuery(ISynopsis synopsis, boolean primIndex) {
-        HistogramSynopsis<T> histogram = (HistogramSynopsis<T>) synopsis;
-        double leftEstimate = 0.0;
         double estimate = 0.0;
         for (int i = 0; i < getBuckets().size(); i++) {
             if (getBuckets().get(i).getValue() != 0.0) {
-                if (getType() == SynopsisType.ContinuousHistogram) {
-                    leftEstimate += getBuckets().get(i).getValue();
-                } else {
-                    leftEstimate += getBuckets().get(i).getValue();
-                }
+                estimate += getBuckets().get(i).getValue();
             }
         }
 
-        estimate = leftEstimate;
         return estimate;
     }
 
@@ -116,11 +109,9 @@ public abstract class HistogramSynopsis<T extends HistogramBucket> extends Abstr
     public long uniqueQuery(boolean primIndex) {
         long distinctValues = 0;
         int size = getBuckets().size();
-        //for (int i = 0; i < getBuckets().size(); i++) {
-        //if (getBuckets().get(i).getUniqueValue() != 0) {
-        distinctValues = getBuckets().get(size - 1).getUniqueValue();
-        //}
-        //        }
+        if (size > 0) {
+            distinctValues = getBuckets().get(size - 1).getUniqueValue();
+        }
 
         return distinctValues;
     }

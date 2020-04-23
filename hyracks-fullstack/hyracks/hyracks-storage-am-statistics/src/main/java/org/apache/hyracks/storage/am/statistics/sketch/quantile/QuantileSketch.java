@@ -207,7 +207,7 @@ public class QuantileSketch<T extends Comparable<T>> implements ISketch<T, T> {
         return elements.size();
     }
 
-    public int length() {
+    public double length() {
         return size;
     }
 

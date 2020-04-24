@@ -94,6 +94,7 @@ public class TestLsmBTreeResourceFactoryProvider implements IResourceFactoryProv
                 filterCmpFactories, filterFields, opTrackerFactory, ioOpCallbackFactory, pageWriteCallbackFactory,
                 metadataPageManagerFactory, vbcProvider, ioSchedulerProvider, mergePolicyFactory, mergePolicyProperties,
                 true, bloomFilterFields, bloomFilterFalsePositiveRate, index.isPrimaryIndex(), btreeFields,
+                bloomFilterFields != null,
                 new TestCountingStatisticsFactory(dataset.getDataverseName(), dataset.getDatasetName(),
                         index.getIndexName(),
                         StatisticsUtil.computeStatisticsFieldExtractors(typeTraitProvider, recordType,

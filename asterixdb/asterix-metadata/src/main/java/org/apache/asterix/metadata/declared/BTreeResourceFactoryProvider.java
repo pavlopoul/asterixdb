@@ -96,6 +96,7 @@ public class BTreeResourceFactoryProvider implements IResourceFactoryProvider {
                 storageComponentProvider.getMetadataPageManagerFactory();
         ILSMIOOperationSchedulerProvider ioSchedulerProvider =
                 storageComponentProvider.getIoOperationSchedulerProvider();
+        boolean hasBloomFilter = bloomFilterFields != null;
         switch (dataset.getDatasetType()) {
             case EXTERNAL:
                 return index.getIndexName().equals(IndexingConstants.getFilesIndexName(dataset.getDatasetName()))
@@ -103,12 +104,12 @@ public class BTreeResourceFactoryProvider implements IResourceFactoryProvider {
                                 filterTypeTraits, filterCmpFactories, filterFields, opTrackerFactory,
                                 ioOpCallbackFactory, pageWriteCallbackFactory, metadataPageManagerFactory,
                                 ioSchedulerProvider, mergePolicyFactory, mergePolicyProperties, true, bloomFilterFields,
-                                bloomFilterFalsePositiveRate, false, btreeFields)
+                                bloomFilterFalsePositiveRate, false, btreeFields, hasBloomFilter)
                         : new ExternalBTreeWithBuddyLocalResourceFactory(storageManager, typeTraits, cmpFactories,
                                 filterTypeTraits, filterCmpFactories, filterFields, opTrackerFactory,
                                 ioOpCallbackFactory, pageWriteCallbackFactory, metadataPageManagerFactory,
                                 ioSchedulerProvider, mergePolicyFactory, mergePolicyProperties, true, bloomFilterFields,
-                                bloomFilterFalsePositiveRate, false, btreeFields);
+                                bloomFilterFalsePositiveRate, false, btreeFields, hasBloomFilter);
             case INTERNAL:
                 AsterixVirtualBufferCacheProvider vbcProvider =
                         new AsterixVirtualBufferCacheProvider(dataset.getDatasetId());
@@ -142,7 +143,8 @@ public class BTreeResourceFactoryProvider implements IResourceFactoryProvider {
                         pageWriteCallbackFactory, metadataPageManagerFactory, vbcProvider, ioSchedulerProvider,
                         mergePolicyFactory, mergePolicyProperties, true, bloomFilterFields,
                         bloomFilterFalsePositiveRate, index.isPrimaryIndex(), btreeFields, compDecompFactory,
-                        statisticsFactory, mdProvider.getStorageComponentProvider().getStatisticsManagerProvider());
+                        hasBloomFilter, statisticsFactory,
+                        mdProvider.getStorageComponentProvider().getStatisticsManagerProvider());
             default:
                 throw new CompilationException(ErrorCode.COMPILATION_UNKNOWN_DATASET_TYPE,
                         dataset.getDatasetType().toString());

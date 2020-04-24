@@ -18,7 +18,6 @@
  */
 package org.apache.hyracks.storage.am.lsm.btree.dataflow;
 
-import java.io.IOException;
 import java.util.List;
 import java.util.Map;
 
@@ -46,7 +45,6 @@ import org.apache.hyracks.storage.am.lsm.common.api.IVirtualBufferCacheProvider;
 import org.apache.hyracks.storage.am.lsm.common.dataflow.LsmResource;
 import org.apache.hyracks.storage.common.IStorageManager;
 import org.apache.hyracks.storage.common.compression.NoOpCompressorDecompressorFactory;
-import org.apache.hyracks.util.ReflectionUtils;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.node.ObjectNode;
@@ -54,7 +52,9 @@ import com.fasterxml.jackson.databind.node.ObjectNode;
 public class LSMBTreeLocalResource extends LsmResource {
 
     private static final long serialVersionUID = 1L;
+    private static final String HAS_BLOOM_FILTER_FIELD = "hasBloomFilter";
 
+    protected final boolean hasBloomFilter;
     protected final int[] bloomFilterKeyFields;
     protected final double bloomFilterFalsePositiveRate;
     protected final boolean isPrimary;
@@ -72,8 +72,8 @@ public class LSMBTreeLocalResource extends LsmResource {
             ILSMPageWriteCallbackFactory pageWriteCallbackFactory,
             IMetadataPageManagerFactory metadataPageManagerFactory, IVirtualBufferCacheProvider vbcProvider,
             ILSMIOOperationSchedulerProvider ioSchedulerProvider, boolean durable,
-            ICompressorDecompressorFactory compressorDecompressorFactory, IStatisticsFactory statisticsFactory,
-            IStatisticsManagerProvider statisticsManagerProvider) {
+            ICompressorDecompressorFactory compressorDecompressorFactory, boolean hasBloomFilter,
+            IStatisticsFactory statisticsFactory, IStatisticsManagerProvider statisticsManagerProvider) {
         super(path, storageManager, typeTraits, cmpFactories, filterTypeTraits, filterCmpFactories, filterFields,
                 opTrackerProvider, ioOpCallbackFactory, pageWriteCallbackFactory, metadataPageManagerFactory,
                 vbcProvider, ioSchedulerProvider, mergePolicyFactory, mergePolicyProperties, durable);
@@ -84,11 +84,13 @@ public class LSMBTreeLocalResource extends LsmResource {
         this.compressorDecompressorFactory = compressorDecompressorFactory;
         this.statisticsFactory = statisticsFactory;
         this.statisticsManagerProvider = statisticsManagerProvider;
+        this.hasBloomFilter = hasBloomFilter;
     }
 
     protected LSMBTreeLocalResource(IPersistedResourceRegistry registry, JsonNode json, int[] bloomFilterKeyFields,
             double bloomFilterFalsePositiveRate, boolean isPrimary, int[] btreeFields,
-            ICompressorDecompressorFactory compressorDecompressorFactory) throws HyracksDataException {
+            ICompressorDecompressorFactory compressorDecompressorFactory, boolean hasBloomFilter)
+            throws HyracksDataException {
         super(registry, json);
         this.bloomFilterKeyFields = bloomFilterKeyFields;
         this.bloomFilterFalsePositiveRate = bloomFilterFalsePositiveRate;
@@ -97,6 +99,7 @@ public class LSMBTreeLocalResource extends LsmResource {
         this.compressorDecompressorFactory = compressorDecompressorFactory;
         this.statisticsFactory = null;
         this.statisticsManagerProvider = null;
+        this.hasBloomFilter = hasBloomFilter;
     }
 
     @Override
@@ -116,7 +119,7 @@ public class LSMBTreeLocalResource extends LsmResource {
                 opTrackerProvider.getOperationTracker(serviceCtx, this), ioSchedulerProvider.getIoScheduler(serviceCtx),
                 ioOpCallbackFactory, pageWriteCallbackFactory, isPrimary, filterTypeTraits, filterCmpFactories,
                 btreeFields, filterFields, durable, metadataPageManagerFactory, updateAware, serviceCtx.getTracer(),
-                compressorDecompressorFactory, statisticsFactory,
+                compressorDecompressorFactory, hasBloomFilter, statisticsFactory,
                 hasStatistics ? statisticsManagerProvider.getStatisticsManager(serviceCtx) : null);
     }
 
@@ -132,18 +135,20 @@ public class LSMBTreeLocalResource extends LsmResource {
         final int[] bloomFilterKeyFields = OBJECT_MAPPER.convertValue(json.get("bloomFilterKeyFields"), int[].class);
         final double bloomFilterFalsePositiveRate = json.get("bloomFilterFalsePositiveRate").asDouble();
         final boolean isPrimary = json.get("isPrimary").asBoolean();
+        boolean hasBloomFilter = getOrDefaultHasBloomFilter(json, isPrimary);
         final int[] btreeFields = OBJECT_MAPPER.convertValue(json.get("btreeFields"), int[].class);
         final JsonNode compressorDecompressorNode = json.get("compressorDecompressorFactory");
         final ICompressorDecompressorFactory compDecompFactory = (ICompressorDecompressorFactory) registry
                 .deserializeOrDefault(compressorDecompressorNode, NoOpCompressorDecompressorFactory.class);
         return new LSMBTreeLocalResource(registry, json, bloomFilterKeyFields, bloomFilterFalsePositiveRate, isPrimary,
-                btreeFields, compDecompFactory);
+                btreeFields, compDecompFactory, hasBloomFilter);
     }
 
     @Override
     protected void appendToJson(final ObjectNode json, IPersistedResourceRegistry registry)
             throws HyracksDataException {
         super.appendToJson(json, registry);
+        json.put(HAS_BLOOM_FILTER_FIELD, hasBloomFilter);
         json.putPOJO("bloomFilterKeyFields", bloomFilterKeyFields);
         json.put("bloomFilterFalsePositiveRate", bloomFilterFalsePositiveRate);
         json.put("isPrimary", isPrimary);
@@ -151,14 +156,11 @@ public class LSMBTreeLocalResource extends LsmResource {
         json.putPOJO("compressorDecompressorFactory", compressorDecompressorFactory.toJson(registry));
     }
 
-    private void readObject(java.io.ObjectInputStream in) throws IOException, ClassNotFoundException {
-        in.defaultReadObject();
-
-        // compat w/ 0.3.4
-        if (compressorDecompressorFactory == null) {
-            ReflectionUtils.writeField(this, "compressorDecompressorFactory",
-                    NoOpCompressorDecompressorFactory.INSTANCE);
+    private static boolean getOrDefaultHasBloomFilter(JsonNode json, boolean isPrimary) {
+        if (json.has(HAS_BLOOM_FILTER_FIELD)) {
+            return json.get(HAS_BLOOM_FILTER_FIELD).asBoolean();
         }
+        // for backward compatibiliy, only primary indexes have bloom filters
+        return isPrimary;
     }
-
 }

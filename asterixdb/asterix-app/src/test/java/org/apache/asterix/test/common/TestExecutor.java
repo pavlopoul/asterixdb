@@ -64,10 +64,9 @@ import java.util.concurrent.TimeoutException;
 import java.util.function.Predicate;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
-import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
-import org.apache.asterix.api.http.server.QueryServiceServlet;
+import org.apache.asterix.api.http.server.QueryServiceRequestParameters;
 import org.apache.asterix.app.external.IExternalUDFLibrarian;
 import org.apache.asterix.common.api.Duration;
 import org.apache.asterix.common.config.GlobalConfig;
@@ -84,6 +83,7 @@ import org.apache.asterix.testframework.xml.ParameterTypeEnum;
 import org.apache.asterix.testframework.xml.TestCase.CompilationUnit;
 import org.apache.asterix.testframework.xml.TestCase.CompilationUnit.Parameter;
 import org.apache.asterix.testframework.xml.TestGroup;
+import org.apache.asterix.translator.ExecutionPlansJsonPrintUtil;
 import org.apache.commons.io.FileUtils;
 import org.apache.commons.io.FilenameUtils;
 import org.apache.commons.io.IOUtils;
@@ -115,6 +115,8 @@ import com.fasterxml.jackson.databind.DeserializationFeature;
 import com.fasterxml.jackson.databind.JsonMappingException;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.ObjectReader;
+import com.fasterxml.jackson.databind.ObjectWriter;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.fasterxml.jackson.databind.util.RawValue;
 
@@ -124,6 +126,13 @@ public class TestExecutor {
      * Static variables
      */
     protected static final Logger LOGGER = LogManager.getLogger();
+    private static final ObjectMapper OM = new ObjectMapper();
+    private static final ObjectWriter OBJECT_WRITER = OM.writer();
+    private static final ObjectReader JSON_NODE_READER = OM.readerFor(JsonNode.class);
+    private static final ObjectReader SINGLE_JSON_NODE_READER = JSON_NODE_READER
+            .with(DeserializationFeature.FAIL_ON_TRAILING_TOKENS, DeserializationFeature.FAIL_ON_READING_DUP_TREE_KEY);
+    private static final ObjectReader RESULT_NODE_READER =
+            JSON_NODE_READER.with(DeserializationFeature.ACCEPT_EMPTY_STRING_AS_NULL_OBJECT);
     private static final String AQL = "aql";
     private static final String SQLPP = "sqlpp";
     private static final String DEFAULT_PLAN_FORMAT = "string";
@@ -139,6 +148,9 @@ public class TestExecutor {
             Pattern.compile("polltimeoutsecs=(\\d+)(\\D|$)", Pattern.MULTILINE);
     private static final Pattern POLL_DELAY_PATTERN = Pattern.compile("polldelaysecs=(\\d+)(\\D|$)", Pattern.MULTILINE);
     private static final Pattern HANDLE_VARIABLE_PATTERN = Pattern.compile("handlevariable=(\\w+)");
+    private static final Pattern RESULT_VARIABLE_PATTERN = Pattern.compile("resultvariable=(\\w+)");
+    private static final Pattern COMPARE_UNORDERED_ARRAY_PATTERN = Pattern.compile("compareunorderedarray=(\\w+)");
+
     private static final Pattern VARIABLE_REF_PATTERN = Pattern.compile("\\$(\\w+)");
     private static final Pattern HTTP_PARAM_PATTERN =
             Pattern.compile("param (?<name>[\\w-$]+)(?::(?<type>\\w+))?=(?<value>.*)", Pattern.MULTILINE);
@@ -173,7 +185,7 @@ public class TestExecutor {
     private static List<InetSocketAddress> ncEndPointsList = new ArrayList<>();
     private static Map<String, InetSocketAddress> replicationAddress;
 
-    private final List<Charset> allCharsets;
+    private List<Charset> allCharsets;
     private final Queue<Charset> charsetsRemaining = new ArrayDeque<>();
 
     /*
@@ -199,10 +211,7 @@ public class TestExecutor {
 
     public TestExecutor(List<InetSocketAddress> endpoints) {
         this.endpoints = endpoints;
-        this.allCharsets = Stream
-                .of("UTF-8", "UTF-16", "UTF-16BE", "UTF-16LE", "UTF-32", "UTF-32BE", "UTF-32LE", "x-UTF-32BE-BOM",
-                        "x-UTF-32LE-BOM", "x-UTF-16LE-BOM")
-                .filter(Charset::isSupported).map(Charset::forName).collect(Collectors.toList());
+        this.allCharsets = Collections.singletonList(UTF_8);
     }
 
     public void setLibrarian(IExternalUDFLibrarian librarian) {
@@ -237,9 +246,12 @@ public class TestExecutor {
     }
 
     public void runScriptAndCompareWithResult(File scriptFile, File expectedFile, File actualFile,
-            ComparisonEnum compare, Charset actualEncoding) throws Exception {
+            ComparisonEnum compare, Charset actualEncoding, String statement) throws Exception {
         LOGGER.info("Expected results file: {} ", expectedFile);
         boolean regex = false;
+        if (expectedFile.getName().endsWith(".ignore")) {
+            return; //skip the comparison
+        }
         try (BufferedReader readerExpected =
                 new BufferedReader(new InputStreamReader(new FileInputStream(expectedFile), UTF_8));
                 BufferedReader readerActual =
@@ -256,16 +268,8 @@ public class TestExecutor {
                 runScriptAndCompareWithResultRegexAdm(scriptFile, readerExpected, readerActual);
                 return;
             } else if (actualFile.toString().endsWith(".regexjson")) {
-                ObjectMapper OM = new ObjectMapper();
-                JsonNode expectedJson = OM.readTree(readerExpected);
-                JsonNode actualJson = OM.readTree(readerActual);
-                if (expectedJson == null || actualJson == null) {
-                    throw new NullPointerException("Error parsing expected or actual result file for " + scriptFile);
-                }
-                if (!TestHelper.equalJson(expectedJson, actualJson)) {
-                    throw new ComparisonException("Result for " + scriptFile + " didn't match the expected JSON"
-                            + "\nexpected result:\n" + expectedJson + "\nactual result:\n" + actualJson);
-                }
+                boolean compareUnorderedArray = statement != null && getCompareUnorderedArray(statement);
+                runScriptAndCompareWithResultRegexJson(scriptFile, readerExpected, readerActual, compareUnorderedArray);
                 return;
             }
             String lineExpected, lineActual;
@@ -499,6 +503,30 @@ public class TestExecutor {
         }
     }
 
+    private static void runScriptAndCompareWithResultRegexJson(File scriptFile, BufferedReader readerExpected,
+            BufferedReader readerActual, boolean compareUnorderedArray) throws ComparisonException, IOException {
+        JsonNode expectedJson, actualJson;
+        try {
+            expectedJson = SINGLE_JSON_NODE_READER.readTree(readerExpected);
+        } catch (JsonProcessingException e) {
+            throw new ComparisonException("Invalid expected JSON for: " + scriptFile);
+        }
+        try {
+            actualJson = SINGLE_JSON_NODE_READER.readTree(readerActual);
+        } catch (JsonProcessingException e) {
+            throw new ComparisonException("Invalid actual JSON for: " + scriptFile);
+        }
+        if (expectedJson == null) {
+            throw new ComparisonException("No expected result for: " + scriptFile);
+        } else if (actualJson == null) {
+            throw new ComparisonException("No actual result for: " + scriptFile);
+        }
+        if (!TestHelper.equalJson(expectedJson, actualJson, compareUnorderedArray)) {
+            throw new ComparisonException("Result for " + scriptFile + " didn't match the expected JSON"
+                    + "\nexpected result:\n" + expectedJson + "\nactual result:\n" + actualJson);
+        }
+    }
+
     // For tests where you simply want the byte-for-byte output.
     private static void writeOutputToFile(File actualFile, InputStream resultStream) throws Exception {
         final File parentDir = actualFile.getParentFile();
@@ -557,8 +585,7 @@ public class TestExecutor {
             String[] errors;
             try {
                 // First try to parse the response for a JSON error response.
-                ObjectMapper om = new ObjectMapper();
-                JsonNode result = om.readTree(errorBody);
+                JsonNode result = JSON_NODE_READER.readTree(errorBody);
                 errors = new String[] { result.get("error-code").get(1).asText(), result.get("summary").asText(),
                         result.get("stacktrace").asText() };
             } catch (Exception e) {
@@ -624,13 +651,15 @@ public class TestExecutor {
     }
 
     public List<Parameter> constructQueryParameters(String str, OutputFormat fmt, List<Parameter> params) {
-        List<Parameter> newParams = upsertParam(params, "format", ParameterTypeEnum.STRING, fmt.mimeType());
+        List<Parameter> newParams = setFormatInAccept(fmt) ? params
+                : upsertParam(params, QueryServiceRequestParameters.Parameter.FORMAT.str(), ParameterTypeEnum.STRING,
+                        fmt.extension());
 
-        newParams = upsertParam(newParams, QueryServiceServlet.Parameter.PLAN_FORMAT.str(), ParameterTypeEnum.STRING,
-                DEFAULT_PLAN_FORMAT);
+        newParams = upsertParam(newParams, QueryServiceRequestParameters.Parameter.PLAN_FORMAT.str(),
+                ParameterTypeEnum.STRING, DEFAULT_PLAN_FORMAT);
         final Optional<String> maxReadsOptional = extractMaxResultReads(str);
         if (maxReadsOptional.isPresent()) {
-            newParams = upsertParam(newParams, QueryServiceServlet.Parameter.MAX_RESULT_READS.str(),
+            newParams = upsertParam(newParams, QueryServiceRequestParameters.Parameter.MAX_RESULT_READS.str(),
                     ParameterTypeEnum.STRING, maxReadsOptional.get());
         }
         return newParams;
@@ -649,7 +678,7 @@ public class TestExecutor {
                 : constructPostMethodUrl(str, uri, "statement", params);
         // Set accepted output response type
         method.setHeader("Origin", uri.getScheme() + uri.getAuthority());
-        method.setHeader("Accept", OutputFormat.CLEAN_JSON.mimeType());
+        method.setHeader("Accept", setFormatInAccept(fmt) ? fmt.mimeType() : OutputFormat.CLEAN_JSON.mimeType());
         method.setHeader("Accept-Charset", responseCharset.name());
         if (!responseCharset.equals(UTF_8)) {
             LOGGER.info("using Accept-Charset: {}", responseCharset.name());
@@ -669,9 +698,16 @@ public class TestExecutor {
                 responseCharset, responseCodeValidator, cancellable);
     }
 
-    public synchronized void setAvailableCharsets(Charset... charsets) {
-        allCharsets.clear();
-        allCharsets.addAll(Arrays.asList(charsets));
+    private static boolean setFormatInAccept(OutputFormat fmt) {
+        return fmt == OutputFormat.LOSSLESS_JSON || fmt == OutputFormat.CSV_HEADER;
+    }
+
+    public void setAvailableCharsets(Charset... charsets) {
+        setAvailableCharsets(Arrays.asList(charsets));
+    }
+
+    public synchronized void setAvailableCharsets(List<Charset> charsets) {
+        allCharsets = charsets;
         charsetsRemaining.clear();
     }
 
@@ -796,8 +832,7 @@ public class TestExecutor {
             List<Parameter> otherParams) {
         Objects.requireNonNull(stmtParam, "statement parameter required");
         RequestBuilder builder = RequestBuilder.post(uri);
-        ObjectMapper om = new ObjectMapper();
-        ObjectNode content = om.createObjectNode();
+        ObjectNode content = OM.createObjectNode();
         for (Parameter param : upsertParam(otherParams, stmtParam, ParameterTypeEnum.STRING, statement)) {
             String paramName = param.getName();
             ParameterTypeEnum paramType = param.getType();
@@ -817,7 +852,7 @@ public class TestExecutor {
             }
         }
         try {
-            builder.setEntity(new StringEntity(om.writeValueAsString(content),
+            builder.setEntity(new StringEntity(OBJECT_WRITER.writeValueAsString(content),
                     ContentType.create(ContentType.APPLICATION_JSON.getMimeType(),
                             statement.length() > MAX_NON_UTF_8_STATEMENT_SIZE ? UTF_8 : nextCharset())));
         } catch (JsonProcessingException e) {
@@ -1028,7 +1063,7 @@ public class TestExecutor {
                         + "_qar.adm");
                 writeOutputToFile(qarFile, resultStream);
                 qbcFile = getTestCaseQueryBeforeCrashFile(actualPath, testCaseCtx, cUnit);
-                runScriptAndCompareWithResult(testFile, qbcFile, qarFile, ComparisonEnum.TEXT, UTF_8);
+                runScriptAndCompareWithResult(testFile, qbcFile, qarFile, ComparisonEnum.TEXT, UTF_8, statement);
                 break;
             case "txneu": // eu represents erroneous update
                 try {
@@ -1295,7 +1330,8 @@ public class TestExecutor {
                 }
             } else {
                 writeOutputToFile(actualResultFile, resultStream);
-                runScriptAndCompareWithResult(testFile, expectedResultFile, actualResultFile, compare, UTF_8);
+                runScriptAndCompareWithResult(testFile, expectedResultFile, actualResultFile, compare, UTF_8,
+                        statement);
             }
         }
         queryCount.increment();
@@ -1319,13 +1355,14 @@ public class TestExecutor {
         }
 
         boolean isJsonEncoded = isJsonEncoded(extractHttpRequestType(statement));
-
         Charset responseCharset = getResponseCharset(expectedResultFile);
         InputStream resultStream;
         ExtractedResult extractedResult = null;
+        final String variablesReplaced = replaceVarRefRelaxed(statement, variableCtx);
+        String resultVar = getResultVariable(statement); //Is the result of the statement/query to be used in later tests
         if (DELIVERY_IMMEDIATE.equals(delivery)) {
-            resultStream = executeQueryService(statement, ctx, fmt, uri, params, isJsonEncoded, responseCharset, null,
-                    isCancellable(reqType));
+            resultStream = executeQueryService(variablesReplaced, ctx, fmt, uri, params, isJsonEncoded, responseCharset,
+                    null, isCancellable(reqType));
             switch (reqType) {
                 case METRICS_QUERY_TYPE:
                     resultStream = ResultExtractor.extractMetrics(resultStream, responseCharset);
@@ -1334,10 +1371,11 @@ public class TestExecutor {
                     resultStream = ResultExtractor.extractProfile(resultStream, responseCharset);
                     break;
                 case PLANS_QUERY_TYPE:
-                    resultStream = ResultExtractor.extractPlans(resultStream, responseCharset);
+                    String[] plans = plans(statement);
+                    resultStream = ResultExtractor.extractPlans(resultStream, responseCharset, plans);
                     break;
                 default:
-                    extractedResult = ResultExtractor.extract(resultStream, responseCharset);
+                    extractedResult = ResultExtractor.extract(resultStream, responseCharset, fmt);
                     resultStream = extractedResult.getResult();
                     break;
             }
@@ -1357,7 +1395,13 @@ public class TestExecutor {
                         + ", filectxs.size: " + numResultFiles);
             }
         } else {
-            writeOutputToFile(actualResultFile, resultStream);
+            if (resultVar != null) {
+                String result = IOUtils.toString(resultStream, responseCharset);
+                variableCtx.put(resultVar, result);
+                writeOutputToFile(actualResultFile, new ByteArrayInputStream(result.getBytes(responseCharset)));
+            } else {
+                writeOutputToFile(actualResultFile, resultStream);
+            }
             if (expectedResultFile == null) {
                 if (reqType.equals("store")) {
                     return extractedResult;
@@ -1366,7 +1410,8 @@ public class TestExecutor {
                         + ", filectxs.size: " + numResultFiles);
             }
         }
-        runScriptAndCompareWithResult(testFile, expectedResultFile, actualResultFile, compare, responseCharset);
+        runScriptAndCompareWithResult(testFile, expectedResultFile, actualResultFile, compare, responseCharset,
+                statement);
         if (!reqType.equals("validate")) {
             queryCount.increment();
         }
@@ -1538,7 +1583,7 @@ public class TestExecutor {
     private InputStream executeUpdateOrDdl(String statement, OutputFormat outputFormat, URI serviceUri)
             throws Exception {
         InputStream resultStream = executeQueryService(statement, serviceUri, outputFormat, UTF_8);
-        return ResultExtractor.extract(resultStream, UTF_8).getResult();
+        return ResultExtractor.extract(resultStream, UTF_8, outputFormat).getResult();
     }
 
     protected static boolean isExpected(Exception e, CompilationUnit cUnit) {
@@ -1585,6 +1630,16 @@ public class TestExecutor {
         return handleVariableMatcher.find() ? handleVariableMatcher.group(1) : null;
     }
 
+    protected static String getResultVariable(String statement) {
+        final Matcher resultVariableMatcher = RESULT_VARIABLE_PATTERN.matcher(statement);
+        return resultVariableMatcher.find() ? resultVariableMatcher.group(1) : null;
+    }
+
+    protected static boolean getCompareUnorderedArray(String statement) {
+        final Matcher matcher = COMPARE_UNORDERED_ARRAY_PATTERN.matcher(statement);
+        return matcher.find() && Boolean.parseBoolean(matcher.group(1));
+    }
+
     protected static String replaceVarRef(String statement, Map<String, Object> variableCtx) {
         String tmpStmt = statement;
         Matcher variableReferenceMatcher = VARIABLE_REF_PATTERN.matcher(tmpStmt);
@@ -1592,6 +1647,21 @@ public class TestExecutor {
             String var = variableReferenceMatcher.group(1);
             Object value = variableCtx.get(var);
             Assert.assertNotNull("No value for variable reference $" + var, value);
+            tmpStmt = tmpStmt.replace("$" + var, String.valueOf(value));
+            variableReferenceMatcher = VARIABLE_REF_PATTERN.matcher(tmpStmt);
+        }
+        return tmpStmt;
+    }
+
+    protected static String replaceVarRefRelaxed(String statement, Map<String, Object> variableCtx) {
+        String tmpStmt = statement;
+        Matcher variableReferenceMatcher = VARIABLE_REF_PATTERN.matcher(tmpStmt);
+        while (variableReferenceMatcher.find()) {
+            String var = variableReferenceMatcher.group(1);
+            Object value = variableCtx.get(var);
+            if (value == null) {
+                continue;
+            }
             tmpStmt = tmpStmt.replace("$" + var, String.valueOf(value));
             variableReferenceMatcher = VARIABLE_REF_PATTERN.matcher(tmpStmt);
         }
@@ -1699,7 +1769,7 @@ public class TestExecutor {
         StringWriter actual = new StringWriter();
         IOUtils.copy(executeJSONGet, actual, UTF_8);
         String config = actual.toString();
-        int nodePid = new ObjectMapper().readValue(config, ObjectNode.class).get("pid").asInt();
+        int nodePid = JSON_NODE_READER.<ObjectNode> readValue(config).get("pid").asInt();
         if (nodePid <= 1) {
             throw new IllegalArgumentException("Could not retrieve node pid from admin API");
         }
@@ -1729,8 +1799,7 @@ public class TestExecutor {
         StringWriter actual = new StringWriter();
         IOUtils.copy(executeJSONGet, actual, UTF_8);
         String config = actual.toString();
-        ObjectMapper om = new ObjectMapper();
-        String logDir = om.readTree(config).findPath("txn.log.dir").asText();
+        String logDir = JSON_NODE_READER.readTree(config).findPath("txn.log.dir").asText();
         FileUtils.deleteQuietly(new File(logDir));
     }
 
@@ -1953,7 +2022,7 @@ public class TestExecutor {
                     dropStatement.append(";\n");
                     resultStream = executeQueryService(dropStatement.toString(), getEndpoint(Servlets.QUERY_SERVICE),
                             OutputFormat.CLEAN_JSON, UTF_8);
-                    ResultExtractor.extract(resultStream, UTF_8);
+                    ResultExtractor.extract(resultStream, UTF_8, OutputFormat.CLEAN_JSON);
                 }
             }
         } catch (Throwable th) {
@@ -1963,17 +2032,15 @@ public class TestExecutor {
     }
 
     private JsonNode extractResult(String jsonString) throws IOException {
-        ObjectMapper om = new ObjectMapper();
-        om.setConfig(om.getDeserializationConfig().with(DeserializationFeature.ACCEPT_EMPTY_STRING_AS_NULL_OBJECT));
         try {
-            final JsonNode result = om.readValue(jsonString, ObjectNode.class).get("results");
+            final JsonNode result = RESULT_NODE_READER.<ObjectNode> readValue(jsonString).get("results");
             if (result == null) {
                 throw new IllegalArgumentException("No field 'results' in " + jsonString);
             }
             return result;
         } catch (JsonMappingException e) {
             LOGGER.warn("error mapping response '{}' to json", jsonString, e);
-            return om.createArrayNode();
+            return OM.createArrayNode();
         }
     }
 
@@ -2000,8 +2067,7 @@ public class TestExecutor {
                     if (statusCode != HttpStatus.SC_OK) {
                         throw new Exception("HTTP error " + statusCode + ":\n" + response);
                     }
-                    ObjectMapper om = new ObjectMapper();
-                    ObjectNode result = (ObjectNode) om.readTree(response);
+                    ObjectNode result = (ObjectNode) JSON_NODE_READER.readTree(response);
                     if (result.get("state").asText().matches(desiredState)) {
                         break;
                     }
@@ -2140,10 +2206,23 @@ public class TestExecutor {
         }
     }
 
+    private static String[] plans(String statement) {
+        boolean requestingLogicalPlan = isRequestingLogicalPlan(statement);
+        return requestingLogicalPlan ? new String[] { ExecutionPlansJsonPrintUtil.OPTIMIZED_LOGICAL_PLAN_LBL } : null;
+    }
+
+    private static boolean isRequestingLogicalPlan(String statement) {
+        List<Parameter> httpParams = extractParameters(statement);
+        return httpParams.stream()
+                .anyMatch(param -> param.getName()
+                        .equals(QueryServiceRequestParameters.Parameter.OPTIMIZED_LOGICAL_PLAN.str())
+                        && param.getValue().equals("true"));
+    }
+
     protected static boolean containsClientContextID(String statement) {
         List<Parameter> httpParams = extractParameters(statement);
         return httpParams.stream().map(Parameter::getName)
-                .anyMatch(QueryServiceServlet.Parameter.CLIENT_ID.str()::equals);
+                .anyMatch(QueryServiceRequestParameters.Parameter.CLIENT_ID.str()::equals);
     }
 
     private static boolean isCancellable(String type) {
@@ -2153,9 +2232,10 @@ public class TestExecutor {
     private InputStream query(CompilationUnit cUnit, String testFile, String statement, Charset responseCharset)
             throws Exception {
         final URI uri = getQueryServiceUri(testFile);
-        final InputStream inputStream = executeQueryService(statement, OutputFormat.forCompilationUnit(cUnit), uri,
-                cUnit.getParameter(), true, responseCharset);
-        return ResultExtractor.extract(inputStream, responseCharset).getResult();
+        OutputFormat outputFormat = OutputFormat.forCompilationUnit(cUnit);
+        final InputStream inputStream =
+                executeQueryService(statement, outputFormat, uri, cUnit.getParameter(), true, responseCharset);
+        return ResultExtractor.extract(inputStream, responseCharset, outputFormat).getResult();
     }
 
     private URI getQueryServiceUri(String extension) throws URISyntaxException {

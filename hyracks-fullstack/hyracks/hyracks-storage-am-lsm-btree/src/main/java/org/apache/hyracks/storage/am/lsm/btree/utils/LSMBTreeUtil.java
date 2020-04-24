@@ -78,7 +78,8 @@ public class LSMBTreeUtil {
             boolean needKeyDupCheck, ITypeTraits[] filterTypeTraits, IBinaryComparatorFactory[] filterCmpFactories,
             int[] btreeFields, int[] filterFields, boolean durable, IMetadataPageManagerFactory freePageManagerFactory,
             boolean updateAware, ITracer tracer, ICompressorDecompressorFactory compressorDecompressorFactory,
-            IStatisticsFactory statisticsFactory, IStatisticsManager statisticsManager) throws HyracksDataException {
+            boolean hasBloomFilter, IStatisticsFactory statisticsFactory, IStatisticsManager statisticsManager)
+            throws HyracksDataException {
         LSMBTreeTupleWriterFactory insertTupleWriterFactory =
                 new LSMBTreeTupleWriterFactory(typeTraits, cmpFactories.length, false, updateAware);
         LSMBTreeTupleWriterFactory deleteTupleWriterFactory =
@@ -110,8 +111,6 @@ public class LSMBTreeUtil {
             filterFrameFactory = new LSMComponentFilterFrameFactory(filterTupleWriterFactory);
             filterManager = new LSMComponentFilterManager(filterFrameFactory);
         }
-
-        boolean hasBloomFilter = bloomFilterKeyFields != null;
         ILSMIndexFileManager fileNameManager = new LSMBTreeFileManager(ioManager, file, diskBTreeFactory,
                 hasBloomFilter, compressorDecompressorFactory);
 

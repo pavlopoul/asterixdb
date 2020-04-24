@@ -49,14 +49,15 @@ public class TestLsmBtreeLocalResourceFactory extends LSMBTreeLocalResourceFacto
             IMetadataPageManagerFactory metadataPageManagerFactory, IVirtualBufferCacheProvider vbcProvider,
             ILSMIOOperationSchedulerProvider ioSchedulerProvider, ILSMMergePolicyFactory mergePolicyFactory,
             Map<String, String> mergePolicyProperties, boolean durable, int[] bloomFilterKeyFields,
-            double bloomFilterFalsePositiveRate, boolean isPrimary, int[] btreeFields,
+            double bloomFilterFalsePositiveRate, boolean isPrimary, int[] btreeFields, boolean hasBloomFilter,
             IStatisticsFactory statisticsFactory, IStatisticsManagerProvider statisticsManagerProvider,
             boolean updateAware) {
         super(storageManager, typeTraits, cmpFactories, filterTypeTraits, filterCmpFactories, filterFields,
                 opTrackerFactory, ioOpCallbackFactory, pageWriteCallbackFactory, metadataPageManagerFactory,
                 vbcProvider, ioSchedulerProvider, mergePolicyFactory, mergePolicyProperties, durable,
                 bloomFilterKeyFields, bloomFilterFalsePositiveRate, isPrimary, btreeFields,
-                NoOpCompressorDecompressorFactory.INSTANCE, statisticsFactory, statisticsManagerProvider);
+                NoOpCompressorDecompressorFactory.INSTANCE, hasBloomFilter, statisticsFactory,
+                statisticsManagerProvider);
         this.updateAware = updateAware;
     }
 
@@ -66,6 +67,7 @@ public class TestLsmBtreeLocalResourceFactory extends LSMBTreeLocalResourceFacto
                 bloomFilterFalsePositiveRate, isPrimary, fileRef.getRelativePath(), storageManager, mergePolicyFactory,
                 mergePolicyProperties, filterTypeTraits, filterCmpFactories, btreeFields, filterFields,
                 opTrackerProvider, ioOpCallbackFactory, pageWriteCallbackFactory, metadataPageManagerFactory,
-                vbcProvider, ioSchedulerProvider, durable, statisticsFactory, statisticsManagerProvider, updateAware);
+                vbcProvider, ioSchedulerProvider, durable, hasBloomFilter, statisticsFactory, statisticsManagerProvider,
+                updateAware);
     }
 }

@@ -54,7 +54,7 @@ public class LSMBTreeModificationOperationCallbackTest extends AbstractModificat
                 NoOpOperationTrackerFactory.INSTANCE.getOperationTracker(null, null), harness.getIOScheduler(),
                 harness.getIOOperationCallbackFactory(), harness.getPageWriteCallbackFactory(), true, null, null, null,
                 null, true, harness.getMetadataPageManagerFactory(), false, ITracer.NONE,
-                NoOpCompressorDecompressorFactory.INSTANCE, null, null);
+                NoOpCompressorDecompressorFactory.INSTANCE, HAS_BLOOM_FILTER, null, null);
     }
 
     @Override

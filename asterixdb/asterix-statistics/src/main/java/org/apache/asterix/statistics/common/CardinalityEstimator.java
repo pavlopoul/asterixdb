@@ -85,6 +85,8 @@ public class CardinalityEstimator implements ICardinalityEstimator {
     public long getTableCardinality(IMetadataProvider metadataProvider, String dataverseName, String datasetName,
             List<String> fieldName) throws AlgebricksException {
         statistics = getFieldStats(metadataProvider, dataverseName, datasetName, fieldName);
+        if (statistics == null)
+            return 0;
         long result = 0l;
         for (Statistics s : statistics) {
             result += s.getSynopsis().joinQuery(s.getSynopsis(), this.primIndex);
@@ -97,11 +99,18 @@ public class CardinalityEstimator implements ICardinalityEstimator {
             String innerDatasetName, List<String> innerFieldName, String outerDataverseName, String outerDatasetName,
             List<String> outerFieldName) throws AlgebricksException {
         long result = getTableCardinality(metadataProvider, innerDataverseName, innerDatasetName, innerFieldName);
-        long innerUniqueValues = getUniqueCardinality(statistics);
+        long innerUniqueValues = 0;
+        long outerUniqueValues = 0;
+        if (statistics != null) {
+            innerUniqueValues = getUniqueCardinality(statistics);
+        }
 
         long resultout = getTableCardinality(metadataProvider, outerDataverseName, outerDatasetName, outerFieldName);
-
-        long outerUniqueValues = getUniqueCardinality(statistics);
+        if (result == 0 || resultout == 0)
+            return 0;
+        if (statistics != null) {
+            outerUniqueValues = getUniqueCardinality(statistics);
+        }
 
         System.out.println(result + ", " + resultout);
         System.out.println(innerUniqueValues + ", " + outerUniqueValues);

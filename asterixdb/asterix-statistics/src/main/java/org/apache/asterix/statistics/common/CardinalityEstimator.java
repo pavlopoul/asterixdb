@@ -142,9 +142,6 @@ public class CardinalityEstimator implements ICardinalityEstimator {
         return stats;
     }
 
-    //@Override
-    //    public long getUniqueCardinality(IMetadataProvider metadataProvider, String dataverseName, String datasetName,
-    //            List<String> fieldName) throws AlgebricksException {
     public long getUniqueCardinality(List<Statistics> stats) throws AlgebricksException {
 
         long estimate = 1;

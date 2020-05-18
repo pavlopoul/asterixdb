@@ -151,7 +151,8 @@ public class APIFramework {
             SqlppExpressionToPlanTranslator.REWRITE_IN_AS_OR_OPTION, "hash_merge", "output-record-type",
             AbstractIntroduceAccessMethodRule.NO_INDEX_ONLY_PLAN_OPTION,
             StatisticsProperties.STATISTICS_PRIMARY_KEYS_ENABLED, StatisticsProperties.STATISTICS_SYNOPSIS_SIZE_KEY,
-            StatisticsProperties.STATISTICS_SYNOPSIS_TYPE_KEY, StatisticsProperties.STATISTICS_INCREMENTAL);
+            StatisticsProperties.STATISTICS_SYNOPSIS_TYPE_KEY, StatisticsProperties.STATISTICS_INCREMENTAL,
+            StatisticsProperties.STATISTICS_COSTBASED);
 
     private final IRewriterFactory rewriterFactory;
     private final IAstPrintVisitorFactory astPrintVisitorFactory;

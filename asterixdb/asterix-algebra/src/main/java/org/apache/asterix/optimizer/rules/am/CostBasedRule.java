@@ -19,18 +19,15 @@
 package org.apache.asterix.optimizer.rules.am;
 
 import java.util.ArrayList;
-import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.TreeMap;
 
 import org.apache.asterix.common.exceptions.AsterixException;
 import org.apache.asterix.metadata.declared.DatasetDataSource;
 import org.apache.asterix.metadata.entities.InternalDatasetDetails;
 import org.apache.asterix.om.base.AInt32;
 import org.apache.asterix.om.base.AIntegerObject;
-import org.apache.asterix.om.base.AString;
 import org.apache.asterix.om.base.IAObject;
 import org.apache.asterix.om.constants.AsterixConstantValue;
 import org.apache.asterix.om.types.ARecordType;
@@ -64,14 +61,9 @@ import org.apache.hyracks.algebricks.core.rewriter.base.IAlgebraicRewriteRule;
 
 public class CostBasedRule implements IAlgebraicRewriteRule {
 
-    private Mutable<ILogicalOperator> mut;
-    private TreeMap<Long, List<Mutable<ILogicalOperator>>> map = new TreeMap<>(Collections.reverseOrder());
     private Map<AbstractLogicalOperator, List<JoinNode>> joinMap = new HashMap<>();
 
-    private List<Mutable<ILogicalOperator>> selectSet = new ArrayList<>();
     private AbstractLogicalOperator alo, sOp, lOp;
-    private String fieldName = "";
-    private Map<DatasetDataSource, List<Node>> fields = new HashMap<>();
     private List<JoinNode> joins = new ArrayList<>();
     private List<InnerJoinOperator> minJoins = new ArrayList<>();
 
@@ -202,15 +194,17 @@ public class CostBasedRule implements IAlgebraicRewriteRule {
 
         AssignOperator assign = null;
         DataSourceScanOperator scan = null;
-
+        boolean assignFound = false;
         if (op.getOperatorTag() == LogicalOperatorTag.ASSIGN) {
             assign = (AssignOperator) op;
+            assignFound = true;
             for (LogicalVariable assignVar : assign.getVariables()) {
                 if (lv == assignVar) {
                     return assign;
                 }
             }
-        } else if (op.getOperatorTag() == LogicalOperatorTag.DATASOURCESCAN) {
+        }
+        if (op.getOperatorTag() == LogicalOperatorTag.DATASOURCESCAN) {
             scan = (DataSourceScanOperator) op;
             for (LogicalVariable scanVar : scan.getVariables()) {
                 if (lv == scanVar) {
@@ -218,6 +212,15 @@ public class CostBasedRule implements IAlgebraicRewriteRule {
                 }
             }
         }
+
+        //        } else if (op.getOperatorTag() == LogicalOperatorTag.DATASOURCESCAN) {
+        //            scan = (DataSourceScanOperator) op;
+        //            for (LogicalVariable scanVar : scan.getVariables()) {
+        //                if (lv == scanVar) {
+        //                    return scan;
+        //                }
+        //            }
+        //        }
 
         for (Mutable<ILogicalOperator> child : op.getInputs()) {
             out = findDataSourceOp((AbstractLogicalOperator) child.getValue(), lv);
@@ -233,10 +236,10 @@ public class CostBasedRule implements IAlgebraicRewriteRule {
         if (op.getOperatorTag() == LogicalOperatorTag.ASSIGN) {
             AssignOperator assign = (AssignOperator) op;
             scan = (DataSourceScanOperator) assign.getInputs().get(0).getValue();
-        } else {
+        } else if (op.getOperatorTag() == LogicalOperatorTag.DATASOURCESCAN) {
             scan = (DataSourceScanOperator) op;
         }
-        return (DatasetDataSource) scan.getDataSource();
+        return scan != null ? (DatasetDataSource) scan.getDataSource() : null;
     }
 
     @Override
@@ -289,7 +292,45 @@ public class CostBasedRule implements IAlgebraicRewriteRule {
             for (JoinNode jn : adjB) {
                 fixCardinality(jn, selectedJoin, "B");
             }
+            threshold--;
         }
+        InnerJoinOperator searchJ = null;
+        for (int i = 0; i < minJoins.size() - 1; i++) {
+            InnerJoinOperator minJoin = minJoins.get(i);
+
+            AbstractLogicalOperator left = (AbstractLogicalOperator) minJoin.getInputs().get(0).getValue();
+            DatasetDataSource leftD = findDataSource(left);
+
+            AbstractLogicalOperator right = (AbstractLogicalOperator) minJoin.getInputs().get(1).getValue();
+            DatasetDataSource rightD = findDataSource(right);
+
+            for (int j = i + 1; j < minJoins.size(); j++) {
+                searchJ = minJoins.get(j);
+
+                AbstractLogicalOperator searchL = (AbstractLogicalOperator) searchJ.getInputs().get(0).getValue();
+                DatasetDataSource leftS = findDataSource(searchL);
+
+                AbstractLogicalOperator searchR = (AbstractLogicalOperator) searchJ.getInputs().get(1).getValue();
+                DatasetDataSource rightS = findDataSource(searchR);
+
+                if (left.equals(searchL) || right.equals(searchL)) {
+                    searchJ.getInputs().set(0, new MutableObject<ILogicalOperator>(minJoin));
+                } else if (left.equals(searchR) || right.equals(searchR)) {
+                    searchJ.getInputs().set(1, new MutableObject<ILogicalOperator>(minJoin));
+                } else if ((leftD != null || rightD != null) && leftS != null) {
+                    if ((leftD != null && leftD.equals(leftS)) || (rightD != null && rightD.equals(leftS))) {
+                        searchJ.getInputs().set(0, new MutableObject<ILogicalOperator>(minJoin));
+                    }
+                } else if ((leftD != null || rightD != null) && rightS != null) {
+                    if ((leftD != null && leftD.equals(rightS)) || (rightD != null && rightD.equals(rightS))) {
+                        searchJ.getInputs().set(1, new MutableObject<ILogicalOperator>(minJoin));
+                    }
+                }
+                context.computeAndSetTypeEnvironmentForOperator(searchJ);
+            }
+        }
+        alo.getInputs().clear();
+        alo.getInputs().add(new MutableObject<ILogicalOperator>(searchJ));
         return true;
 
     }
@@ -307,27 +348,6 @@ public class CostBasedRule implements IAlgebraicRewriteRule {
         joins.remove(jn);
         jn.join.setCardinality(cardinality);
         joins.add(jn);
-    }
-
-    private void removeParticipation(DatasetDataSource ds) {
-        for (Node n : fields.get(ds)) {
-            if (n.field.equals(fieldName)) {
-                n.participation--;
-                break;
-            }
-        }
-    }
-
-    private void addArguments(DatasetDataSource ds, List<Mutable<ILogicalExpression>> arguments) {
-        for (Node n : fields.get(ds)) {
-            if (n.participation > 0) {
-                IAObject obj = new AString(n.field);
-                AsterixConstantValue acv = new AsterixConstantValue(obj);
-                ConstantExpression ce = new ConstantExpression(acv);
-                arguments.add(new MutableObject<>(ce));
-                arguments.add(new MutableObject<ILogicalExpression>(new VariableReferenceExpression(n.lv)));
-            }
-        }
     }
 
     public LogicalVariable findSelect(ILogicalOperator op) {
@@ -364,7 +384,6 @@ public class CostBasedRule implements IAlgebraicRewriteRule {
                     rightFields));
             System.out.println(
                     datasourcel.getDataset().getDatasetName() + " " + datasourcer.getDataset().getDatasetName());
-            //estimate join cardinality
             return context.getCardinalityEstimator().getJoinCardinality(context.getMetadataProvider(),
                     datasourcel.getDataset().getDataverseName(), datasourcel.getDataset().getDatasetName(), leftFields,
                     datasourcer.getDataset().getDataverseName(), datasourcer.getDataset().getDatasetName(),
@@ -554,40 +573,7 @@ public class CostBasedRule implements IAlgebraicRewriteRule {
         return false;
     }
 
-    private void populateFields(boolean notInFields, DatasetDataSource ds, String field, LogicalVariable lv) {
-        if (notInFields) {
-            fields.put(ds, new ArrayList<>());
-            Node n = new Node(field, 1, lv);
-            fields.get(ds).add(n);
-        } else {
-            Boolean found = false;
-            for (Node n : fields.get(ds)) {
-                if (n.field.equals(field)) {
-                    found = true;
-                    n.participation++;
-                    break;
-                }
-            }
-            if (!found) {
-                fields.get(ds).add(new Node(field, 1, lv));
-            }
-        }
-
-    }
-
 }
-
-//class Node {
-//    String field;
-//    int participation;
-//    LogicalVariable lv;
-//
-//    public Node(String field, int participation, LogicalVariable lv) {
-//        this.field = field;
-//        this.participation = participation;
-//        this.lv = lv;
-//    }
-//}
 
 class JoinNode {
     InnerJoinOperator join;

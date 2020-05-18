@@ -62,7 +62,8 @@ public class StatisticsProperties extends AbstractProperties {
                 0.1,
                 "Parameter specifying that sketched synopsis has energy (sum of squares) at least "
                         + "(1±accuracy)*energy_accuracy of the total result energy"),
-        STATISTICS_INCREMENTAL(BOOLEAN, false, "Whether to trigger incremental or not");
+        STATISTICS_INCREMENTAL(BOOLEAN, false, "Whether to trigger incremental or not"),
+        STATISTICS_COSTBASED(BOOLEAN, false, "Whether to trigger costbased or not");
 
         private final IOptionType type;
         private final Object defaultValue;
@@ -102,6 +103,7 @@ public class StatisticsProperties extends AbstractProperties {
     public static String STATISTICS_PRIMARY_KEYS_ENABLED = Option.STATISTICS_PRIMARY_KEYS_ENABLED.ini();
 
     public static String STATISTICS_INCREMENTAL = Option.STATISTICS_INCREMENTAL.ini();
+    public static String STATISTICS_COSTBASED = Option.STATISTICS_COSTBASED.ini();
 
     public StatisticsProperties(PropertiesAccessor accessor) {
         super(accessor);
@@ -113,6 +115,10 @@ public class StatisticsProperties extends AbstractProperties {
 
     public boolean isStatisticsIncremental() {
         return accessor.getBoolean(Option.STATISTICS_INCREMENTAL);
+    }
+
+    public boolean isStatisticsCostBased() {
+        return accessor.getBoolean(Option.STATISTICS_COSTBASED);
     }
 
     public SynopsisType getStatisticsSynopsisType() {

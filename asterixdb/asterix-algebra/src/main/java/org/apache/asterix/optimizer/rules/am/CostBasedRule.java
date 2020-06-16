@@ -63,7 +63,7 @@ public class CostBasedRule implements IAlgebraicRewriteRule {
 
     private Map<AbstractLogicalOperator, List<JoinNode>> joinMap = new HashMap<>();
 
-    private AbstractLogicalOperator alo, sOp, lOp;
+    private AbstractLogicalOperator alo, sOp, lOp, parentAssign;
     private List<JoinNode> joins = new ArrayList<>();
     private List<InnerJoinOperator> minJoins = new ArrayList<>();
 
@@ -122,29 +122,36 @@ public class CostBasedRule implements IAlgebraicRewriteRule {
                 LogicalVariable lvl =
                         ((VariableReferenceExpression) sfce.getArguments().get(0).getValue()).getVariableReference();
 
-                AbstractLogicalOperator inputA = findDataSourceOp(join, lvl);
+                AbstractLogicalOperator inputA = findDataSourceOp(null, join, lvl);
                 String fieldA = findFieldName(inputA, lvl);
                 DatasetDataSource datasourcel = findDataSource(inputA);
                 LogicalVariable lvr =
                         ((VariableReferenceExpression) sfce.getArguments().get(1).getValue()).getVariableReference();
-                AbstractLogicalOperator inputB = findDataSourceOp(join, lvr);
+                AbstractLogicalOperator A = inputA;
+                if (parentAssign != null) {
+                    A = parentAssign;
+                }
+                AbstractLogicalOperator inputB = findDataSourceOp(null, join, lvr);
                 String fieldB = findFieldName(inputB, lvr);
                 datasourcer = findDataSource(inputB);
-
+                AbstractLogicalOperator B = inputB;
+                if (parentAssign != null) {
+                    B = parentAssign;
+                }
                 long key = inferCardinality((AbstractLogicalOperator) child.getValue(), context, datasourcel,
-                        datasourcer, inputA, inputB, fieldA, fieldB);
+                        datasourcer, A, B, fieldA, fieldB);
                 child.getValue().setCardinality(key);
 
-                JoinNode jnode = new JoinNode((InnerJoinOperator) child.getValue(), inputA, inputB);
-                if (!joinMap.containsKey(inputA)) {
-                    joinMap.put(inputA, new ArrayList<>());
+                JoinNode jnode = new JoinNode((InnerJoinOperator) child.getValue(), A, B);
+                if (!joinMap.containsKey(A)) {
+                    joinMap.put(A, new ArrayList<>());
                 }
-                joinMap.get(inputA).add(jnode);
+                joinMap.get(A).add(jnode);
 
-                if (!joinMap.containsKey(inputB)) {
-                    joinMap.put(inputB, new ArrayList<>());
+                if (!joinMap.containsKey(B)) {
+                    joinMap.put(B, new ArrayList<>());
                 }
-                joinMap.get(inputB).add(jnode);
+                joinMap.get(B).add(jnode);
                 joins.add(jnode);
 
                 System.out.println(key);
@@ -189,17 +196,17 @@ public class CostBasedRule implements IAlgebraicRewriteRule {
         return fieldName;
     }
 
-    public AbstractLogicalOperator findDataSourceOp(AbstractLogicalOperator op, LogicalVariable lv) {
+    public AbstractLogicalOperator findDataSourceOp(AbstractLogicalOperator parent, AbstractLogicalOperator op,
+            LogicalVariable lv) {
         AbstractLogicalOperator out = null;
 
         AssignOperator assign = null;
         DataSourceScanOperator scan = null;
-        boolean assignFound = false;
         if (op.getOperatorTag() == LogicalOperatorTag.ASSIGN) {
             assign = (AssignOperator) op;
-            assignFound = true;
             for (LogicalVariable assignVar : assign.getVariables()) {
                 if (lv == assignVar) {
+                    parentAssign = null;
                     return assign;
                 }
             }
@@ -208,6 +215,11 @@ public class CostBasedRule implements IAlgebraicRewriteRule {
             scan = (DataSourceScanOperator) op;
             for (LogicalVariable scanVar : scan.getVariables()) {
                 if (lv == scanVar) {
+                    if (parent instanceof AssignOperator) {
+                        parentAssign = parent;
+                    } else {
+                        parentAssign = null;
+                    }
                     return scan;
                 }
             }
@@ -223,7 +235,7 @@ public class CostBasedRule implements IAlgebraicRewriteRule {
         //        }
 
         for (Mutable<ILogicalOperator> child : op.getInputs()) {
-            out = findDataSourceOp((AbstractLogicalOperator) child.getValue(), lv);
+            out = findDataSourceOp(op, (AbstractLogicalOperator) child.getValue(), lv);
             if (out != null)
                 break;
         }

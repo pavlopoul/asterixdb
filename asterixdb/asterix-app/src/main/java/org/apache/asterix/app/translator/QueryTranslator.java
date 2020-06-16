@@ -927,8 +927,9 @@ public class QueryTranslator extends AbstractLangTranslator implements IStatemen
                     overridesFieldTypes = true;
                 }
                 if (fieldType == null) {
-                    throw new CompilationException(ErrorCode.UNKNOWN_TYPE, sourceLoc, fieldExpr.second == null
-                            ? String.valueOf(fieldExpr.first) : String.valueOf(fieldExpr.second));
+                    throw new CompilationException(ErrorCode.UNKNOWN_TYPE, sourceLoc,
+                            fieldExpr.second == null ? String.valueOf(fieldExpr.first)
+                                    : String.valueOf(fieldExpr.second));
                 }
 
                 // try to add the key & its source to the set of keys, if key couldn't be added,
@@ -2586,8 +2587,8 @@ public class QueryTranslator extends AbstractLangTranslator implements IStatemen
                     updateJobStats(id, stats);
                     // stop buffering and allow for streaming result delivery
                     sessionOutput.release();
-                    ResultUtil.printResults(appCtx, resultReader, sessionOutput, stats,
-                            metadataProvider.findOutputRecordType());
+                    //                    ResultUtil.printResults(appCtx, resultReader, sessionOutput, stats,
+                    //                            metadataProvider.findOutputRecordType());
                 }, clientContextId, ctx, metadataProvider);
                 break;
             case DEFERRED:
@@ -2767,7 +2768,7 @@ public class QueryTranslator extends AbstractLangTranslator implements IStatemen
                         if (vars.size() > 0)
                             for (LogicalVariable var : vars) {
                                 j++;
-                                if (var == ((AssignOperator) op).getVariables().get(0)) {
+                                if (((AssignOperator) op).getVariables().contains(var)) {
                                     List<Mutable<ILogicalExpression>> expressions =
                                             ((AssignOperator) op).getExpressions();
                                     List<LogicalVariable> nestedvarlist = ((AssignOperator) op).getVariables();

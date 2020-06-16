@@ -358,9 +358,9 @@ public class APIFramework {
         return spec;
     }
 
-    public boolean getFinished() {
-        return finished;
-    }
+    //    public boolean getFinished() {
+    //        return finished;
+    //    }
 
     public List<ILogicalOperator> getOperators() {
         return operators;

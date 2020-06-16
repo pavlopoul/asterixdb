@@ -314,12 +314,9 @@ public class JobBuilder implements IHyracksJobBuilder {
                 outOp = outEdges.get(exchg).get(0);
                 outOpDesc = findOpDescForAlgebraicOp(outOp);
             } else {
-                //                if (inOp.getOperatorTag() != LogicalOperatorTag.INNERJOIN) {
-                //                    continue;
-                //                }
-                outOpDesc = new IncrementalSinkOperatorDescriptor(jobSpec, null,
-                        /*null,*/ ((AlgebricksMetaOperatorDescriptor) inOpDesc).getPipeline().getRecordDescriptors()[2],
-                        null);
+                RecordDescriptor[] rds =
+                        ((AlgebricksMetaOperatorDescriptor) inOpDesc).getPipeline().getRecordDescriptors();
+                outOpDesc = new IncrementalSinkOperatorDescriptor(jobSpec, null, rds[rds.length - 1], null);
             }
             Pair<IConnectorDescriptor, TargetConstraint> connPair = connectors.get(exchg);
             IConnectorDescriptor conn = connPair.first;

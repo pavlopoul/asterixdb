@@ -103,6 +103,9 @@ public class CardinalityEstimator implements ICardinalityEstimator {
         long outerUniqueValues = 0;
         if (statistics != null) {
             innerUniqueValues = getUniqueCardinality(statistics);
+            if (!primIndex) {
+                innerUniqueValues /= ((MetadataProvider) metadataProvider).getClusterLocations().getLocations().length;
+            }
         }
 
         long resultout = getTableCardinality(metadataProvider, outerDataverseName, outerDatasetName, outerFieldName);
@@ -110,6 +113,9 @@ public class CardinalityEstimator implements ICardinalityEstimator {
             return 0;
         if (statistics != null) {
             outerUniqueValues = getUniqueCardinality(statistics);
+            if (!primIndex) {
+                outerUniqueValues /= ((MetadataProvider) metadataProvider).getClusterLocations().getLocations().length;
+            }
         }
 
         System.out.println(result + ", " + resultout);

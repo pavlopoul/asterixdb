@@ -2019,7 +2019,7 @@ public class QueryTranslator extends AbstractLangTranslator implements IStatemen
     }
 
     public boolean getFinished(Query newQuery) {
-        Query nq = (Query) statements.get(2);
+        Query nq = (Query) statements.get(statements.size() - 1);
         if (newQuery != null) {
             nq = newQuery;
         }
@@ -2586,8 +2586,8 @@ public class QueryTranslator extends AbstractLangTranslator implements IStatemen
                     updateJobStats(id, stats);
                     // stop buffering and allow for streaming result delivery
                     sessionOutput.release();
-                    ResultUtil.printResults(appCtx, resultReader, sessionOutput, stats,
-                            metadataProvider.findOutputRecordType());
+                    //                    ResultUtil.printResults(appCtx, resultReader, sessionOutput, stats,
+                    //                            metadataProvider.findOutputRecordType());
                 }, clientContextId, ctx, metadataProvider);
                 break;
             case DEFERRED:
@@ -2723,7 +2723,7 @@ public class QueryTranslator extends AbstractLangTranslator implements IStatemen
         List<ILogicalOperator> operators = new ArrayList<>();
         Query newQuery = null;
         boolean first = true;
-        DatasetDataSource dataSource1 = null;
+
         List<String> datasources = new ArrayList<>();
         boolean finished = false;
         while (!finished) {
@@ -2740,8 +2740,10 @@ public class QueryTranslator extends AbstractLangTranslator implements IStatemen
                 String[] fieldNames = null;
                 String recordTypeName = null;
                 VariableReferenceExpression varexpr = null;
+                DatasetDataSource dataSource1 = null;
                 for (ILogicalOperator op : operators) {
-                    if (op.getOperatorTag() == LogicalOperatorTag.INNERJOIN) {
+                    if (op.getOperatorTag() == LogicalOperatorTag.INNERJOIN
+                            || op.getOperatorTag() == LogicalOperatorTag.SELECT) {
                         AssignOperator assign = (AssignOperator) operators.get(3);
                         ScalarFunctionCallExpression sfce =
                                 (ScalarFunctionCallExpression) assign.getExpressions().get(0).getValue();
@@ -2767,7 +2769,7 @@ public class QueryTranslator extends AbstractLangTranslator implements IStatemen
                         if (vars.size() > 0)
                             for (LogicalVariable var : vars) {
                                 j++;
-                                if (var == ((AssignOperator) op).getVariables().get(0)) {
+                                if (((AssignOperator) op).getVariables().contains(var)) {
                                     List<Mutable<ILogicalExpression>> expressions =
                                             ((AssignOperator) op).getExpressions();
                                     List<LogicalVariable> nestedvarlist = ((AssignOperator) op).getVariables();
@@ -3004,7 +3006,7 @@ public class QueryTranslator extends AbstractLangTranslator implements IStatemen
         FromTerm fromterm = new FromTerm(datasrouceCallFunction, fromTermLeftExpr, null, null);
         Query oldQuery = null;
         if (newQuery == null) {
-            oldQuery = (Query) statements.get(2);
+            oldQuery = (Query) statements.get(statements.size() - 1);
         } else {
             oldQuery = newQuery;
         }
@@ -3040,8 +3042,10 @@ public class QueryTranslator extends AbstractLangTranslator implements IStatemen
         }
         int j = 0;
         for (FromTerm oldterm : fromTermOld) {
-            if (!oldterm.getLeftVariable().toString().substring(1).equals(datasources.get(0))
-                    && !oldterm.getLeftVariable().toString().substring(1).equals(datasources.get(1))) {
+            if ((!oldterm.getLeftVariable().toString().substring(1).equals(datasources.get(0))
+                    && datasources.size() == 1)
+                    || (!oldterm.getLeftVariable().toString().substring(1).equals(datasources.get(0))
+                            && !oldterm.getLeftVariable().toString().substring(1).equals(datasources.get(1)))) {
                 fromTermNew.add(oldterm);
             } else {
                 //            else if (oldterm.getLeftVariable().toString().substring(1)
@@ -3082,12 +3086,12 @@ public class QueryTranslator extends AbstractLangTranslator implements IStatemen
             for (Expression e : whereExpr.getExprList()) {
                 OperatorExpr oE = (OperatorExpr) e;
                 FieldAccessor fE1 = (FieldAccessor) oE.getExprList().get(0);
-                if (fE1.getExpr().toString().substring(1).equals(datasources.get(0))
-                        || fE1.getExpr().toString().substring(1).equals(datasources.get(1))) {
+                if (fE1.getExpr().toString().substring(1).equals(datasources.get(0)) || (datasources.size() > 1
+                        && fE1.getExpr().toString().substring(1).equals(datasources.get(1)))) {
                     if (oE.getExprList().get(1).getKind() == Kind.FIELD_ACCESSOR_EXPRESSION) {
                         FieldAccessor fE2 = (FieldAccessor) oE.getExprList().get(1);
-                        if (fE2.getExpr().toString().substring(1).equals(datasources.get(0))
-                                || fE2.getExpr().toString().substring(1).equals(datasources.get(1))) {
+                        if (fE2.getExpr().toString().substring(1).equals(datasources.get(0)) || (datasources.size() > 1
+                                && fE2.getExpr().toString().substring(1).equals(datasources.get(1)))) {
                             continue;
                         }
                     } else {
@@ -3121,15 +3125,15 @@ public class QueryTranslator extends AbstractLangTranslator implements IStatemen
                     OperatorExpr oE = (OperatorExpr) e;
                     FieldAccessor fE1 = (FieldAccessor) oE.getExprList().get(0);
                     //                    FieldAccessor fE2 = (FieldAccessor) oE.getExprList().get(1);
-                    if (fE1.getExpr().toString().substring(1).equals(datasources.get(0))
-                            || fE1.getExpr().toString().substring(1).equals(datasources.get(1))) {
+                    if (fE1.getExpr().toString().substring(1).equals(datasources.get(0)) || (datasources.size() > 1
+                            && fE1.getExpr().toString().substring(1).equals(datasources.get(1)))) {
                         fE1 = new FieldAccessor(fromTermLeftExpr, fE1.getIdent());
                         oE.getExprList().set(0, fE1);
                     } else if (oE.getExprList().get(1).getKind() == Kind.FIELD_ACCESSOR_EXPRESSION
                             && (((FieldAccessor) oE.getExprList().get(1)).getExpr().toString().substring(1)
                                     .equals(datasources.get(0))
-                                    || ((FieldAccessor) oE.getExprList().get(1)).getExpr().toString().substring(1)
-                                            .equals(datasources.get(1)))) {
+                                    || (datasources.size() > 1 && ((FieldAccessor) oE.getExprList().get(1)).getExpr()
+                                            .toString().substring(1).equals(datasources.get(1))))) {
                         FieldAccessor fE2 = new FieldAccessor(fromTermLeftExpr,
                                 ((FieldAccessor) oE.getExprList().get(1)).getIdent());
                         oE.getExprList().set(1, fE2);

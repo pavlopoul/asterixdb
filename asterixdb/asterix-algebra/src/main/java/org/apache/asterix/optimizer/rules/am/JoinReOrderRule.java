@@ -342,7 +342,7 @@ public class JoinReOrderRule implements IAlgebraicRewriteRule {
                 lvrA = ((VariableReferenceExpression) sfceA.getArguments().get(1).getValue()).getVariableReference();
                 lvlA = ((VariableReferenceExpression) sfceA.getArguments().get(0).getValue()).getVariableReference();
 
-                checkForJoin(joinA, lvlA, lvrA);
+                // checkForJoin(joinA, lvlA, lvrA);
             } else {
                 TreeMap<Long, List<Mutable<ILogicalOperator>>> twomap = new TreeMap<>();
                 twomap.put(map.lastKey(), map.lastEntry().getValue());
@@ -364,6 +364,7 @@ public class JoinReOrderRule implements IAlgebraicRewriteRule {
                 lvrA = ((VariableReferenceExpression) sfceA.getArguments().get(1).getValue()).getVariableReference();
                 lvlA = ((VariableReferenceExpression) sfceA.getArguments().get(0).getValue()).getVariableReference();
                 checkForJoin(joinA, lvlA, lvrA);
+                context.computeAndSetTypeEnvironmentForOperator(joinA);
                 if ((size == 2 && twomap.firstEntry().getValue().size() == 1
                         && twomap.lastEntry().getValue().size() == 1) || size == 1) {
                     construct2Joins(size, twomap, context, joinA, lvlA, lvrA);
@@ -426,23 +427,51 @@ public class JoinReOrderRule implements IAlgebraicRewriteRule {
 
     private Boolean constructAssign(InnerJoinOperator join, LogicalVariable lvl, LogicalVariable lvr) {
         alo.getInputs().clear();
-        alo.getInputs().add(new MutableObject<ILogicalOperator>(join));
-        LogicalVariable lv = ((VariableReferenceExpression) ((ScalarFunctionCallExpression) ((AssignOperator) alo)
-                .getExpressions().get(0).getValue()).getArguments().get(1).getValue()).getVariableReference();
-        DatasetDataSource dsl = findDataSource(join, lvl);
-        removeParticipation(dsl);
 
-        DatasetDataSource dsr = findDataSource(join, lvr);
-        removeParticipation(dsr);
-        List<Mutable<ILogicalExpression>> arguments =
-                ((ScalarFunctionCallExpression) ((AssignOperator) alo).getExpressions().get(0).getValue())
-                        .getArguments();
-        if (findDataSource(join, lv) == null) {
+        if (join.getInputs().get(0).getValue().getOperatorTag() == LogicalOperatorTag.SELECT
+                || join.getInputs().get(1).getValue().getOperatorTag() == LogicalOperatorTag.SELECT) {
+            SelectOperator select;
+            if (join.getInputs().get(0).getValue().getOperatorTag() == LogicalOperatorTag.SELECT) {
+                select = (SelectOperator) join.getInputs().get(0).getValue();
+            } else {
+                select = (SelectOperator) join.getInputs().get(1).getValue();
+            }
+            ScalarFunctionCallExpression sfce = (ScalarFunctionCallExpression) select.getCondition().getValue();
+            LogicalVariable selectLv = null;
+            if (sfce.getArguments().get(0).getValue() instanceof ScalarFunctionCallExpression) {
+                ScalarFunctionCallExpression innerSfce =
+                        (ScalarFunctionCallExpression) sfce.getArguments().get(0).getValue();
+                selectLv = ((VariableReferenceExpression) innerSfce.getArguments().get(0).getValue())
+                        .getVariableReference();
+            } else {
+                selectLv = ((VariableReferenceExpression) sfce.getArguments().get(0).getValue()).getVariableReference();
+            }
+            alo.getInputs().add(new MutableObject<ILogicalOperator>(select));
+            DatasetDataSource ds = findDataSource(select, selectLv);
+            List<Mutable<ILogicalExpression>> arguments =
+                    ((ScalarFunctionCallExpression) ((AssignOperator) alo).getExpressions().get(0).getValue())
+                            .getArguments();
             arguments.clear();
-        }
+            addArguments(ds, arguments);
+        } else {
+            alo.getInputs().add(new MutableObject<ILogicalOperator>(join));
+            LogicalVariable lv = ((VariableReferenceExpression) ((ScalarFunctionCallExpression) ((AssignOperator) alo)
+                    .getExpressions().get(0).getValue()).getArguments().get(1).getValue()).getVariableReference();
+            DatasetDataSource dsl = findDataSource(join, lvl);
+            removeParticipation(dsl);
 
-        addArguments(dsl, arguments);
-        addArguments(dsr, arguments);
+            DatasetDataSource dsr = findDataSource(join, lvr);
+            removeParticipation(dsr);
+            List<Mutable<ILogicalExpression>> arguments =
+                    ((ScalarFunctionCallExpression) ((AssignOperator) alo).getExpressions().get(0).getValue())
+                            .getArguments();
+            if (findDataSource(join, lv) == null) {
+                arguments.clear();
+            }
+
+            addArguments(dsl, arguments);
+            addArguments(dsr, arguments);
+        }
         map.clear();
         return true;
     }
@@ -630,6 +659,9 @@ public class JoinReOrderRule implements IAlgebraicRewriteRule {
                     case EQUAL:
                         highKey = extractConstantIntegerExpr(expr);
                         lowKey = highKey;
+                        if (highKey == null || lowKey == null) {
+                            return CardinalityInferenceVisitor.UNKNOWN;
+                        }
                         if (leftField != null) {
                             Long lowKeyValue = null;
                             Long highKeyValue = null;

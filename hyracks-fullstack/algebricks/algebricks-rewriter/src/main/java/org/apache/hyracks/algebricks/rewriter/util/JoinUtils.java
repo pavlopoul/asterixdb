@@ -63,35 +63,35 @@ public class JoinUtils {
         List<LogicalVariable> varsLeft = op.getInputs().get(0).getValue().getSchema();
         List<LogicalVariable> varsRight = op.getInputs().get(1).getValue().getSchema();
         if (isHashJoinCondition(op.getCondition().getValue(), varsLeft, varsRight, sideLeft, sideRight)) {
-            //            long sizel = getBytes(op.getInputs().get(0).getValue().getInputs().get(0).getValue());
-            //            long sizer = getBytes(op.getInputs().get(1).getValue().getInputs().get(0).getValue());
-            //            //
-            //            long size = 0;
-            //            BroadcastSide side = null;
-            //            if (sizel > 0 && sizel <= 270000 || sizer > 0 && sizer <= 270000) {
-            //                if (sizer <= 270000 && sizel <= 270000) {
-            //                    if (sizer < sizel) {
-            //                        side = BroadcastSide.RIGHT;
-            //                        size = sizer;
-            //                    } else {
-            //                        side = BroadcastSide.LEFT;
-            //                        size = sizel;
-            //                    }
-            //                } else if (sizer <= 270000) {
-            //                    side = BroadcastSide.RIGHT;
-            //                    size = sizer;
-            //                } else {
-            //                    side = BroadcastSide.LEFT;
-            //                    size = sizel;
-            //                }
-            //            }
-            BroadcastSide side = getBroadcastJoinSide(op.getCondition().getValue(), varsLeft, varsRight);
+            long sizel = getBytes(op.getInputs().get(0).getValue().getInputs().get(0).getValue());
+            long sizer = getBytes(op.getInputs().get(1).getValue().getInputs().get(0).getValue());
+
+            long size = 0;
+            BroadcastSide side = null;
+            if (sizel > 0 && sizel <= 1500000 || sizer > 0 && sizer <= 1500000) {
+                if (sizer <= 1500000 && sizel <= 1500000) {
+                    if (sizer < sizel) {
+                        side = BroadcastSide.RIGHT;
+                        size = sizer;
+                    } else {
+                        side = BroadcastSide.LEFT;
+                        size = sizel;
+                    }
+                } else if (sizer <= 1500000) {
+                    side = BroadcastSide.RIGHT;
+                    size = sizer;
+                } else {
+                    side = BroadcastSide.LEFT;
+                    size = sizel;
+                }
+            }
+            //            BroadcastSide side = getBroadcastJoinSide(op.getCondition().getValue(), varsLeft, varsRight);
             if (side == null) {
-                setHashJoinOp(op, JoinPartitioningType.PAIRWISE, sideLeft, sideRight, context, /*size*/0);
+                setHashJoinOp(op, JoinPartitioningType.PAIRWISE, sideLeft, sideRight, context, size);
             } else {
                 switch (side) {
                     case RIGHT:
-                        setHashJoinOp(op, JoinPartitioningType.BROADCAST, sideLeft, sideRight, context, /*size*/0);
+                        setHashJoinOp(op, JoinPartitioningType.BROADCAST, sideLeft, sideRight, context, size);
                         break;
                     case LEFT:
                         if (op.getJoinKind() == AbstractBinaryJoinOperator.JoinKind.INNER) {
@@ -100,9 +100,9 @@ public class JoinUtils {
                             ILogicalOperator tmp = opRef0.getValue();
                             opRef0.setValue(opRef1.getValue());
                             opRef1.setValue(tmp);
-                            setHashJoinOp(op, JoinPartitioningType.BROADCAST, sideRight, sideLeft, context, /*size*/0);
+                            setHashJoinOp(op, JoinPartitioningType.BROADCAST, sideRight, sideLeft, context, size);
                         } else {
-                            setHashJoinOp(op, JoinPartitioningType.PAIRWISE, sideLeft, sideRight, context, /*size*/0);
+                            setHashJoinOp(op, JoinPartitioningType.PAIRWISE, sideLeft, sideRight, context, size);
                         }
                         break;
                     default:

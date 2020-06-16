@@ -174,13 +174,8 @@ public class PlanCompiler {
             int n = operators.get(j).getInputs().size();
             int i = 0;
             IOperatorSchema[] schemas = new IOperatorSchema[n];
-            if (!notJoinInPlan) {
+            if (!notJoinInPlan || onlySelect()) {
                 if (operators.get(j).hasInputs()) {
-                    //                    if (operators.get(j).getInputs().get(0).getValue().getOperatorTag() == LogicalOperatorTag.EXCHANGE
-                    //                            && operators.get(j).getInputs().get(0).getValue().getInputs().get(0).getValue()
-                    //                                    .getOperatorTag() == LogicalOperatorTag.INNERJOIN) {
-                    //                        break;
-                    //                    }
                     if (operators.get(j).getOperatorTag() == LogicalOperatorTag.DISTRIBUTE_RESULT) {
                         break;
                     }
@@ -193,14 +188,14 @@ public class PlanCompiler {
             createSchema(operators.get(j), schemas, outerPlanSchema, builder);
 
         }
-        if (notJoinInPlan()) {
-            finished = true;
-        }
+        //        if (notJoinInPlan()) {
+        //            finished = true;
+        //        }
         return;
 
     }
 
-    private boolean notJoinInPlan() {
+    private boolean onlySelect() {
         int joins = 0;
         for (ILogicalOperator op : operators) {
             if (op.getOperatorTag() == LogicalOperatorTag.INNERJOIN) {
@@ -208,7 +203,7 @@ public class PlanCompiler {
                 //return false;
             }
         }
-        if (joins > 1) {
+        if (joins > 0) {
             return false;
         }
         return true;

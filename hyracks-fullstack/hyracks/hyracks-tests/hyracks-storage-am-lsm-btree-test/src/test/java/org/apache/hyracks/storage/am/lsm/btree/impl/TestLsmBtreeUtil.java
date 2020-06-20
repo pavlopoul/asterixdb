@@ -45,6 +45,8 @@ import org.apache.hyracks.storage.am.lsm.common.api.ILSMIndexFileManager;
 import org.apache.hyracks.storage.am.lsm.common.api.ILSMMergePolicy;
 import org.apache.hyracks.storage.am.lsm.common.api.ILSMOperationTracker;
 import org.apache.hyracks.storage.am.lsm.common.api.ILSMPageWriteCallbackFactory;
+import org.apache.hyracks.storage.am.lsm.common.api.IStatisticsFactory;
+import org.apache.hyracks.storage.am.lsm.common.api.IStatisticsManager;
 import org.apache.hyracks.storage.am.lsm.common.api.IVirtualBufferCache;
 import org.apache.hyracks.storage.am.lsm.common.frames.LSMComponentFilterFrameFactory;
 import org.apache.hyracks.storage.am.lsm.common.impls.ComponentFilterHelper;
@@ -66,7 +68,8 @@ public class TestLsmBtreeUtil {
             ILSMIOOperationCallbackFactory ioOpCallbackFactory, ILSMPageWriteCallbackFactory pageWriteCallbackFactory,
             boolean needKeyDupCheck, ITypeTraits[] filterTypeTraits, IBinaryComparatorFactory[] filterCmpFactories,
             int[] btreeFields, int[] filterFields, boolean durable, IMetadataPageManagerFactory freePageManagerFactory,
-            boolean updateAware, ITracer tracer) throws HyracksDataException {
+            boolean updateAware, ITracer tracer, IStatisticsFactory statisticsFactory,
+            IStatisticsManager statisticsManager) throws HyracksDataException {
         LSMBTreeTupleWriterFactory insertTupleWriterFactory =
                 new LSMBTreeTupleWriterFactory(typeTraits, cmpFactories.length, false, updateAware);
         LSMBTreeTupleWriterFactory deleteTupleWriterFactory =
@@ -104,19 +107,22 @@ public class TestLsmBtreeUtil {
 
         if (hasBloomFilter) {
             BloomFilterFactory bloomFilterFactory = new BloomFilterFactory(diskBufferCache, bloomFilterKeyFields);
-            componentFactory =
-                    new LSMBTreeWithBloomFilterDiskComponentFactory(diskBTreeFactory, bloomFilterFactory, filterHelper);
+            componentFactory = new LSMBTreeWithBloomFilterDiskComponentFactory(diskBTreeFactory, bloomFilterFactory,
+                    filterHelper, statisticsFactory, statisticsManager);
             bulkLoadComponentFactory = new LSMBTreeWithBloomFilterDiskComponentFactory(bulkLoadBTreeFactory,
-                    bloomFilterFactory, filterHelper);
+                    bloomFilterFactory, filterHelper, statisticsFactory, statisticsManager);
         } else {
-            componentFactory = new LSMBTreeDiskComponentFactory(diskBTreeFactory, filterHelper);
-            bulkLoadComponentFactory = new LSMBTreeDiskComponentFactory(bulkLoadBTreeFactory, filterHelper);
+            componentFactory = new LSMBTreeDiskComponentFactory(diskBTreeFactory, filterHelper, statisticsFactory,
+                    statisticsManager);
+            bulkLoadComponentFactory = new LSMBTreeDiskComponentFactory(bulkLoadBTreeFactory, filterHelper,
+                    statisticsFactory, statisticsManager);
         }
 
         return new TestLsmBtree(ioManager, virtualBufferCaches, interiorFrameFactory, insertLeafFrameFactory,
                 deleteLeafFrameFactory, diskBufferCache, fileNameManager, componentFactory, bulkLoadComponentFactory,
                 filterHelper, filterFrameFactory, filterManager, bloomFilterFalsePositiveRate, typeTraits.length,
                 cmpFactories, mergePolicy, opTracker, ioScheduler, ioOpCallbackFactory, pageWriteCallbackFactory,
-                needKeyDupCheck, hasBloomFilter, btreeFields, filterFields, durable, updateAware, tracer);
+                needKeyDupCheck, hasBloomFilter, btreeFields, filterFields, durable, updateAware, tracer,
+                statisticsManager);
     }
 }

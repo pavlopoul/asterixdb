@@ -173,7 +173,6 @@ public class TypeUtil {
 
     /**
      * Creates a map from name to type for fields in the passed type
-     *
      * @param recordType the type to be mapped
      * @return a map mapping all fields to their types
      */
@@ -211,6 +210,7 @@ public class TypeUtil {
     /**
      * Makes sure the chain of fields accessed and leading to the indexed field are all valid record types.
      * E.g. for CREATE INDEX idx on ds(a.b.c.d: int) validate that a, b and c are all valid record types (?).
+     * 
      * @param nestedRecordType the nested record field being accessed
      * @param fieldName the name of the nested record field
      * @throws AsterixException when supplying bad fields, e.g. CREATE INDEX i on ds(a.b: int, a.b.c: int) (mostly

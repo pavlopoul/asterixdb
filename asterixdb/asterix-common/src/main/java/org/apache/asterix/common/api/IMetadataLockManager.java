@@ -448,4 +448,23 @@ public interface IMetadataLockManager {
      */
     void downgradeDatasetLockToExclusiveModify(LockList locks, DataverseName dataverseName, String datasetName)
             throws AlgebricksException;
+
+    /**
+     * Acquire write lock on the statistics entity
+     *
+     * @param locks
+     *            the lock list to add the new lock to
+     * @param dataset
+     *            the fully qualified name of the dataset
+     * @param indexName
+     *            the name of the index
+     * @param nodeName
+     *            the name of the node
+     * @param partitionId
+     *            ID of partition
+     * @throws AlgebricksException
+     *             if lock couldn't be acquired
+     */
+    void acquireStatisticsWriteLock(LockList locks, DataverseName dataverse, String dataset, String indexName,
+            String nodeName, String fieldName, String partitionId, boolean isAntimatter) throws AlgebricksException;
 }

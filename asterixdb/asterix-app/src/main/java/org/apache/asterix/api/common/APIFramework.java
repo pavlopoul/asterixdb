@@ -38,6 +38,7 @@ import org.apache.asterix.common.api.INodeJobTracker;
 import org.apache.asterix.common.api.IResponsePrinter;
 import org.apache.asterix.common.config.CompilerProperties;
 import org.apache.asterix.common.config.OptimizationConfUtil;
+import org.apache.asterix.common.config.StatisticsProperties;
 import org.apache.asterix.common.exceptions.ACIDException;
 import org.apache.asterix.common.exceptions.AsterixException;
 import org.apache.asterix.common.exceptions.CompilationException;
@@ -73,6 +74,7 @@ import org.apache.asterix.optimizer.base.AsterixOptimizationContext;
 import org.apache.asterix.optimizer.base.FuzzyUtils;
 import org.apache.asterix.optimizer.rules.DisjunctivePredicateToJoinRule;
 import org.apache.asterix.runtime.job.listener.JobEventListenerFactory;
+import org.apache.asterix.statistics.common.CardinalityEstimator;
 import org.apache.asterix.translator.CompiledStatements.ICompiledDmlStatement;
 import org.apache.asterix.translator.ExecutionPlans;
 import org.apache.asterix.translator.SessionConfig;
@@ -97,6 +99,7 @@ import org.apache.hyracks.algebricks.core.algebra.expressions.IMissableTypeCompu
 import org.apache.hyracks.algebricks.core.algebra.prettyprint.AlgebricksStringBuilderWriter;
 import org.apache.hyracks.algebricks.core.algebra.prettyprint.IPlanPrettyPrinter;
 import org.apache.hyracks.algebricks.core.algebra.prettyprint.PlanPrettyPrinter;
+import org.apache.hyracks.algebricks.core.rewriter.base.ICardinalityEstimator;
 import org.apache.hyracks.algebricks.core.rewriter.base.IOptimizationContextFactory;
 import org.apache.hyracks.algebricks.core.rewriter.base.PhysicalOptimizationConfig;
 import org.apache.hyracks.algebricks.data.IPrinterFactoryProvider;
@@ -128,17 +131,19 @@ public class APIFramework {
     public static final String PREFIX_INTERNAL_PARAMETERS = "_internal";
 
     // A white list of supported configurable parameters.
-    private static final Set<String> CONFIGURABLE_PARAMETER_NAMES =
-            ImmutableSet.of(CompilerProperties.COMPILER_JOINMEMORY_KEY, CompilerProperties.COMPILER_GROUPMEMORY_KEY,
-                    CompilerProperties.COMPILER_SORTMEMORY_KEY, CompilerProperties.COMPILER_WINDOWMEMORY_KEY,
-                    CompilerProperties.COMPILER_TEXTSEARCHMEMORY_KEY, CompilerProperties.COMPILER_PARALLELISM_KEY,
-                    CompilerProperties.COMPILER_SORT_PARALLEL_KEY, CompilerProperties.COMPILER_SORT_SAMPLES_KEY,
-                    CompilerProperties.COMPILER_INDEXONLY_KEY, FunctionUtil.IMPORT_PRIVATE_FUNCTIONS,
-                    FuzzyUtils.SIM_FUNCTION_PROP_NAME, FuzzyUtils.SIM_THRESHOLD_PROP_NAME,
-                    StartFeedStatement.WAIT_FOR_COMPLETION, FeedActivityDetails.FEED_POLICY_NAME,
-                    FeedActivityDetails.COLLECT_LOCATIONS, SqlppQueryRewriter.INLINE_WITH_OPTION,
-                    SqlppExpressionToPlanTranslator.REWRITE_IN_AS_OR_OPTION, "hash_merge", "output-record-type",
-                    DisjunctivePredicateToJoinRule.REWRITE_OR_AS_JOIN_OPTION);
+    private static final Set<String> CONFIGURABLE_PARAMETER_NAMES = ImmutableSet.of(
+            CompilerProperties.COMPILER_JOINMEMORY_KEY, CompilerProperties.COMPILER_GROUPMEMORY_KEY,
+            CompilerProperties.COMPILER_SORTMEMORY_KEY, CompilerProperties.COMPILER_WINDOWMEMORY_KEY,
+            CompilerProperties.COMPILER_TEXTSEARCHMEMORY_KEY, CompilerProperties.COMPILER_PARALLELISM_KEY,
+            CompilerProperties.COMPILER_SORT_PARALLEL_KEY, CompilerProperties.COMPILER_SORT_SAMPLES_KEY,
+            CompilerProperties.COMPILER_INDEXONLY_KEY, FunctionUtil.IMPORT_PRIVATE_FUNCTIONS,
+            FuzzyUtils.SIM_FUNCTION_PROP_NAME, FuzzyUtils.SIM_THRESHOLD_PROP_NAME,
+            StartFeedStatement.WAIT_FOR_COMPLETION, FeedActivityDetails.FEED_POLICY_NAME,
+            FeedActivityDetails.COLLECT_LOCATIONS, SqlppQueryRewriter.INLINE_WITH_OPTION,
+            SqlppExpressionToPlanTranslator.REWRITE_IN_AS_OR_OPTION, "hash_merge", "output-record-type",
+            DisjunctivePredicateToJoinRule.REWRITE_OR_AS_JOIN_OPTION,
+            StatisticsProperties.STATISTICS_PRIMARY_KEYS_ENABLED, StatisticsProperties.STATISTICS_SYNOPSIS_SIZE_KEY,
+            StatisticsProperties.STATISTICS_SYNOPSIS_TYPE_KEY);
 
     private final IRewriterFactory rewriterFactory;
     private final IAstPrintVisitorFactory astPrintVisitorFactory;
@@ -166,13 +171,14 @@ public class APIFramework {
                 IExpressionEvalSizeComputer expressionEvalSizeComputer,
                 IMergeAggregationExpressionFactory mergeAggregationExpressionFactory,
                 IExpressionTypeComputer expressionTypeComputer, IMissableTypeComputer missableTypeComputer,
-                IConflictingTypeResolver conflictingTypeResolver, PhysicalOptimizationConfig physicalOptimizationConfig,
-                AlgebricksPartitionConstraint clusterLocations, IWarningCollector warningCollector) {
+                IConflictingTypeResolver conflictingTypeResolver, ICardinalityEstimator cardinalityEstimator,
+                PhysicalOptimizationConfig physicalOptimizationConfig, AlgebricksPartitionConstraint clusterLocations,
+                IWarningCollector warningCollector) {
             IPlanPrettyPrinter prettyPrinter = PlanPrettyPrinter.createStringPlanPrettyPrinter();
             return new AsterixOptimizationContext(varCounter, expressionEvalSizeComputer,
                     mergeAggregationExpressionFactory, expressionTypeComputer, missableTypeComputer,
-                    conflictingTypeResolver, physicalOptimizationConfig, clusterLocations, prettyPrinter,
-                    warningCollector);
+                    conflictingTypeResolver, cardinalityEstimator, physicalOptimizationConfig, clusterLocations,
+                    prettyPrinter, warningCollector);
         }
     }
 
@@ -242,6 +248,7 @@ public class APIFramework {
         builder.setConflictingTypeResolver(ConflictingTypeResolver.INSTANCE);
         builder.setWarningCollector(warningCollector);
         builder.setMaxWarnings(conf.getMaxWarnings());
+        builder.setCardinalityEstimator(CardinalityEstimator.INSTANCE);
 
         int parallelism = getParallelism((String) querySpecificConfig.get(CompilerProperties.COMPILER_PARALLELISM_KEY),
                 compilerProperties.getParallelism());

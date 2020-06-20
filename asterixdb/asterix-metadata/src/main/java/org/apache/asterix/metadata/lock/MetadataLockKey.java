@@ -38,7 +38,8 @@ final class MetadataLockKey implements IMetadataLock.LockKey {
         ADAPTER,
         MERGE_POLICY,
         NODE_GROUP,
-        SYNONYM
+        SYNONYM,
+        STATISTICS
     }
 
     private final EntityKind entityKind;
@@ -139,5 +140,9 @@ final class MetadataLockKey implements IMetadataLock.LockKey {
 
     static MetadataLockKey createMergePolicyLockKey(String mergePolicyName) {
         return new MetadataLockKey(EntityKind.MERGE_POLICY, null, null, mergePolicyName);
+    }
+
+    public static MetadataLockKey createStatisticsLockKey(DataverseName dataverse, String fieldName) {
+        return new MetadataLockKey(EntityKind.STATISTICS, null, dataverse, fieldName);
     }
 }

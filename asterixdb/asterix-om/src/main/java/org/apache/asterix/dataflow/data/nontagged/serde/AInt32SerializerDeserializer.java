@@ -22,12 +22,10 @@ import java.io.DataInput;
 import java.io.DataOutput;
 
 import org.apache.asterix.om.base.AInt32;
-import org.apache.hyracks.api.dataflow.value.ISerializerDeserializer;
 import org.apache.hyracks.api.exceptions.HyracksDataException;
 import org.apache.hyracks.data.std.primitive.IntegerPointable;
-import org.apache.hyracks.dataflow.common.data.marshalling.IntegerSerializerDeserializer;
 
-public class AInt32SerializerDeserializer implements ISerializerDeserializer<AInt32> {
+public class AInt32SerializerDeserializer implements AIntegerSerializerDeserializer<AInt32> {
 
     private static final long serialVersionUID = 1L;
 
@@ -38,15 +36,21 @@ public class AInt32SerializerDeserializer implements ISerializerDeserializer<AIn
 
     @Override
     public AInt32 deserialize(DataInput in) throws HyracksDataException {
-        return new AInt32(IntegerSerializerDeserializer.read(in));
+        return new AInt32(org.apache.hyracks.dataflow.common.data.marshalling.IntegerSerializerDeserializer.read(in));
     }
 
     @Override
     public void serialize(AInt32 instance, DataOutput out) throws HyracksDataException {
-        IntegerSerializerDeserializer.write(instance.getIntegerValue(), out);
+        org.apache.hyracks.dataflow.common.data.marshalling.IntegerSerializerDeserializer
+                .write(instance.getIntegerValue(), out);
     }
 
     public static int getInt(byte[] bytes, int offset) {
         return IntegerPointable.getInteger(bytes, offset);
+    }
+
+    @Override
+    public long getLongValue(byte[] bytes, int offset) {
+        return getInt(bytes, offset);
     }
 }

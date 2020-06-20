@@ -51,6 +51,7 @@ import org.apache.hyracks.storage.am.lsm.common.api.ILSMOperationTracker;
 import org.apache.hyracks.storage.am.lsm.common.api.IVirtualBufferCache;
 import org.apache.hyracks.storage.am.lsm.common.impls.FlushOperation;
 import org.apache.hyracks.storage.am.lsm.common.impls.LSMComponentIdGenerator;
+import org.apache.hyracks.storage.am.lsm.common.impls.StatisticsMessageIOOperationCallbackWrapper;
 import org.apache.hyracks.storage.common.IIndex;
 import org.apache.hyracks.storage.common.ILocalResourceRepository;
 import org.apache.hyracks.storage.common.LocalResource;
@@ -367,7 +368,13 @@ public class DatasetLifecycleManager implements IDatasetLifecycleManager, ILifeC
             Predicate<ILSMIndex> indexPredicate) throws HyracksDataException {
         final int partition = opTracker.getPartition();
         for (ILSMIndex lsmIndex : dsr.getDatasetInfo().getDatasetPartitionOpenIndexes(partition)) {
-            LSMIOOperationCallback ioCallback = (LSMIOOperationCallback) lsmIndex.getIOOperationCallback();
+            LSMIOOperationCallback ioCallback = null;
+            if (lsmIndex.getIOOperationCallback() instanceof StatisticsMessageIOOperationCallbackWrapper) {
+                ioCallback = (LSMIOOperationCallback) ((StatisticsMessageIOOperationCallbackWrapper) lsmIndex
+                        .getIOOperationCallback()).getWrapper();
+            } else {
+                ioCallback = (LSMIOOperationCallback) lsmIndex.getIOOperationCallback();
+            }
             if (needsFlush(opTracker, lsmIndex, ioCallback) && indexPredicate.test(lsmIndex)) {
                 LOGGER.info("Async flushing {}", opTracker);
                 opTracker.setFlushOnExit(true);

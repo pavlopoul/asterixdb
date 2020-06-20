@@ -30,7 +30,7 @@ public class LSMRTreeWithAntimatterDiskComponent extends AbstractLSMDiskComponen
     private final RTree rtree;
 
     public LSMRTreeWithAntimatterDiskComponent(AbstractLSMIndex lsmIndex, RTree rtree, ILSMComponentFilter filter) {
-        super(lsmIndex, LSMRTreeDiskComponent.getMetadataPageManager(rtree), filter);
+        super(lsmIndex, LSMRTreeDiskComponent.getMetadataPageManager(rtree), filter, null, null);
         this.rtree = rtree;
     }
 

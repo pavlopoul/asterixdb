@@ -53,4 +53,8 @@ public class PermutingFrameTupleReference extends FrameTupleReference {
     public int getFieldLength(int fIdx) {
         return fta.getFieldLength(tIndex, fieldPermutation[fIdx]);
     }
+
+    public boolean isFrame() {
+        return false;
+    }
 }

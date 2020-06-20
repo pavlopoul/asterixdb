@@ -33,7 +33,7 @@ public abstract class AbstractLSMWithBuddyDiskComponent extends AbstractLSMWithB
 
     public AbstractLSMWithBuddyDiskComponent(AbstractLSMIndex lsmIndex, IMetadataPageManager mdPageManager,
             ILSMComponentFilter filter) {
-        super(lsmIndex, mdPageManager, filter);
+        super(lsmIndex, mdPageManager, filter, null, null);
     }
 
     public abstract AbstractTreeIndex getBuddyIndex();

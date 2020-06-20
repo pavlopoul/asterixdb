@@ -27,10 +27,8 @@ import org.apache.hyracks.api.exceptions.ErrorCode;
 import org.apache.hyracks.api.exceptions.HyracksDataException;
 import org.apache.hyracks.api.io.FileReference;
 import org.apache.hyracks.api.io.IIOManager;
-import org.apache.hyracks.data.std.primitive.IntegerPointable;
 import org.apache.hyracks.dataflow.common.data.accessors.ITupleReference;
 import org.apache.hyracks.storage.am.btree.impls.BTree;
-import org.apache.hyracks.storage.am.btree.impls.BTree.BTreeAccessor;
 import org.apache.hyracks.storage.am.btree.impls.RangePredicate;
 import org.apache.hyracks.storage.am.common.api.IExtendedModificationOperationCallback;
 import org.apache.hyracks.storage.am.common.api.IIndexOperationContext;
@@ -57,14 +55,17 @@ import org.apache.hyracks.storage.am.lsm.common.api.ILSMIndexOperationContext;
 import org.apache.hyracks.storage.am.lsm.common.api.ILSMMergePolicy;
 import org.apache.hyracks.storage.am.lsm.common.api.ILSMOperationTracker;
 import org.apache.hyracks.storage.am.lsm.common.api.ILSMPageWriteCallbackFactory;
+import org.apache.hyracks.storage.am.lsm.common.api.IStatisticsManager;
 import org.apache.hyracks.storage.am.lsm.common.api.IVirtualBufferCache;
 import org.apache.hyracks.storage.am.lsm.common.freepage.VirtualFreePageManager;
+import org.apache.hyracks.storage.am.lsm.common.impls.AbstractLSMDiskComponent;
 import org.apache.hyracks.storage.am.lsm.common.impls.AbstractLSMIndex;
 import org.apache.hyracks.storage.am.lsm.common.impls.AbstractLSMIndexOperationContext;
 import org.apache.hyracks.storage.am.lsm.common.impls.LSMComponentFileReferences;
 import org.apache.hyracks.storage.am.lsm.common.impls.LSMComponentFilterManager;
 import org.apache.hyracks.storage.am.lsm.common.impls.LSMTreeIndexAccessor;
 import org.apache.hyracks.storage.am.lsm.common.impls.LSMTreeIndexAccessor.ICursorFactory;
+import org.apache.hyracks.storage.am.lsm.common.impls.StatisticsMessageIOOperationCallbackWrapper;
 import org.apache.hyracks.storage.common.IIndexAccessParameters;
 import org.apache.hyracks.storage.common.IIndexAccessor;
 import org.apache.hyracks.storage.common.IIndexCursor;
@@ -89,6 +90,8 @@ public class LSMBTree extends AbstractLSMIndex implements ITreeIndex {
 
     // Primary and Primary Key LSMBTree has a Bloomfilter, but Secondary one doesn't have.
     private final boolean hasBloomFilter;
+    private boolean hasStatistics;
+    private IStatisticsManager statisticsManager;
 
     public LSMBTree(IIOManager ioManager, List<IVirtualBufferCache> virtualBufferCaches,
             ITreeIndexFrameFactory interiorFrameFactory, ITreeIndexFrameFactory insertLeafFrameFactory,
@@ -100,7 +103,7 @@ public class LSMBTree extends AbstractLSMIndex implements ITreeIndex {
             ILSMMergePolicy mergePolicy, ILSMOperationTracker opTracker, ILSMIOOperationScheduler ioScheduler,
             ILSMIOOperationCallbackFactory ioOpCallbackFactory, ILSMPageWriteCallbackFactory pageWriteCallbackFactory,
             boolean needKeyDupCheck, boolean hasBloomFilter, int[] btreeFields, int[] filterFields, boolean durable,
-            boolean updateAware, ITracer tracer) throws HyracksDataException {
+            boolean updateAware, ITracer tracer, IStatisticsManager statisticsManager) throws HyracksDataException {
         super(ioManager, virtualBufferCaches, diskBufferCache, fileManager, bloomFilterFalsePositiveRate, mergePolicy,
                 opTracker, ioScheduler, ioOpCallbackFactory, pageWriteCallbackFactory, componentFactory,
                 bulkLoadComponentFactory, filterFrameFactory, filterManager, filterFields, durable, filterHelper,
@@ -109,6 +112,8 @@ public class LSMBTree extends AbstractLSMIndex implements ITreeIndex {
         this.deleteLeafFrameFactory = deleteLeafFrameFactory;
         this.cmpFactories = cmpFactories;
         this.updateAware = updateAware;
+        this.hasStatistics = statisticsManager != null;
+        this.statisticsManager = statisticsManager;
         int i = 0;
         for (IVirtualBufferCache virtualBufferCache : virtualBufferCaches) {
             LSMBTreeMemoryComponent mutableComponent = new LSMBTreeMemoryComponent(this,
@@ -262,16 +267,23 @@ public class LSMBTree extends AbstractLSMIndex implements ITreeIndex {
         try {
             RangePredicate nullPred = new RangePredicate(null, null, true, true, null, null);
             long numElements = 0L;
-            if (hasBloomFilter) {
-                //count elements in btree for creating Bloomfilter
-                IIndexCursor countingCursor = ((BTreeAccessor) accessor).createCountingSearchCursor();
+            long numAntimatterElements = 0L;
+            if (hasBloomFilter || hasStatistics) {
+                //count elements in btree for creating Bloomfilter or statistics
+                IIndexCursor countingCursor = accessor.createSearchCursor(false);
                 accessor.search(countingCursor, nullPred);
                 try {
                     while (countingCursor.hasNext()) {
                         countingCursor.next();
-                        ITupleReference countTuple = countingCursor.getTuple();
-                        numElements =
-                                IntegerPointable.getInteger(countTuple.getFieldData(0), countTuple.getFieldStart(0));
+                        LSMBTreeTupleReference tuple = (LSMBTreeTupleReference) countingCursor.getTuple();
+                        if (tuple.isUpdated()) {
+                            continue;
+                        }
+                        if (tuple.isAntimatter()) {
+                            numAntimatterElements++;
+                        } else {
+                            numElements++;
+                        }
                     }
                 } finally {
                     try {
@@ -283,19 +295,20 @@ public class LSMBTree extends AbstractLSMIndex implements ITreeIndex {
             }
             component = createDiskComponent(componentFactory, flushOp.getTarget(), null, flushOp.getBloomFilterTarget(),
                     true);
-            componentBulkLoader = component.createBulkLoader(operation, 1.0f, false, numElements, false, false, false,
-                    pageWriteCallbackFactory.createPageWriteCallback());
+            componentBulkLoader = component.createBulkLoader(operation, 1.0f, false, numElements, numAntimatterElements,
+                    false, false, false, pageWriteCallbackFactory.createPageWriteCallback());
             IIndexCursor scanCursor = accessor.createSearchCursor(false);
             accessor.search(scanCursor, nullPred);
             try {
                 while (scanCursor.hasNext()) {
                     scanCursor.next();
+                    LSMBTreeTupleReference tupleRef = (LSMBTreeTupleReference) scanCursor.getTuple();
                     // we can safely throw away updated tuples in secondary BTree components, because they correspond to
                     // deleted tuples
-                    if (updateAware && ((LSMBTreeTupleReference) scanCursor.getTuple()).isUpdated()) {
+                    if (updateAware && tupleRef.isUpdated()) {
                         continue;
                     }
-                    componentBulkLoader.add(scanCursor.getTuple());
+                    componentBulkLoader.add(tupleRef);
                 }
             } finally {
                 try {
@@ -340,15 +353,34 @@ public class LSMBTree extends AbstractLSMIndex implements ITreeIndex {
                 search(mergeOp.getAccessor().getOpContext(), cursor, rangePred);
                 try {
                     List<ILSMComponent> mergedComponents = mergeOp.getMergingComponents();
-                    long numElements = getNumberOfElements(mergedComponents);
+                    long numElements = 0L;
+                    long numAntimatterElements = 0L;
+                    if (hasBloomFilter) {
+                        //count elements in btree for creating Bloomfilter
+                        for (int i = 0; i < mergedComponents.size(); ++i) {
+                            numElements += ((AbstractLSMWithBloomFilterDiskComponent) mergedComponents.get(i))
+                                    .getBloomFilter().getNumElements();
+                        }
+                    }
+                    if (hasStatistics) {
+                        numElements = 0L;
+                        for (ILSMComponent component : mergedComponents) {
+                            numElements += ((AbstractLSMDiskComponent) component).getStatistics().getNumTuples();
+                            numAntimatterElements +=
+                                    ((AbstractLSMDiskComponent) component).getStatistics().getNumAntimatterTuples();
+                        }
+                    }
                     mergedComponent = createDiskComponent(componentFactory, mergeOp.getTarget(), null,
                             mergeOp.getBloomFilterTarget(), true);
                     IPageWriteCallback pageWriteCallback = pageWriteCallbackFactory.createPageWriteCallback();
-                    componentBulkLoader = mergedComponent.createBulkLoader(operation, 1.0f, false, numElements, false,
-                            false, false, pageWriteCallback);
+                    componentBulkLoader = mergedComponent.createBulkLoader(operation, 1.0f, false, numElements,
+                            numAntimatterElements, false, false, false, pageWriteCallback);
                     while (cursor.hasNext()) {
                         cursor.next();
-                        ITupleReference frameTuple = cursor.getTuple();
+                        LSMBTreeTupleReference frameTuple = (LSMBTreeTupleReference) cursor.getTuple();
+                        if (updateAware && frameTuple.isUpdated()) {
+                            continue;
+                        }
                         componentBulkLoader.add(frameTuple);
                     }
                 } finally {
@@ -382,24 +414,28 @@ public class LSMBTree extends AbstractLSMIndex implements ITreeIndex {
         return mergedComponent;
     }
 
-    private long getNumberOfElements(List<ILSMComponent> mergedComponents) throws HyracksDataException {
-        long numElements = 0L;
-        if (hasBloomFilter) {
-            //count elements in btree for creating Bloomfilter
-            for (int i = 0; i < mergedComponents.size(); ++i) {
-                numElements += ((AbstractLSMWithBloomFilterDiskComponent) mergedComponents.get(i)).getBloomFilter()
-                        .getNumElements();
-            }
-        }
-        return numElements;
-    }
-
     @Override
     protected ILSMIOOperation createFlushOperation(AbstractLSMIndexOperationContext opCtx,
             LSMComponentFileReferences componentFileRefs, ILSMIOOperationCallback callback) {
         ILSMIndexAccessor accessor = createAccessor(opCtx);
         return new LSMBTreeFlushOperation(accessor, componentFileRefs.getInsertIndexFileReference(),
-                componentFileRefs.getBloomFilterFileReference(), callback, getIndexIdentifier());
+                componentFileRefs.getBloomFilterFileReference(), getStatisticsAwareIOOperationCallback(callback),
+                getIndexIdentifier());
+    }
+
+    public ILSMIOOperationCallback getStatisticsAwareIOOperationCallback(ILSMIOOperationCallback callback) {
+        if (hasStatistics) {
+            return new StatisticsMessageIOOperationCallbackWrapper(callback, statisticsManager);
+        } else {
+            return callback;
+        }
+    }
+
+    public boolean hasStatistics() {
+        if (!hasStatistics) {
+            return false;
+        }
+        return true;
     }
 
     @Override
@@ -485,6 +521,7 @@ public class LSMBTree extends AbstractLSMIndex implements ITreeIndex {
         IIndexCursorStats stats = new IndexCursorStats();
         LSMBTreeRangeSearchCursor cursor = new LSMBTreeRangeSearchCursor(opCtx, returnDeletedTuples, stats);
         return new LSMBTreeMergeOperation(accessor, cursor, stats, mergeFileRefs.getInsertIndexFileReference(),
-                mergeFileRefs.getBloomFilterFileReference(), callback, getIndexIdentifier());
+                mergeFileRefs.getBloomFilterFileReference(), getStatisticsAwareIOOperationCallback(callback),
+                getIndexIdentifier());
     }
 }

@@ -339,8 +339,8 @@ public class ExternalBTreeWithBuddy extends AbstractLSMIndex implements ITreeInd
                 numElements += ((AbstractLSMWithBloomFilterDiskComponent) mergeOp.getMergingComponents().get(i))
                         .getBloomFilter().getNumElements();
             }
-            componentBulkLoader = mergedComponent.createBulkLoader(operation, 1.0f, false, numElements, false, false,
-                    false, pageWriteCallbackFactory.createPageWriteCallback());
+            componentBulkLoader = mergedComponent.createBulkLoader(operation, 1.0f, false, numElements, 0L, false,
+                    false, false, pageWriteCallbackFactory.createPageWriteCallback());
             try {
                 while (buddyBtreeCursor.hasNext()) {
                     buddyBtreeCursor.next();
@@ -351,7 +351,7 @@ public class ExternalBTreeWithBuddy extends AbstractLSMIndex implements ITreeInd
                 buddyBtreeCursor.close();
             }
         } else {
-            componentBulkLoader = mergedComponent.createBulkLoader(operation, 1.0f, false, 0L, false, false, false,
+            componentBulkLoader = mergedComponent.createBulkLoader(operation, 1.0f, false, 0L, 0L, false, false, false,
                     pageWriteCallbackFactory.createPageWriteCallback());
         }
 
@@ -533,8 +533,8 @@ public class ExternalBTreeWithBuddy extends AbstractLSMIndex implements ITreeInd
             loadOp.setNewComponent(component);
             ioOpCallback.scheduled(loadOp);
             ioOpCallback.beforeOperation(loadOp);
-            componentBulkLoader = component.createBulkLoader(loadOp, fillFactor, verifyInput, numElementsHint, false,
-                    true, false, pageWriteCallbackFactory.createPageWriteCallback());
+            componentBulkLoader = component.createBulkLoader(loadOp, fillFactor, verifyInput, numElementsHint, 0L,
+                    false, true, false, pageWriteCallbackFactory.createPageWriteCallback());
         }
 
         @Override
@@ -694,5 +694,15 @@ public class ExternalBTreeWithBuddy extends AbstractLSMIndex implements ITreeInd
     protected ILSMIOOperation createMergeOperation(AbstractLSMIndexOperationContext opCtx,
             LSMComponentFileReferences mergeFileRefs, ILSMIOOperationCallback callback) throws HyracksDataException {
         return null;
+    }
+
+    @Override
+    public ILSMIOOperationCallback getStatisticsAwareIOOperationCallback(ILSMIOOperationCallback ioOpCallback) {
+        return ioOpCallback;
+    }
+
+    @Override
+    public boolean hasStatistics() {
+        return false;
     }
 }

@@ -23,6 +23,7 @@ import org.apache.hyracks.algebricks.data.ITypeTraitProvider;
 import org.apache.hyracks.storage.am.common.api.IMetadataPageManagerFactory;
 import org.apache.hyracks.storage.am.common.api.IPrimitiveValueProviderFactory;
 import org.apache.hyracks.storage.am.lsm.common.api.ILSMIOOperationSchedulerProvider;
+import org.apache.hyracks.storage.am.lsm.common.api.IStatisticsManagerProvider;
 import org.apache.hyracks.storage.common.IStorageManager;
 
 /**
@@ -64,4 +65,9 @@ public interface IStorageComponentProvider {
      * @return {@link org.apache.hyracks.algebricks.data.ITypeTraitProvider} instance
      */
     ITypeTraitProvider getTypeTraitProvider();
+
+    /**
+     * @return {@link IStatisticsManagerProvider} instance
+     */
+    IStatisticsManagerProvider getStatisticsManagerProvider();
 }

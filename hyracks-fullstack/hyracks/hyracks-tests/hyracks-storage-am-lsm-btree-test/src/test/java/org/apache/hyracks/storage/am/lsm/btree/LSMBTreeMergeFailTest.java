@@ -105,7 +105,7 @@ public class LSMBTreeMergeFailTest {
                 harness.getFileReference(), harness.getDiskBufferCache(), fieldSerdes, numKeys,
                 harness.getBoomFilterFalsePositiveRate(), harness.getMergePolicy(), harness.getOperationTracker(),
                 scheduler, harness.getIOOperationCallbackFactory(), harness.getPageWriteCallbackFactory(),
-                harness.getMetadataPageManagerFactory(), filtered, true, false);
+                harness.getMetadataPageManagerFactory(), filtered, true, false, null, null);
     }
 
     private class TestIoScheduler implements ILSMIOOperationScheduler {

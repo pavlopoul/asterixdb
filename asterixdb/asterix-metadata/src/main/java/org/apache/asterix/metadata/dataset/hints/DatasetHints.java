@@ -60,6 +60,7 @@ public class DatasetHints {
         Set<IHint> hints = new HashSet<>();
         hints.add(new DatasetCardinalityHint());
         hints.add(new DatasetNodegroupCardinalityHint());
+        hints.add(new DatasetStatisticsHint());
         return hints;
     }
 
@@ -127,6 +128,23 @@ public class DatasetHints {
             return new Pair<>(true, null);
         }
 
+    }
+
+    public static class DatasetStatisticsHint implements IHint {
+        public static final String NAME = "STATISTICS";
+
+        public static final String DEFAULT = "";
+
+        @Override
+        public String getName() {
+            return NAME;
+        }
+
+        @Override
+        public Pair<Boolean, String> validateValue(ICcApplicationContext appCtx, String value) {
+            //TODO: add validation for statistics fields
+            return new Pair<>(true, null);
+        }
     }
 
 }

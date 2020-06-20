@@ -121,7 +121,7 @@ public class MetadataBootstrap {
                     MetadataPrimaryIndexes.FEED_DATASET, MetadataPrimaryIndexes.FEED_POLICY_DATASET,
                     MetadataPrimaryIndexes.LIBRARY_DATASET, MetadataPrimaryIndexes.COMPACTION_POLICY_DATASET,
                     MetadataPrimaryIndexes.EXTERNAL_FILE_DATASET, MetadataPrimaryIndexes.FEED_CONNECTION_DATASET,
-                    MetadataPrimaryIndexes.SYNONYM_DATASET };
+                    MetadataPrimaryIndexes.SYNONYM_DATASET, MetadataPrimaryIndexes.STATISTICS_DATASET };
 
     private MetadataBootstrap() {
     }
@@ -365,15 +365,15 @@ public class MetadataBootstrap {
         if (createMetadataDataset) {
             final double bloomFilterFalsePositiveRate =
                     appContext.getStorageProperties().getBloomFilterFalsePositiveRate();
-            LSMBTreeLocalResourceFactory lsmBtreeFactory =
-                    new LSMBTreeLocalResourceFactory(storageComponentProvider.getStorageManager(), typeTraits,
-                            cmpFactories, null, null, null, opTrackerFactory, ioOpCallbackFactory,
-                            pageWriteCallbackFactory, storageComponentProvider.getMetadataPageManagerFactory(),
-                            new AsterixVirtualBufferCacheProvider(datasetId),
-                            storageComponentProvider.getIoOperationSchedulerProvider(),
-                            appContext.getMetadataMergePolicyFactory(),
-                            StorageConstants.DEFAULT_COMPACTION_POLICY_PROPERTIES, true, bloomFilterKeyFields,
-                            bloomFilterFalsePositiveRate, true, null, NoOpCompressorDecompressorFactory.INSTANCE, true);
+            LSMBTreeLocalResourceFactory lsmBtreeFactory = new LSMBTreeLocalResourceFactory(
+                    storageComponentProvider.getStorageManager(), typeTraits, cmpFactories, null, null, null,
+                    opTrackerFactory, ioOpCallbackFactory, pageWriteCallbackFactory,
+                    storageComponentProvider.getMetadataPageManagerFactory(),
+                    new AsterixVirtualBufferCacheProvider(datasetId),
+                    storageComponentProvider.getIoOperationSchedulerProvider(),
+                    appContext.getMetadataMergePolicyFactory(), StorageConstants.DEFAULT_COMPACTION_POLICY_PROPERTIES,
+                    true, bloomFilterKeyFields, bloomFilterFalsePositiveRate, true, null,
+                    NoOpCompressorDecompressorFactory.INSTANCE, true, null, null);
             DatasetLocalResourceFactory dsLocalResourceFactory =
                     new DatasetLocalResourceFactory(datasetId, lsmBtreeFactory);
             // TODO(amoudi) Creating the index should be done through the same code path as
@@ -490,7 +490,7 @@ public class MetadataBootstrap {
     }
 
     private static void ensureCatalogUpgradability(IMetadataIndex index) {
-        if (index != MetadataPrimaryIndexes.SYNONYM_DATASET) {
+        if (index != MetadataPrimaryIndexes.SYNONYM_DATASET && index != MetadataPrimaryIndexes.STATISTICS_DATASET) {
             throw new IllegalStateException(
                     "attempt to create metadata index " + index.getIndexName() + ". Index should already exist");
         }

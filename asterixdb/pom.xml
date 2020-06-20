@@ -910,6 +910,7 @@
     <module>asterix-license</module>
     <module>asterix-geo</module>
     <module>asterix-spidersilk</module>
+    <module>asterix-statistics</module>
   </modules>
 
   <dependencyManagement>
@@ -1258,6 +1259,11 @@
         <artifactId>hyracks-hdfs</artifactId>
         <version>${hyracks.version}</version>
         <type>test-jar</type>
+      </dependency>
+      <dependency>
+        <groupId>org.apache.hyracks</groupId>
+        <artifactId>hyracks-storage-am-statistics</artifactId>
+        <version>${hyracks.version}</version>
       </dependency>
       <dependency>
         <groupId>org.apache.hyracks</groupId>

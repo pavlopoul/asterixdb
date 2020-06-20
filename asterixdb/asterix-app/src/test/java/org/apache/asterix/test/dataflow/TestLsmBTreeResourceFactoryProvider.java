@@ -34,6 +34,7 @@ import org.apache.asterix.metadata.entities.Index;
 import org.apache.asterix.metadata.utils.IndexUtil;
 import org.apache.asterix.om.types.ARecordType;
 import org.apache.asterix.om.types.IAType;
+import org.apache.asterix.runtime.statistics.StatisticsUtil;
 import org.apache.asterix.transaction.management.opcallbacks.PrimaryIndexOperationTrackerFactory;
 import org.apache.hyracks.algebricks.common.exceptions.AlgebricksException;
 import org.apache.hyracks.algebricks.common.utils.Pair;
@@ -53,9 +54,12 @@ import org.apache.hyracks.storage.common.IStorageManager;
 
 public class TestLsmBTreeResourceFactoryProvider implements IResourceFactoryProvider {
 
-    public static final TestLsmBTreeResourceFactoryProvider INSTANCE = new TestLsmBTreeResourceFactoryProvider();
+    private final boolean hasStatistics;
+    private final boolean updateAware;
 
-    private TestLsmBTreeResourceFactoryProvider() {
+    public TestLsmBTreeResourceFactoryProvider(boolean hasStatistics, boolean updateAware) {
+        this.hasStatistics = hasStatistics;
+        this.updateAware = updateAware;
     }
 
     @Override
@@ -86,7 +90,12 @@ public class TestLsmBTreeResourceFactoryProvider implements IResourceFactoryProv
                 filterCmpFactories, filterFields, opTrackerFactory, ioOpCallbackFactory, pageWriteCallbackFactory,
                 metadataPageManagerFactory, vbcProvider, ioSchedulerProvider, mergePolicyFactory, mergePolicyProperties,
                 true, bloomFilterFields, bloomFilterFalsePositiveRate, index.isPrimaryIndex(), btreeFields,
-                bloomFilterFields != null);
+                bloomFilterFields != null,
+                new TestCountingStatisticsFactory(dataset.getDataverseName().getCanonicalForm(),
+                        dataset.getDatasetName(), index.getIndexName(),
+                        StatisticsUtil.computeStatisticsFieldExtractors(storageComponentProvider, recordType,
+                                index.getKeyFieldNames(), index.isPrimaryIndex(), true, null)),
+                hasStatistics ? storageComponentProvider.getStatisticsManagerProvider() : null, updateAware);
     }
 
     private static ITypeTraits[] getTypeTraits(MetadataProvider metadataProvider, Dataset dataset, Index index,

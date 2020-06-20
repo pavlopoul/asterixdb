@@ -488,4 +488,16 @@
       </compilation-unit>
     </test-case>
   </test-group>
+  <test-group name="statistics">
+    <test-case FilePath="statistics">
+      <compilation-unit name="noidx_bulkload">
+        <output-dir compare="Text">noidx_bulkload</output-dir>
+      </compilation-unit>
+    </test-case>
+    <test-case FilePath="statistics">
+      <compilation-unit name="noidx_insert">
+        <output-dir compare="Text">noidx_insert</output-dir>
+      </compilation-unit>
+    </test-case>
+  </test-group>
 </test-suite>

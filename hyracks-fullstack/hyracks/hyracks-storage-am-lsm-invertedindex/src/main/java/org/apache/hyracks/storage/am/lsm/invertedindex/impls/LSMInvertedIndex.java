@@ -271,7 +271,7 @@ public class LSMInvertedIndex extends AbstractLSMIndex implements IInvertedIndex
         }
 
         ILSMDiskComponentBulkLoader componentBulkLoader = component.createBulkLoader(operation, 1.0f, false,
-                numBTreeTuples, false, false, false, pageWriteCallbackFactory.createPageWriteCallback());
+                numBTreeTuples, 0L, false, false, false, pageWriteCallbackFactory.createPageWriteCallback());
 
         // Create a scan cursor on the deleted keys BTree underlying the in-memory inverted index.
         IIndexCursor deletedKeysScanCursor = deletedKeysBTreeAccessor.createSearchCursor(false);
@@ -343,14 +343,14 @@ public class LSMInvertedIndex extends AbstractLSMIndex implements IInvertedIndex
                     numElements += ((LSMInvertedIndexDiskComponent) mergeOp.getMergingComponents().get(i))
                             .getBloomFilter().getNumElements();
                 }
-                componentBulkLoader = component.createBulkLoader(operation, 1.0f, false, numElements, false, false,
+                componentBulkLoader = component.createBulkLoader(operation, 1.0f, false, numElements, 0L, false, false,
                         false, pageWriteCallbackFactory.createPageWriteCallback());
                 loadDeleteTuples(opCtx, btreeCursor, mergePred, componentBulkLoader);
             } finally {
                 btreeCursor.destroy();
             }
         } else {
-            componentBulkLoader = component.createBulkLoader(operation, 1.0f, false, 0L, false, false, false,
+            componentBulkLoader = component.createBulkLoader(operation, 1.0f, false, 0L, 0L, false, false, false,
                     pageWriteCallbackFactory.createPageWriteCallback());
         }
         search(opCtx, cursor, mergePred);
@@ -477,5 +477,15 @@ public class LSMInvertedIndex extends AbstractLSMIndex implements IInvertedIndex
         return new LSMInvertedIndexMergeOperation(accessor, cursor, stats, mergeFileRefs.getInsertIndexFileReference(),
                 mergeFileRefs.getDeleteIndexFileReference(), mergeFileRefs.getBloomFilterFileReference(), callback,
                 getIndexIdentifier());
+    }
+
+    @Override
+    public ILSMIOOperationCallback getStatisticsAwareIOOperationCallback(ILSMIOOperationCallback ioOpCallback) {
+        return ioOpCallback;
+    }
+
+    @Override
+    public boolean hasStatistics() {
+        return false;
     }
 }

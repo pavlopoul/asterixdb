@@ -23,10 +23,9 @@ import java.io.DataOutput;
 import java.io.IOException;
 
 import org.apache.asterix.om.base.AInt8;
-import org.apache.hyracks.api.dataflow.value.ISerializerDeserializer;
 import org.apache.hyracks.api.exceptions.HyracksDataException;
 
-public class AInt8SerializerDeserializer implements ISerializerDeserializer<AInt8> {
+public class AInt8SerializerDeserializer implements AIntegerSerializerDeserializer<AInt8> {
 
     private static final long serialVersionUID = 1L;
 
@@ -55,5 +54,10 @@ public class AInt8SerializerDeserializer implements ISerializerDeserializer<AInt
 
     public static byte getByte(byte[] bytes, int offset) {
         return bytes[offset];
+    }
+
+    @Override
+    public long getLongValue(byte[] bytes, int offset) {
+        return getByte(bytes, offset);
     }
 }

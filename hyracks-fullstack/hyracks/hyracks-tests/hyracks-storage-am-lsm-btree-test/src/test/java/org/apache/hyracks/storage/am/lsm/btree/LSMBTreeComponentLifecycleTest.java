@@ -82,7 +82,7 @@ public class LSMBTreeComponentLifecycleTest {
                 harness.getFileReference(), harness.getDiskBufferCache(), fieldSerdes, numKeys,
                 harness.getBoomFilterFalsePositiveRate(), harness.getMergePolicy(), harness.getOperationTracker(),
                 scheduler, ioCallbackFactory, harness.getPageWriteCallbackFactory(),
-                harness.getMetadataPageManagerFactory(), false, true, false);
+                harness.getMetadataPageManagerFactory(), false, true, false, null, null);
     }
 
     private OrderedIndexTestContext createTestContext(ISerializerDeserializer[] fieldSerdes, int numKeys)

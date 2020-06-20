@@ -41,8 +41,10 @@ import org.apache.asterix.metadata.entities.Index;
 import org.apache.asterix.metadata.entities.Library;
 import org.apache.asterix.metadata.entities.Node;
 import org.apache.asterix.metadata.entities.NodeGroup;
+import org.apache.asterix.metadata.entities.Statistics;
 import org.apache.asterix.metadata.entities.Synonym;
 import org.apache.hyracks.algebricks.common.exceptions.AlgebricksException;
+import org.apache.hyracks.storage.am.lsm.common.impls.ComponentStatisticsId;
 
 /**
  * A metadata manager provides user access to Asterix metadata (e.g., types,
@@ -636,6 +638,18 @@ public interface IMetadataManager extends IMetadataBootstrap {
      */
     ExternalFile getExternalFile(MetadataTransactionContext mdTxnCtx, DataverseName dataverseName, String datasetName,
             Integer fileNumber) throws AlgebricksException;
+
+    List<Statistics> getMergedStatistics(MetadataTransactionContext ctx, DataverseName dataverseName,
+            String datasetName, String indexName, String fieldName) throws AlgebricksException;
+
+    List<Statistics> getFieldStatistics(MetadataTransactionContext ctx, String dataverseName, String datasetName,
+            String indexName, String fieldName, boolean isAntimatter) throws AlgebricksException;
+
+    void addStatistics(MetadataTransactionContext mdTxnCtx, Statistics statistics) throws AlgebricksException;
+
+    void dropStatistics(MetadataTransactionContext ctx, String dataverseName, String datasetName, String indexName,
+            String fieldName, String node, String partition, ComponentStatisticsId componentId, boolean isAntimatter)
+            throws AlgebricksException;
 
     /**
      * Adds a synonym, acquiring local locks on behalf of the given transaction id.

@@ -32,6 +32,7 @@ import org.apache.hyracks.algebricks.core.algebra.expressions.IMissableTypeCompu
 import org.apache.hyracks.algebricks.core.algebra.expressions.IPartialAggregationTypeComputer;
 import org.apache.hyracks.algebricks.core.rewriter.base.AbstractRuleController;
 import org.apache.hyracks.algebricks.core.rewriter.base.IAlgebraicRewriteRule;
+import org.apache.hyracks.algebricks.core.rewriter.base.ICardinalityEstimator;
 import org.apache.hyracks.algebricks.core.rewriter.base.PhysicalOptimizationConfig;
 import org.apache.hyracks.algebricks.data.IBinaryBooleanInspectorFactory;
 import org.apache.hyracks.algebricks.data.IBinaryComparatorFactoryProvider;
@@ -72,6 +73,7 @@ public abstract class AbstractCompilerFactoryBuilder {
     protected AlgebricksAbsolutePartitionConstraint clusterLocations;
     protected IWarningCollector warningCollector;
     protected long maxWarnings;
+    protected ICardinalityEstimator cardinalityEstimator;
 
     public abstract ICompilerFactory create();
 
@@ -260,4 +262,13 @@ public abstract class AbstractCompilerFactoryBuilder {
     public long getMaxWarnings() {
         return maxWarnings;
     }
+
+    public ICardinalityEstimator getCardinalityEstimator() {
+        return cardinalityEstimator;
+    }
+
+    public void setCardinalityEstimator(ICardinalityEstimator cardinalityEstimator) {
+        this.cardinalityEstimator = cardinalityEstimator;
+    }
+
 }

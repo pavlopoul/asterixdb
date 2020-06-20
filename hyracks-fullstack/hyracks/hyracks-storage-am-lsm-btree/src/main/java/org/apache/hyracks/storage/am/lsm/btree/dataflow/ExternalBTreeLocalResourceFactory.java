@@ -50,7 +50,7 @@ public class ExternalBTreeLocalResourceFactory extends LSMBTreeLocalResourceFact
                 opTrackerFactory, ioOpCallbackFactory, pageWriteCallbackFactory, metadataPageManagerFactory, null,
                 ioSchedulerProvider, mergePolicyFactory, mergePolicyProperties, durable, bloomFilterKeyFields,
                 bloomFilterFalsePositiveRate, isPrimary, btreeFields, NoOpCompressorDecompressorFactory.INSTANCE,
-                hasBloomFilter);
+                hasBloomFilter, null, null);
     }
 
     @Override

@@ -53,6 +53,8 @@ import org.apache.hyracks.storage.am.lsm.common.api.ILSMIndexFileManager;
 import org.apache.hyracks.storage.am.lsm.common.api.ILSMMergePolicy;
 import org.apache.hyracks.storage.am.lsm.common.api.ILSMOperationTracker;
 import org.apache.hyracks.storage.am.lsm.common.api.ILSMPageWriteCallbackFactory;
+import org.apache.hyracks.storage.am.lsm.common.api.IStatisticsFactory;
+import org.apache.hyracks.storage.am.lsm.common.api.IStatisticsManager;
 import org.apache.hyracks.storage.am.lsm.common.api.IVirtualBufferCache;
 import org.apache.hyracks.storage.am.lsm.common.frames.LSMComponentFilterFrameFactory;
 import org.apache.hyracks.storage.am.lsm.common.impls.BTreeFactory;
@@ -76,7 +78,8 @@ public class LSMBTreeUtil {
             boolean needKeyDupCheck, ITypeTraits[] filterTypeTraits, IBinaryComparatorFactory[] filterCmpFactories,
             int[] btreeFields, int[] filterFields, boolean durable, IMetadataPageManagerFactory freePageManagerFactory,
             boolean updateAware, ITracer tracer, ICompressorDecompressorFactory compressorDecompressorFactory,
-            boolean hasBloomFilter) throws HyracksDataException {
+            boolean hasBloomFilter, IStatisticsFactory statisticsFactory, IStatisticsManager statisticsManager)
+            throws HyracksDataException {
         LSMBTreeTupleWriterFactory insertTupleWriterFactory =
                 new LSMBTreeTupleWriterFactory(typeTraits, cmpFactories.length, false, updateAware);
         LSMBTreeTupleWriterFactory deleteTupleWriterFactory =
@@ -115,20 +118,23 @@ public class LSMBTreeUtil {
         ILSMDiskComponentFactory bulkLoadComponentFactory;
         if (hasBloomFilter) {
             BloomFilterFactory bloomFilterFactory = new BloomFilterFactory(diskBufferCache, bloomFilterKeyFields);
-            componentFactory =
-                    new LSMBTreeWithBloomFilterDiskComponentFactory(diskBTreeFactory, bloomFilterFactory, filterHelper);
+            componentFactory = new LSMBTreeWithBloomFilterDiskComponentFactory(diskBTreeFactory, bloomFilterFactory,
+                    filterHelper, statisticsFactory, statisticsManager);
             bulkLoadComponentFactory = new LSMBTreeWithBloomFilterDiskComponentFactory(bulkLoadBTreeFactory,
-                    bloomFilterFactory, filterHelper);
+                    bloomFilterFactory, filterHelper, statisticsFactory, statisticsManager);
         } else {
-            componentFactory = new LSMBTreeDiskComponentFactory(diskBTreeFactory, filterHelper);
-            bulkLoadComponentFactory = new LSMBTreeDiskComponentFactory(bulkLoadBTreeFactory, filterHelper);
+            componentFactory = new LSMBTreeDiskComponentFactory(diskBTreeFactory, filterHelper, statisticsFactory,
+                    statisticsManager);
+            bulkLoadComponentFactory = new LSMBTreeDiskComponentFactory(bulkLoadBTreeFactory, filterHelper,
+                    statisticsFactory, statisticsManager);
         }
 
         return new LSMBTree(ioManager, virtualBufferCaches, interiorFrameFactory, insertLeafFrameFactory,
                 deleteLeafFrameFactory, diskBufferCache, fileNameManager, componentFactory, bulkLoadComponentFactory,
                 filterHelper, filterFrameFactory, filterManager, bloomFilterFalsePositiveRate, typeTraits.length,
                 cmpFactories, mergePolicy, opTracker, ioScheduler, ioOpCallbackFactory, pageWriteCallbackFactory,
-                needKeyDupCheck, hasBloomFilter, btreeFields, filterFields, durable, updateAware, tracer);
+                needKeyDupCheck, hasBloomFilter, btreeFields, filterFields, durable, updateAware, tracer,
+                statisticsManager);
     }
 
     public static ExternalBTree createExternalBTree(IIOManager ioManager, FileReference file,
@@ -168,11 +174,11 @@ public class LSMBTreeUtil {
         //TODO remove BloomFilter from external dataset's secondary LSMBTree index
         ILSMIndexFileManager fileNameManager = new LSMBTreeFileManager(ioManager, file, diskBTreeFactory, true);
         ILSMDiskComponentFactory componentFactory =
-                new LSMBTreeWithBloomFilterDiskComponentFactory(diskBTreeFactory, bloomFilterFactory, null);
-        ILSMDiskComponentFactory bulkLoadComponentFactory =
-                new LSMBTreeWithBloomFilterDiskComponentFactory(bulkLoadBTreeFactory, bloomFilterFactory, null);
-        ILSMDiskComponentFactory transactionComponentFactory =
-                new LSMBTreeWithBloomFilterDiskComponentFactory(transactionBTreeFactory, bloomFilterFactory, null);
+                new LSMBTreeWithBloomFilterDiskComponentFactory(diskBTreeFactory, bloomFilterFactory, null, null, null);
+        ILSMDiskComponentFactory bulkLoadComponentFactory = new LSMBTreeWithBloomFilterDiskComponentFactory(
+                bulkLoadBTreeFactory, bloomFilterFactory, null, null, null);
+        ILSMDiskComponentFactory transactionComponentFactory = new LSMBTreeWithBloomFilterDiskComponentFactory(
+                transactionBTreeFactory, bloomFilterFactory, null, null, null);
         // the disk only index uses an empty ArrayList for virtual buffer caches
         return new ExternalBTree(ioManager, interiorFrameFactory, insertLeafFrameFactory, deleteLeafFrameFactory,
                 diskBufferCache, fileNameManager, componentFactory, bulkLoadComponentFactory,

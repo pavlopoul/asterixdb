@@ -20,6 +20,7 @@
 package org.apache.asterix.metadata;
 
 import java.rmi.RemoteException;
+import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
@@ -36,6 +37,7 @@ import org.apache.asterix.common.metadata.DataverseName;
 import org.apache.asterix.common.transactions.ITxnIdFactory;
 import org.apache.asterix.common.transactions.TxnId;
 import org.apache.asterix.external.indexing.ExternalFile;
+import org.apache.asterix.formats.nontagged.TypeTraitProvider;
 import org.apache.asterix.metadata.api.IAsterixStateProxy;
 import org.apache.asterix.metadata.api.IExtensionMetadataEntity;
 import org.apache.asterix.metadata.api.IExtensionMetadataSearchKey;
@@ -54,10 +56,20 @@ import org.apache.asterix.metadata.entities.Index;
 import org.apache.asterix.metadata.entities.Library;
 import org.apache.asterix.metadata.entities.Node;
 import org.apache.asterix.metadata.entities.NodeGroup;
+import org.apache.asterix.metadata.entities.Statistics;
 import org.apache.asterix.metadata.entities.Synonym;
+import org.apache.asterix.om.types.ARecordType;
 import org.apache.asterix.transaction.management.opcallbacks.AbstractIndexModificationOperationCallback.Operation;
 import org.apache.hyracks.algebricks.common.exceptions.AlgebricksException;
+import org.apache.hyracks.api.dataflow.value.ITypeTraits;
 import org.apache.hyracks.api.exceptions.HyracksDataException;
+import org.apache.hyracks.storage.am.lsm.common.api.ISynopsis;
+import org.apache.hyracks.storage.am.lsm.common.api.ISynopsis.SynopsisType;
+import org.apache.hyracks.storage.am.lsm.common.api.ISynopsisElement;
+import org.apache.hyracks.storage.am.lsm.common.impls.ComponentStatisticsId;
+import org.apache.hyracks.storage.am.statistics.common.AbstractSynopsis;
+import org.apache.hyracks.storage.am.statistics.common.SynopsisElementFactory;
+import org.apache.hyracks.storage.am.statistics.common.SynopsisFactory;
 import org.apache.hyracks.util.ExitUtil;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -463,6 +475,115 @@ public abstract class MetadataManager implements IMetadataManager {
             ctx.addIndex(index);
         }
         return index;
+    }
+
+    private List<Statistics> getMergedStatistics(MetadataTransactionContext ctx, DataverseName dataverseName,
+            String datasetName, String indexName, String fieldName, boolean isAntimatter) throws AlgebricksException {
+        List<Statistics> fieldStats = getFieldStatistics(ctx, dataverseName.getCanonicalForm(), datasetName, indexName,
+                fieldName, isAntimatter);
+        if (!fieldStats.isEmpty()) {
+            Statistics mergedStats = null;
+            boolean isMergeable = true;
+            SynopsisType type = null;
+            List<ISynopsis<? extends ISynopsisElement>> synopsisList = new ArrayList<>();
+            Long minComponentId = 0L;
+            Long maxComponentId = 0L;
+            int synopsisSize = 0;
+            int maxSynopsisElements = 0;
+            //TODO : proactively merge only stats only within a node/partition?
+            for (Statistics stat : fieldStats) {
+                type = stat.getSynopsis().getType();
+                isMergeable &= stat.getSynopsis().getType().isMergeable();
+                // Check whether the latest statistic is the merged one
+                if (stat.getNode().equals(Statistics.MERGED_STATS_ID)
+                        && stat.getPartition().equals(Statistics.MERGED_STATS_ID)) {
+                    mergedStats = stat;
+                } else {
+                    synopsisList.add(stat.getSynopsis());
+                    synopsisSize = Integer.max(synopsisSize, stat.getSynopsis().getSize());
+                    maxSynopsisElements = Integer.max(maxSynopsisElements, stat.getSynopsis().getElements().size());
+                }
+                minComponentId = stat.getComponentID().getMinTimestamp();
+                maxComponentId = stat.getComponentID().getMaxTimestamp();
+            }
+            if (mergedStats != null && mergedStats.getComponentID().getMinTimestamp().equals(minComponentId)
+                    && mergedStats.getComponentID().getMaxTimestamp().equals(maxComponentId)) {
+                List<Statistics> result = new ArrayList(1);
+                result.add(mergedStats);
+                return result;
+            } else {
+                if (mergedStats != null) {
+                    //invalidate the old merged stats. It was never persisted, hence only remove it from the cache
+                    cache.dropStatistics(mergedStats);
+                }
+                if (maxSynopsisElements > 0 && isMergeable) {
+                    Dataset ds = getDataset(ctx, dataverseName, datasetName);
+                    Datatype datasetType = getDatatype(ctx, ds.getItemTypeDataverseName(), ds.getItemTypeName());
+                    ITypeTraits keyTypeTraits = TypeTraitProvider.INSTANCE
+                            .getTypeTrait(((ARecordType) datasetType.getDatatype()).getFieldType(fieldName));
+
+                    try {
+                        AbstractSynopsis mergedSynopsis = SynopsisFactory.createSynopsis(type, keyTypeTraits,
+                                SynopsisElementFactory.createSynopsisElementsCollection(type, maxSynopsisElements),
+                                maxSynopsisElements, synopsisSize);
+                        //trigger stats merge routine manually
+                        mergedSynopsis.merge(synopsisList);
+                        mergedStats = new Statistics(dataverseName.getCanonicalForm(), datasetName, indexName,
+                                fieldName, Statistics.MERGED_STATS_ID, Statistics.MERGED_STATS_ID,
+                                new ComponentStatisticsId(minComponentId, maxComponentId), true, isAntimatter,
+                                mergedSynopsis);
+                        //put the merged statistic ONLY into the cache
+                        cache.addStatisticsIfNotExists(mergedStats);
+                        List<Statistics> result = new ArrayList(1);
+                        result.add(mergedStats);
+                        return result;
+                    } catch (HyracksDataException e) {
+                        throw new MetadataException(e);
+                    }
+                }
+            }
+        }
+        return fieldStats;
+    }
+
+    @Override
+    public List<Statistics> getMergedStatistics(MetadataTransactionContext ctx, DataverseName dataverseName,
+            String datasetName, String indexName, String fieldName) throws AlgebricksException {
+        List<Statistics> stats = getMergedStatistics(ctx, dataverseName, datasetName, indexName, fieldName, false);
+        stats.addAll(getMergedStatistics(ctx, dataverseName, datasetName, indexName, fieldName, true));
+        return stats;
+    }
+
+    @Override
+    public List<Statistics> getFieldStatistics(MetadataTransactionContext ctx, String dataverseName, String datasetName,
+            String indexName, String fieldName, boolean isAntimatter) throws AlgebricksException {
+        // First look in the context to see if this transaction created the
+        // requested statistics itself (but it is still uncommitted).
+        List<Statistics> stats = ctx.getFieldStatistics(dataverseName, datasetName, indexName, fieldName, isAntimatter);
+        if (stats != null) {
+            // Don't add these statistics to the cache, since they are still uncommitted.
+            return stats;
+        }
+
+        stats = cache.getFieldStatistics(dataverseName, datasetName, indexName, fieldName, isAntimatter);
+        if (stats != null) {
+            // Statistics are already in the cache, don't add it again.
+            return stats;
+        }
+        try {
+            stats = metadataNode.getFieldStatistics(ctx.getTxnId(), dataverseName, datasetName, indexName, fieldName,
+                    isAntimatter);
+        } catch (RemoteException e) {
+            throw new MetadataException(e);
+        }
+        // We fetched the statistics from the MetadataNode. Add it to the current transaction context, so that it gets
+        // cached when the transaction commits.
+        if (stats != null) {
+            for (Statistics s : stats) {
+                ctx.addStatistics(s);
+            }
+        }
+        return stats;
     }
 
     @Override
@@ -947,6 +1068,49 @@ public abstract class MetadataManager implements IMetadataManager {
         } catch (RemoteException e) {
             throw new MetadataException(ErrorCode.REMOTE_EXCEPTION_WHEN_CALLING_METADATA_NODE, e);
         }
+    }
+
+    @Override
+    public void addStatistics(MetadataTransactionContext mdTxnCtx, Statistics statistics) throws AlgebricksException {
+        if (!statistics.isTemp()) {
+            try {
+                metadataNode.addStatistics(mdTxnCtx.getTxnId(), statistics);
+            } catch (RemoteException e) {
+                throw new MetadataException(e);
+            }
+        }
+        mdTxnCtx.addStatistics(statistics);
+    }
+
+    private Statistics findStatistics(MetadataTransactionContext ctx, String dataverseName, String datasetName,
+            String indexName, String fieldName, String node, String partition, ComponentStatisticsId componentId,
+            boolean isAntimatter) {
+        Statistics stats = ctx.getStatistics(dataverseName, datasetName, indexName, fieldName, node, partition,
+                componentId, isAntimatter);
+        if (stats == null) {
+            stats = cache.getStatistics(dataverseName, datasetName, indexName, fieldName, node, partition, componentId,
+                    isAntimatter);
+        }
+        return stats;
+    }
+
+    @Override
+    public void dropStatistics(MetadataTransactionContext ctx, String dataverseName, String datasetName,
+            String indexName, String fieldName, String node, String partition, ComponentStatisticsId componentId,
+            boolean isAntimatter) throws AlgebricksException {
+        Statistics stat = findStatistics(ctx, dataverseName, datasetName, indexName, fieldName, node, partition,
+                componentId, isAntimatter);
+        if (stat == null || !stat.isTemp()) {
+            try {
+                metadataNode.dropStatistics(ctx.getTxnId(), dataverseName, datasetName, indexName, fieldName, node,
+                        partition, componentId, isAntimatter);
+            } catch (RemoteException e) {
+                throw new MetadataException(e);
+            }
+        }
+        // Drops the stat from cache
+        ctx.dropStatistics(dataverseName, datasetName, indexName, fieldName, isAntimatter, node, partition,
+                componentId);
     }
 
     @Override

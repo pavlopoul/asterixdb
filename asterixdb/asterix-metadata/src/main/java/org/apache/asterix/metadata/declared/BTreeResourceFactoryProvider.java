@@ -23,6 +23,7 @@ import java.util.Map;
 
 import org.apache.asterix.common.config.DatasetConfig.DatasetType;
 import org.apache.asterix.common.config.DatasetConfig.IndexType;
+import org.apache.asterix.common.config.StatisticsProperties;
 import org.apache.asterix.common.context.AsterixVirtualBufferCacheProvider;
 import org.apache.asterix.common.context.IStorageComponentProvider;
 import org.apache.asterix.common.exceptions.CompilationException;
@@ -30,11 +31,13 @@ import org.apache.asterix.common.exceptions.ErrorCode;
 import org.apache.asterix.external.indexing.FilesIndexDescription;
 import org.apache.asterix.external.indexing.IndexingConstants;
 import org.apache.asterix.metadata.api.IResourceFactoryProvider;
+import org.apache.asterix.metadata.dataset.hints.DatasetHints.DatasetStatisticsHint;
 import org.apache.asterix.metadata.entities.Dataset;
 import org.apache.asterix.metadata.entities.Index;
 import org.apache.asterix.metadata.utils.IndexUtil;
 import org.apache.asterix.om.types.ARecordType;
 import org.apache.asterix.om.types.IAType;
+import org.apache.asterix.runtime.statistics.StatisticsUtil;
 import org.apache.hyracks.algebricks.common.exceptions.AlgebricksException;
 import org.apache.hyracks.algebricks.common.utils.Pair;
 import org.apache.hyracks.algebricks.data.IBinaryComparatorFactoryProvider;
@@ -51,6 +54,9 @@ import org.apache.hyracks.storage.am.lsm.common.api.ILSMIOOperationSchedulerProv
 import org.apache.hyracks.storage.am.lsm.common.api.ILSMMergePolicyFactory;
 import org.apache.hyracks.storage.am.lsm.common.api.ILSMOperationTrackerFactory;
 import org.apache.hyracks.storage.am.lsm.common.api.ILSMPageWriteCallbackFactory;
+import org.apache.hyracks.storage.am.lsm.common.api.IStatisticsFactory;
+import org.apache.hyracks.storage.am.lsm.common.api.ISynopsis.SynopsisType;
+import org.apache.hyracks.storage.am.statistics.common.StatisticsFactory;
 import org.apache.hyracks.storage.common.IResourceFactory;
 import org.apache.hyracks.storage.common.IStorageManager;
 import org.apache.hyracks.storage.common.compression.NoOpCompressorDecompressorFactory;
@@ -70,6 +76,14 @@ public class BTreeResourceFactoryProvider implements IResourceFactoryProvider {
         int[] filterFields = IndexUtil.getFilterFields(dataset, index, filterTypeTraits);
         int[] btreeFields = IndexUtil.getBtreeFieldsIfFiltered(dataset, index);
         IStorageComponentProvider storageComponentProvider = mdProvider.getStorageComponentProvider();
+        String statisticsFieldsHint =
+                (dataset.getHints() == null) ? null : dataset.getHints().get(DatasetStatisticsHint.NAME);
+        SynopsisType statisticsType = getStatsType(mdProvider.getConfig(),
+                mdProvider.getApplicationContext().getStatisticsProperties().getStatisticsSynopsisType());
+        String[] unorderedStatisticsFields = null;
+        if (!statisticsType.needsSortedOrder() && statisticsFieldsHint != null) {
+            unorderedStatisticsFields = statisticsFieldsHint.split(",");
+        }
         ITypeTraits[] typeTraits = getTypeTraits(mdProvider, dataset, index, recordType, metaType);
         IBinaryComparatorFactory[] cmpFactories = getCmpFactories(mdProvider, dataset, index, recordType, metaType);
         int[] bloomFilterFields = getBloomFilterFields(dataset, index);
@@ -108,19 +122,72 @@ public class BTreeResourceFactoryProvider implements IResourceFactoryProvider {
                     compDecompFactory = NoOpCompressorDecompressorFactory.INSTANCE;
                 }
 
+                IStatisticsFactory statisticsFactory = null;
+                if (statisticsType != SynopsisType.None) {
+                    int statsSize = getStatsSize(mdProvider.getConfig(),
+                            mdProvider.getApplicationContext().getStatisticsProperties().getStatisticsSize());
+                    boolean statsOnPrimaryKeys = isStatsOnPrimaryKeysEnabled(mdProvider.getConfig(), mdProvider
+                            .getApplicationContext().getStatisticsProperties().isStatisticsOnPrimaryKeysEnabled());
+                    statisticsFactory = new StatisticsFactory(statisticsType,
+                            dataset.getDataverseName().getCanonicalForm(), dataset.getDatasetName(),
+                            index.getIndexName(),
+                            StatisticsUtil.computeStatisticsFieldExtractors(mdProvider.getStorageComponentProvider(),
+                                    recordType, index.getKeyFieldNames(), index.isPrimaryIndex(), statsOnPrimaryKeys,
+                                    unorderedStatisticsFields),
+                            statsSize, mdProvider.getApplicationContext().getStatisticsProperties().getSketchFanout(),
+                            mdProvider.getApplicationContext().getStatisticsProperties().getSketchFailureProbability(),
+                            mdProvider.getApplicationContext().getStatisticsProperties().getSketchAccuracy(),
+                            mdProvider.getApplicationContext().getStatisticsProperties().getSketchEnergyAccuracy());
+                }
                 return new LSMBTreeLocalResourceFactory(storageManager, typeTraits, cmpFactories, filterTypeTraits,
                         filterCmpFactories, filterFields, opTrackerFactory, ioOpCallbackFactory,
                         pageWriteCallbackFactory, metadataPageManagerFactory, vbcProvider, ioSchedulerProvider,
                         mergePolicyFactory, mergePolicyProperties, true, bloomFilterFields,
                         bloomFilterFalsePositiveRate, index.isPrimaryIndex(), btreeFields, compDecompFactory,
-                        hasBloomFilter);
+                        hasBloomFilter, statisticsFactory,
+                        mdProvider.getStorageComponentProvider().getStatisticsManagerProvider());
             default:
                 throw new CompilationException(ErrorCode.COMPILATION_UNKNOWN_DATASET_TYPE,
                         dataset.getDatasetType().toString());
         }
     }
 
-    private static ITypeTraits[] getTypeTraits(MetadataProvider metadataProvider, Dataset dataset, Index index,
+    private boolean isStatsOnPrimaryKeysEnabled(Map<String, Object> queryConfig, boolean statsOnPrimaryKeysEnabled) {
+        // query-defined properties take precedence over config-defined
+        String queryDefinedStatsSize = (String) queryConfig.get(StatisticsProperties.STATISTICS_PRIMARY_KEYS_ENABLED);
+        if (queryDefinedStatsSize != null) {
+            return Boolean.valueOf(queryDefinedStatsSize);
+        }
+        return statsOnPrimaryKeysEnabled;
+    }
+
+    private SynopsisType getStatsType(Map<String, Object> queryConfig, SynopsisType statsType) {
+        // query-defined properties take precedence over config-defined
+        String queryDefinedStatsSize = (String) queryConfig.get(StatisticsProperties.STATISTICS_SYNOPSIS_TYPE_KEY);
+        if (queryDefinedStatsSize != null) {
+            try {
+                return SynopsisType.valueOf(queryDefinedStatsSize);
+            } catch (IllegalArgumentException e) {
+                //swallow, fall back to config value
+            }
+        }
+        return statsType;
+    }
+
+    private int getStatsSize(Map<String, Object> queryConfig, int configDefinedStatsSize) {
+        // query-defined properties take precedence over config-defined
+        String queryDefinedStatsSize = (String) queryConfig.get(StatisticsProperties.STATISTICS_SYNOPSIS_SIZE_KEY);
+        if (queryDefinedStatsSize != null) {
+            try {
+                return Integer.parseInt(queryDefinedStatsSize);
+            } catch (NumberFormatException e) {
+                //swallow, fall back to config value
+            }
+        }
+        return configDefinedStatsSize;
+    }
+
+    public static ITypeTraits[] getTypeTraits(MetadataProvider metadataProvider, Dataset dataset, Index index,
             ARecordType recordType, ARecordType metaType) throws AlgebricksException {
         ITypeTraits[] primaryTypeTraits = dataset.getPrimaryTypeTraits(metadataProvider, recordType, metaType);
         if (index.isPrimaryIndex()) {
@@ -153,7 +220,7 @@ public class BTreeResourceFactoryProvider implements IResourceFactoryProvider {
         return secondaryTypeTraits;
     }
 
-    private static IBinaryComparatorFactory[] getCmpFactories(MetadataProvider metadataProvider, Dataset dataset,
+    public static IBinaryComparatorFactory[] getCmpFactories(MetadataProvider metadataProvider, Dataset dataset,
             Index index, ARecordType recordType, ARecordType metaType) throws AlgebricksException {
         IBinaryComparatorFactory[] primaryCmpFactories =
                 dataset.getPrimaryComparatorFactories(metadataProvider, recordType, metaType);

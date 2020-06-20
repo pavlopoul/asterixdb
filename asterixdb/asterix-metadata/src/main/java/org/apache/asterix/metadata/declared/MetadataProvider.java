@@ -82,6 +82,7 @@ import org.apache.asterix.metadata.entities.Feed;
 import org.apache.asterix.metadata.entities.FeedConnection;
 import org.apache.asterix.metadata.entities.FeedPolicyEntity;
 import org.apache.asterix.metadata.entities.Index;
+import org.apache.asterix.metadata.entities.Statistics;
 import org.apache.asterix.metadata.entities.Synonym;
 import org.apache.asterix.metadata.feeds.FeedMetadataUtil;
 import org.apache.asterix.metadata.lock.ExternalDatasetsRegistry;
@@ -150,6 +151,8 @@ import org.apache.hyracks.storage.am.common.dataflow.IIndexDataflowHelperFactory
 import org.apache.hyracks.storage.am.common.dataflow.IndexDataflowHelperFactory;
 import org.apache.hyracks.storage.am.common.ophelpers.IndexOperation;
 import org.apache.hyracks.storage.am.lsm.btree.dataflow.LSMBTreeBatchPointSearchOperatorDescriptor;
+import org.apache.hyracks.storage.am.lsm.common.api.ISynopsis;
+import org.apache.hyracks.storage.am.lsm.common.impls.ComponentStatisticsId;
 import org.apache.hyracks.storage.am.lsm.invertedindex.dataflow.BinaryTokenizerOperatorDescriptor;
 import org.apache.hyracks.storage.am.lsm.invertedindex.tokenizers.IBinaryTokenizerFactory;
 import org.apache.hyracks.storage.am.rtree.dataflow.RTreeSearchOperatorDescriptor;
@@ -438,6 +441,27 @@ public class MetadataProvider implements IMetadataProvider<DataSourceId, String>
 
     public Synonym findSynonym(DataverseName dataverseName, String synonymName) throws AlgebricksException {
         return MetadataManagerUtil.findSynonym(mdTxnCtx, dataverseName, synonymName);
+    }
+
+    public List<Statistics> getMergedStatistics(DataverseName dataverseName, String datasetName, String indexName,
+            String fieldName) throws AlgebricksException {
+        return MetadataManager.INSTANCE.getMergedStatistics(mdTxnCtx, dataverseName, datasetName, indexName, fieldName);
+    }
+
+    @Override
+    public void addStatistics(String dataverseName, String datasetName, String indexName, String fieldName, String node,
+            String partition, ComponentStatisticsId componentId, boolean isAntimatter, ISynopsis synopsis)
+            throws AlgebricksException {
+        MetadataManager.INSTANCE.addStatistics(mdTxnCtx, new Statistics(dataverseName, datasetName, indexName,
+                fieldName, node, partition, componentId, false, isAntimatter, synopsis));
+    }
+
+    @Override
+    public void dropStatistics(String dataverseName, String datasetName, String indexName, String fieldName,
+            String node, String partition, ComponentStatisticsId componentId, boolean isAntimatter)
+            throws AlgebricksException {
+        MetadataManager.INSTANCE.dropStatistics(mdTxnCtx, dataverseName, datasetName, indexName, fieldName, node,
+                partition, componentId, isAntimatter);
     }
 
     @Override
@@ -1556,7 +1580,7 @@ public class MetadataProvider implements IMetadataProvider<DataSourceId, String>
         String itemTypeName = dataset.getItemTypeName();
         IAType itemType;
         try {
-            itemType = MetadataManager.INSTANCE.getDatatype(mdTxnCtx, dataset.getItemTypeDataverseName(), itemTypeName)
+            itemType = MetadataManager.INSTANCE.getDatatype(mdTxnCtx, dataset.getDataverseName(), itemTypeName)
                     .getDatatype();
 
             if (itemType.getTypeTag() != ATypeTag.OBJECT) {

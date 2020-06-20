@@ -265,4 +265,12 @@ public class MetadataLockManager implements IMetadataLockManager {
         locks.downgrade(IMetadataLock.Mode.EXCLUSIVE_MODIFY, lock);
     }
 
+    @Override
+    public void acquireStatisticsWriteLock(LockList locks, DataverseName dataverse, String dataset, String indexName,
+            String fieldName, String nodeName, String partitionId, boolean isAntimatter) throws AlgebricksException {
+
+        MetadataLockKey key = MetadataLockKey.createStatisticsLockKey(dataverse, fieldName);
+        IMetadataLock lock = mdlocks.computeIfAbsent(key, LOCK_FUNCTION);
+        locks.add(IMetadataLock.Mode.WRITE, lock);
+    }
 }

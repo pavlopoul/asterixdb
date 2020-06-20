@@ -22,30 +22,30 @@ import org.apache.hyracks.api.exceptions.HyracksDataException;
 import org.apache.hyracks.storage.am.bloomfilter.impls.BloomFilterFactory;
 import org.apache.hyracks.storage.am.btree.impls.DiskBTree;
 import org.apache.hyracks.storage.am.lsm.common.api.IComponentFilterHelper;
-import org.apache.hyracks.storage.am.lsm.common.api.ILSMDiskComponentFactory;
+import org.apache.hyracks.storage.am.lsm.common.api.ILSMDiskComponent;
+import org.apache.hyracks.storage.am.lsm.common.api.IStatisticsFactory;
+import org.apache.hyracks.storage.am.lsm.common.api.IStatisticsManager;
 import org.apache.hyracks.storage.am.lsm.common.impls.AbstractLSMIndex;
 import org.apache.hyracks.storage.am.lsm.common.impls.LSMComponentFileReferences;
 import org.apache.hyracks.storage.am.lsm.common.impls.TreeIndexFactory;
 
-public class LSMBTreeWithBloomFilterDiskComponentFactory implements ILSMDiskComponentFactory {
-    protected final TreeIndexFactory<DiskBTree> btreeFactory;
-    protected final IComponentFilterHelper filterHelper;
-    protected final BloomFilterFactory bloomFilterFactory;
+public class LSMBTreeWithBloomFilterDiskComponentFactory extends LSMBTreeDiskComponentFactory {
+    private final BloomFilterFactory bloomFilterFactory;
 
     public LSMBTreeWithBloomFilterDiskComponentFactory(TreeIndexFactory<DiskBTree> btreeFactory,
-            BloomFilterFactory bloomFilterFactory, IComponentFilterHelper filterHelper) {
-        this.btreeFactory = btreeFactory;
-        this.filterHelper = filterHelper;
+            BloomFilterFactory bloomFilterFactory, IComponentFilterHelper filterHelper,
+            IStatisticsFactory statisticsFactory, IStatisticsManager statisticsManager) {
+        super(btreeFactory, filterHelper, statisticsFactory, statisticsManager);
         this.bloomFilterFactory = bloomFilterFactory;
     }
 
     @Override
-    public LSMBTreeWithBloomFilterDiskComponent createComponent(AbstractLSMIndex lsmIndex,
-            LSMComponentFileReferences cfr) throws HyracksDataException {
+    public ILSMDiskComponent createComponent(AbstractLSMIndex lsmIndex, LSMComponentFileReferences cfr)
+            throws HyracksDataException {
         return new LSMBTreeWithBloomFilterDiskComponent(lsmIndex,
                 btreeFactory.createIndexInstance(cfr.getInsertIndexFileReference()),
                 bloomFilterFactory.createBloomFiltertInstance(cfr.getBloomFilterFileReference()),
-                filterHelper == null ? null : filterHelper.createFilter());
+                filterHelper == null ? null : filterHelper.createFilter(), statisticsFactory, statisticsManager);
     }
 
     public int[] getBloomFilterKeyFields() {

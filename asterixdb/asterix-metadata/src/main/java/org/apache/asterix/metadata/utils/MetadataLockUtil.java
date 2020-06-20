@@ -270,4 +270,14 @@ public class MetadataLockUtil implements IMetadataLockUtil {
         lockMgr.acquireDataverseReadLock(locks, dataverseName);
         lockMgr.acquireDatasetExclusiveModificationLock(locks, dataverseName, datasetName);
     }
+
+    public static void insertStatisticsBegin(IMetadataLockManager lockMgr, LockList locks, String statisticsDataset,
+            DataverseName dataverseName, String datasetName, String indexName, String fieldName, String nodeName,
+            String partitionId, boolean isAntimatter) throws AlgebricksException {
+        lockMgr.acquireDataverseReadLock(locks, dataverseName);
+        lockMgr.acquireDatasetModifyLock(locks, dataverseName, datasetName);
+        lockMgr.acquireStatisticsWriteLock(locks, dataverseName, datasetName, indexName, fieldName, nodeName,
+                partitionId, isAntimatter);
+    }
+
 }

@@ -18,11 +18,13 @@
  */
 package org.apache.hyracks.storage.am.btree.util;
 
+import org.apache.hyracks.api.comm.IFrameTupleAccessor;
 import org.apache.hyracks.api.dataflow.value.IBinaryComparator;
 import org.apache.hyracks.api.dataflow.value.IBinaryComparatorFactory;
 import org.apache.hyracks.api.dataflow.value.ITypeTraits;
 import org.apache.hyracks.api.exceptions.HyracksDataException;
 import org.apache.hyracks.api.io.FileReference;
+import org.apache.hyracks.dataflow.common.data.accessors.FrameTupleReference;
 import org.apache.hyracks.dataflow.common.data.accessors.ITupleReference;
 import org.apache.hyracks.storage.am.btree.frames.BTreeFieldPrefixNSMLeafFrameFactory;
 import org.apache.hyracks.storage.am.btree.frames.BTreeLeafFrameType;
@@ -77,6 +79,12 @@ public class BTreeUtils {
     // Creates a new MultiComparator by constructing new IBinaryComparators.
     public static MultiComparator getSearchMultiComparator(IBinaryComparatorFactory[] cmpFactories,
             ITupleReference searchKey) {
+        if (searchKey instanceof FrameTupleReference) {
+            IFrameTupleAccessor accessor = ((FrameTupleReference) searchKey).getFrameTupleAccessor();
+            if (((FrameTupleReference) searchKey).isFrame() && accessor == null) {
+                return MultiComparator.create(cmpFactories);
+            }
+        }
         if (searchKey == null || cmpFactories.length == searchKey.getFieldCount()) {
             return MultiComparator.create(cmpFactories);
         }

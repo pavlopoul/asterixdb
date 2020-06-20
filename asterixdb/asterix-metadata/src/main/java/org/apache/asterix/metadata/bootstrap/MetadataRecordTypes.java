@@ -52,6 +52,7 @@ public final class MetadataRecordTypes {
     public static final String FIELD_NAME_DEPENDENCIES = "Dependencies";
     public static final String FIELD_NAME_DERIVED = "Derived";
     public static final String FIELD_NAME_DESCRIPTION = "Description";
+    public static final String FIELD_NAME_ELEMENTS = "Elements";
     public static final String FIELD_NAME_EXTERNAL_DETAILS = "ExternalDetails";
     public static final String FIELD_NAME_FEED_NAME = "FeedName";
     public static final String FIELD_NAME_FEED_TYPE = "FeedType";
@@ -70,15 +71,19 @@ public final class MetadataRecordTypes {
     public static final String FIELD_NAME_INTERNAL_DETAILS = "InternalDetails";
     public static final String FIELD_NAME_IS_ANONYMOUS = "IsAnonymous";
     public static final String FIELD_NAME_IS_MISSABLE = "IsMissable";
+    public static final String FIELD_NAME_IS_ANTIMATTER = "IsAntimatter";
     public static final String FIELD_NAME_IS_NULLABLE = "IsNullable";
     public static final String FIELD_NAME_IS_OPEN = "IsOpen";
     public static final String FIELD_NAME_IS_PRIMARY = "IsPrimary";
+    public static final String FIELD_NAME_KEY = "Key";
     public static final String FIELD_NAME_KIND = "Kind";
     public static final String FIELD_NAME_LANGUAGE = "Language";
     public static final String FIELD_NAME_LIBRARY = "Library";
     public static final String FIELD_NAME_LAST_REFRESH_TIME = "LastRefreshTime";
     public static final String FIELD_NAME_METATYPE_DATAVERSE_NAME = "MetatypeDataverseName";
+    public static final String FIELD_NAME_MAX_ID = "MaxID";
     public static final String FIELD_NAME_METATYPE_NAME = "MetatypeName";
+    public static final String FIELD_NAME_MIN_ID = "MinID";
     public static final String FIELD_NAME_NAME = "Name";
     public static final String FIELD_NAME_NODE_NAME = "NodeName";
     public static final String FIELD_NAME_NODE_NAMES = "NodeNames";
@@ -87,6 +92,7 @@ public final class MetadataRecordTypes {
     public static final String FIELD_NAME_OBJECT_NAME = "ObjectName";
     public static final String FIELD_NAME_ORDERED_LIST = "OrderedList";
     public static final String FIELD_NAME_PARAMS = "Params";
+    public static final String FIELD_NAME_PARTITION = "Partition";
     public static final String FIELD_NAME_PARTITIONING_KEY = "PartitioningKey";
     public static final String FIELD_NAME_PARTITIONING_STRATEGY = "PartitioningStrategy";
     public static final String FIELD_NAME_PENDING_OP = "PendingOp";
@@ -97,8 +103,10 @@ public final class MetadataRecordTypes {
     public static final String FIELD_NAME_RETURN_TYPE = "ReturnType";
     public static final String FIELD_NAME_RETURN_TYPE_DATAVERSE_NAME = "ReturnTypeDataverseName";
     public static final String FIELD_NAME_SEARCH_KEY = "SearchKey";
+    public static final String FIELD_NAME_SIZE = "Size";
     public static final String FIELD_NAME_STATUS = "Status";
     public static final String FIELD_NAME_SYNONYM_NAME = "SynonymName";
+    public static final String FIELD_NAME_SYNOPSIS = "Synopsis";
     public static final String FIELD_NAME_TAG = "Tag";
     public static final String FIELD_NAME_TIMESTAMP = "Timestamp";
     public static final String FIELD_NAME_TRANSACTION_STATE = "TransactionState";
@@ -486,6 +494,62 @@ public final class MetadataRecordTypes {
             // FieldTypes
             new IAType[] { BuiltinType.ASTRING, BuiltinType.ASTRING, BuiltinType.AINT32, BuiltinType.ASTRING,
                     BuiltinType.AINT64, BuiltinType.ADATETIME, BuiltinType.AINT32 },
+            //IsOpen?
+            true);
+    //-------------------------------------- Statistics ---------------------------------------//
+    public static final String RECORD_NAME_STATISTICS_SYNOPSIS_ELEMENT = "StatisticsSynopsisElementRecordType";
+    public static final int STATISTICS_SYNOPSIS_ELEMENT_ARECORD_KEY_FIELD_INDEX = 0;
+    public static final int STATISTICS_SYNOPSIS_ELEMENT_ARECORD_VALUE_FIELD_INDEX = 1;
+    public static final String STATISTICS_SYNOPSIS_ELEMENT_ARECORD_UNIQUE_VALUES_NUM_FIELD_NAME = "UniqueValuesNum";
+
+    public static ARecordType STATISTICS_SYNOPSIS_ELEMENT_RECORDTYPE = createRecordType(
+            // RecordTypeName
+            RECORD_NAME_STATISTICS_SYNOPSIS_ELEMENT,
+            // FieldNames
+            new String[] { FIELD_NAME_KEY, FIELD_NAME_VALUE },
+            // FieldTypes
+            new IAType[] { BuiltinType.AINT64, BuiltinType.ADOUBLE },
+            //IsOpen?
+            true);
+
+    public static final String RECORD_NAME_STATISTICS_SYNOPSIS = "StatisticsSynopsisRecordType";
+    public static final int STATISTICS_SYNOPSIS_ARECORD_TYPE_FIELD_INDEX = 0;
+    public static final int STATISTICS_SYNOPSIS_ARECORD_SIZE_FIELD_INDEX = 1;
+    public static final int STATISTICS_SYNOPSIS_ARECORD_ELEMENTS_FIELD_INDEX = 2;
+
+    public static ARecordType STATISTICS_SYNOPSIS_RECORDTYPE = createRecordType(
+            // RecordTypeName
+            RECORD_NAME_STATISTICS_SYNOPSIS,
+            // FieldNames
+            new String[] { FIELD_NAME_TYPE, FIELD_NAME_SIZE, FIELD_NAME_ELEMENTS },
+            // FieldTypes
+            new IAType[] { BuiltinType.ASTRING, BuiltinType.AINT32,
+                    new AOrderedListType(STATISTICS_SYNOPSIS_ELEMENT_RECORDTYPE, null) },
+            //IsOpen?
+            true);
+
+    public static final String RECORD_NAME_STATISTICS = "StatisticsRecordType";
+    public static final int STATISTICS_ARECORD_DATAVERSE_NAME_FIELD_INDEX = 0;
+    public static final int STATISTICS_ARECORD_DATASET_NAME_FIELD_INDEX = 1;
+    public static final int STATISTICS_ARECORD_INDEX_NAME_FIELD_INDEX = 2;
+    public static final int STATISTICS_ARECORD_FIELD_NAME_FIELD_INDEX = 3;
+    public static final int STATISTICS_ARECORD_ISANTIMATTER_FIELD_INDEX = 4;
+    public static final int STATISTICS_ARECORD_NODE_FIELD_INDEX = 5;
+    public static final int STATISTICS_ARECORD_PARTITION_FIELD_INDEX = 6;
+    public static final int STATISTICS_ARECORD_COMPONENT_MIN_TIMESTAMP_INDEX = 7;
+    public static final int STATISTICS_ARECORD_COMPONENT_MAX_TIMESTAMP_INDEX = 8;
+    public static final int STATISTICS_ARECORD_SYNOPSIS_FIELD_INDEX = 9;
+    public static ARecordType STATISTICS_RECORDTYPE = createRecordType(
+            // RecordTypeName
+            RECORD_NAME_STATISTICS,
+            // FieldNames
+            new String[] { FIELD_NAME_DATAVERSE_NAME, FIELD_NAME_DATASET_NAME, FIELD_NAME_INDEX_NAME,
+                    FIELD_NAME_FIELD_NAME, FIELD_NAME_IS_ANTIMATTER, FIELD_NAME_NODE_NAME, FIELD_NAME_PARTITION,
+                    FIELD_NAME_MIN_ID, FIELD_NAME_MAX_ID, FIELD_NAME_SYNOPSIS },
+            // FieldTypes
+            new IAType[] { BuiltinType.ASTRING, BuiltinType.ASTRING, BuiltinType.ASTRING, BuiltinType.ASTRING,
+                    BuiltinType.ABOOLEAN, BuiltinType.ASTRING, BuiltinType.ASTRING, BuiltinType.AINT64,
+                    BuiltinType.AINT64, STATISTICS_SYNOPSIS_RECORDTYPE },
             //IsOpen?
             true);
 

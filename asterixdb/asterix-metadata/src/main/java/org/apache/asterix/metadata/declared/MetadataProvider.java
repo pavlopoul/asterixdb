@@ -63,6 +63,7 @@ import org.apache.asterix.formats.nontagged.BinaryBooleanInspector;
 import org.apache.asterix.formats.nontagged.BinaryComparatorFactoryProvider;
 import org.apache.asterix.formats.nontagged.LinearizeComparatorFactoryProvider;
 import org.apache.asterix.formats.nontagged.TypeTraitProvider;
+import org.apache.asterix.metadata.MetadataCache;
 import org.apache.asterix.metadata.MetadataManager;
 import org.apache.asterix.metadata.MetadataTransactionContext;
 import org.apache.asterix.metadata.bootstrap.MetadataBuiltinEntities;
@@ -383,6 +384,10 @@ public class MetadataProvider implements IMetadataProvider<DataSourceId, String>
         return (secondaryIndex != null)
                 ? new DataSourceIndex(secondaryIndex, dataset.getDataverseName(), dataset.getDatasetName(), this)
                 : null;
+    }
+
+    public MetadataCache getCache() {
+        return MetadataManager.INSTANCE.getCache();
     }
 
     public Index getIndex(String dataverseName, String datasetName, String indexName) throws AlgebricksException {

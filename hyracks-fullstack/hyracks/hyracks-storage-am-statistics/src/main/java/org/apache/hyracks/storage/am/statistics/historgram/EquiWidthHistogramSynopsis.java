@@ -20,6 +20,7 @@ package org.apache.hyracks.storage.am.statistics.historgram;
 
 import java.util.Collection;
 import java.util.Map;
+import java.util.Set;
 
 import org.apache.hyracks.api.exceptions.HyracksDataException;
 import org.apache.hyracks.storage.am.lsm.common.api.ISynopsis;
@@ -28,8 +29,9 @@ public class EquiWidthHistogramSynopsis extends HistogramSynopsis<HistogramBucke
     private final long bucketWidth;
 
     public EquiWidthHistogramSynopsis(long domainStart, long domainEnd, int maxLevel, int bucketsNum,
-            Collection<HistogramBucket> synopsisElements, Map<Long, Integer> uniqueMap) {
-        super(domainStart, domainEnd, maxLevel, bucketsNum, synopsisElements, uniqueMap);
+            Collection<HistogramBucket> synopsisElements, Map<Long, Integer> uniqueMap, Set<Long> uniqueSet,
+            long[] words) {
+        super(domainStart, domainEnd, maxLevel, bucketsNum, synopsisElements, uniqueMap, uniqueSet, null, null);
         //TODO:avoid numeric overflows
         bucketWidth = (domainEnd - domainStart + 1) / bucketsNum;
         long border = domainStart + bucketWidth;
@@ -72,5 +74,59 @@ public class EquiWidthHistogramSynopsis extends HistogramSynopsis<HistogramBucke
             getBuckets().get(i).setUniqueValue(Math.max(getBuckets().get(i).getUniqueValue(),
                     histogramToMerge.getBuckets().get(i).getUniqueValue()));
         }
+    }
+
+    @Override
+    public Set<Long> getUnique() {
+        // TODO Auto-generated method stub
+        return null;
+    }
+
+    @Override
+    public Map<Integer, Byte> getSparseMap() {
+        // TODO Auto-generated method stub
+        return null;
+    }
+
+    @Override
+    public long[] getWordsAr() {
+        // TODO Auto-generated method stub
+        return null;
+    }
+
+    @Override
+    public void setWordsAr(long[] words) {
+        // TODO Auto-generated method stub
+
+    }
+
+    @Override
+    public void mergeUnique(ISynopsis<HistogramBucket> mergeSynopsis) throws HyracksDataException {
+        // TODO Auto-generated method stub
+
+    }
+
+    @Override
+    public void setSparse(Map<Integer, Byte> map) {
+        // TODO Auto-generated method stub
+
+    }
+
+    @Override
+    public void setUnique(Set<Long> set) {
+        // TODO Auto-generated method stub
+
+    }
+
+    @Override
+    public void setSparseMap(Map<Integer, Byte> map) {
+        // TODO Auto-generated method stub
+
+    }
+
+    @Override
+    public void setUniqueSet(Set<Long> set) {
+        // TODO Auto-generated method stub
+
     }
 }

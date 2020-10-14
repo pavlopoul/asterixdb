@@ -24,8 +24,10 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.concurrent.TimeUnit;
 
 import org.apache.asterix.common.config.MetadataProperties;
@@ -59,6 +61,8 @@ import org.apache.asterix.metadata.entities.Node;
 import org.apache.asterix.metadata.entities.NodeGroup;
 import org.apache.asterix.metadata.entities.Statistics;
 import org.apache.asterix.om.types.ARecordType;
+import org.apache.asterix.om.types.ATypeTag;
+import org.apache.asterix.om.types.AUnionType;
 import org.apache.asterix.transaction.management.opcallbacks.AbstractIndexModificationOperationCallback.Operation;
 import org.apache.hyracks.algebricks.common.exceptions.AlgebricksException;
 import org.apache.hyracks.api.dataflow.value.ITypeTraits;
@@ -504,6 +508,9 @@ public abstract class MetadataManager implements IMetadataManager {
             Long maxComponentId = 0L;
             int synopsisSize = 0;
             Map<Long, Integer> uniqueMap = new HashMap<>();
+            Set<Long> uniqueSet = new HashSet<>();
+            Map<Integer, Byte> sparseMap = new HashMap<>();
+            long[] words = new long[(int) (((5 * 1048576) + 63) >>> 6)];
             int maxSynopsisElements = 0;
             //TODO : proactively merge only stats only within a node/partition?
             for (Statistics stat : fieldStats) {
@@ -517,6 +524,9 @@ public abstract class MetadataManager implements IMetadataManager {
                     synopsisList.add(stat.getSynopsis());
                     synopsisSize = Integer.max(synopsisSize, stat.getSynopsis().getSize());
                     uniqueMap = stat.getSynopsis().getMap();
+                    uniqueSet = stat.getSynopsis().getUnique();
+                    sparseMap = stat.getSynopsis().getSparseMap();
+                    words = stat.getSynopsis().getWordsAr();
                     maxSynopsisElements = Integer.max(maxSynopsisElements, stat.getSynopsis().getElements().size());
                 }
                 minComponentId = stat.getComponentID().getMinTimestamp();
@@ -524,8 +534,11 @@ public abstract class MetadataManager implements IMetadataManager {
             }
             if (mergedStats != null && mergedStats.getComponentID().getMinTimestamp().equals(minComponentId)
                     && mergedStats.getComponentID().getMaxTimestamp().equals(maxComponentId)) {
-                List<Statistics> result = new ArrayList(1);
-                result.add(mergedStats);
+                //                List<Statistics> result = new ArrayList(1);
+                //                result.add(mergedStats);
+                List<Statistics> result = new ArrayList<>();
+                result.addAll(fieldStats);
+                // result.add(mergedStats);
                 return result;
             } else {
                 if (mergedStats != null) {
@@ -541,7 +554,7 @@ public abstract class MetadataManager implements IMetadataManager {
                     try {
                         AbstractSynopsis mergedSynopsis = SynopsisFactory.createSynopsis(type, keyTypeTraits,
                                 SynopsisElementFactory.createSynopsisElementsCollection(type, maxSynopsisElements),
-                                maxSynopsisElements, synopsisSize, uniqueMap);
+                                maxSynopsisElements, synopsisSize, uniqueMap, uniqueSet, sparseMap, words);
                         //trigger stats merge routine manually
                         mergedSynopsis.merge(synopsisList);
                         mergedStats = new Statistics(dataverseName, datasetName, indexName, fieldName,
@@ -549,7 +562,7 @@ public abstract class MetadataManager implements IMetadataManager {
                                 new ComponentStatisticsId(minComponentId, maxComponentId), true, isAntimatter,
                                 mergedSynopsis);
                         //put the merged statistic ONLY into the cache
-                        cache.addStatisticsIfNotExists(mergedStats);
+                        //cache.addStatisticsIfNotExists(mergedStats);
                         List<Statistics> result = new ArrayList(1);
                         result.add(mergedStats);
                         return result;
@@ -557,6 +570,39 @@ public abstract class MetadataManager implements IMetadataManager {
                         throw new MetadataException(e);
                     }
                 }
+                Dataset ds = getDataset(ctx, dataverseName, datasetName);
+                Datatype datasetType = getDatatype(ctx, ds.getItemTypeDataverseName(), ds.getItemTypeName());
+                ITypeTraits keyTypeTraits = null;
+                if (((ARecordType) datasetType.getDatatype()).getFieldType(fieldName).getTypeTag() == ATypeTag.UNION) {
+                    keyTypeTraits = TypeTraitProvider.INSTANCE.getTypeTrait(
+                            ((AUnionType) ((ARecordType) datasetType.getDatatype()).getFieldType(fieldName))
+                                    .getActualType());
+                } else {
+
+                    keyTypeTraits = TypeTraitProvider.INSTANCE
+                            .getTypeTrait(((ARecordType) datasetType.getDatatype()).getFieldType(fieldName));
+                }
+                AbstractSynopsis mergedSynopsis;
+                try {
+                    mergedSynopsis = SynopsisFactory.createSynopsis(type, keyTypeTraits,
+                            SynopsisElementFactory.createSynopsisElementsCollection(type, maxSynopsisElements),
+                            maxSynopsisElements, synopsisSize, uniqueMap, new HashSet<>(), new HashMap<>(),
+                            new long[(int) (((5 * 1048576) + 63) >>> 6)]);
+                    mergedSynopsis.mergeUnique(synopsisList);
+                    mergedStats = new Statistics(dataverseName, datasetName, indexName, fieldName,
+                            Statistics.MERGED_STATS_ID, Statistics.MERGED_STATS_ID,
+                            new ComponentStatisticsId(minComponentId, maxComponentId), true, isAntimatter,
+                            mergedSynopsis);
+                    //put the merged statistic ONLY into the cache
+                    //  cache.addStatisticsIfNotExists(mergedStats);
+                    //metadataNode.addStatistics(ctx.getTxnId(), mergedStats);
+                    //addStatistics(ctx, mergedStats);
+                    fieldStats.add(mergedStats);
+                } catch (HyracksDataException e) {
+                    throw new MetadataException(e);
+                }
+                //trigger stats merge routine manually
+
             }
         }
         return fieldStats;
@@ -576,7 +622,15 @@ public abstract class MetadataManager implements IMetadataManager {
         // First look in the context to see if this transaction created the
         // requested statistics itself (but it is still uncommitted).
         List<Statistics> stats = ctx.getFieldStatistics(dataverseName, datasetName, indexName, fieldName, isAntimatter);
+
         if (stats != null) {
+            //            if (!stats.isEmpty()) {
+            //                List<Statistics> cacheStats =
+            //                        cache.getFieldStatistics(dataverseName, datasetName, indexName, fieldName, isAntimatter);
+            //                if (cacheStats != null) {
+            //                    stats.addAll(cacheStats);
+            //                }
+            //            }
             // Don't add these statistics to the cache, since they are still uncommitted.
             return stats;
         }
@@ -600,6 +654,10 @@ public abstract class MetadataManager implements IMetadataManager {
             }
         }
         return stats;
+    }
+
+    public MetadataCache getCache() {
+        return cache;
     }
 
     @Override

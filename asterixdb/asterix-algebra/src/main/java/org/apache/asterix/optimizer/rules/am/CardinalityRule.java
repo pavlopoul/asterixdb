@@ -52,7 +52,6 @@ import org.apache.hyracks.algebricks.core.algebra.expressions.AbstractFunctionCa
 import org.apache.hyracks.algebricks.core.algebra.expressions.AbstractLogicalExpression;
 import org.apache.hyracks.algebricks.core.algebra.expressions.ConstantExpression;
 import org.apache.hyracks.algebricks.core.algebra.expressions.IVariableTypeEnvironment;
-import org.apache.hyracks.algebricks.core.algebra.expressions.IndexedNLJoinExpressionAnnotation;
 import org.apache.hyracks.algebricks.core.algebra.expressions.ScalarFunctionCallExpression;
 import org.apache.hyracks.algebricks.core.algebra.expressions.VariableReferenceExpression;
 import org.apache.hyracks.algebricks.core.algebra.functions.AlgebricksBuiltinFunctions;
@@ -65,15 +64,14 @@ import org.apache.hyracks.algebricks.core.algebra.operators.logical.SelectOperat
 import org.apache.hyracks.algebricks.core.algebra.operators.logical.visitors.CardinalityInferenceVisitor;
 import org.apache.hyracks.algebricks.core.rewriter.base.IAlgebraicRewriteRule;
 
-public class JoinReOrderRule implements IAlgebraicRewriteRule {
+public class CardinalityRule implements IAlgebraicRewriteRule {
 
     private Mutable<ILogicalOperator> mut;
     private TreeMap<Long, List<Mutable<ILogicalOperator>>> map = new TreeMap<>(Collections.reverseOrder());
     private List<Mutable<ILogicalOperator>> selectSet = new ArrayList<>();
     private AbstractLogicalOperator alo, sOp, lOp;
     private String fieldName = "";
-    private int side = 0;
-    private Map<DatasetDataSource, List<Node>> fields = new HashMap<>();
+    private Map<DatasetDataSource, List<CarNode>> fields = new HashMap<>();
 
     protected boolean checkAndReturnExpr(AbstractLogicalOperator op, IOptimizationContext context)
             throws AlgebricksException {
@@ -242,9 +240,7 @@ public class JoinReOrderRule implements IAlgebraicRewriteRule {
         DatasetDataSource datasource = null;
         if (op.getOperatorTag() != LogicalOperatorTag.ASSIGN
                 && op.getOperatorTag() != LogicalOperatorTag.DATASOURCESCAN) {
-            int s = -1;
             for (Mutable<ILogicalOperator> child : op.getInputs()) {
-                s++;
                 datasource = findDataSource((AbstractLogicalOperator) child.getValue(), lv);
                 if (datasource != null) {
                     if (child.getValue().getOperatorTag() == LogicalOperatorTag.ASSIGN) {
@@ -252,7 +248,6 @@ public class JoinReOrderRule implements IAlgebraicRewriteRule {
                     } else if (child.getValue().getOperatorTag() == LogicalOperatorTag.DATASOURCESCAN) {
                         mut = child;
                     }
-                    side = s;
                     break;
                 }
             }
@@ -367,16 +362,6 @@ public class JoinReOrderRule implements IAlgebraicRewriteRule {
                     map.clear();
                     return false;
                 }
-                //                if (joinA.getInputs().get(0).getValue().getCardinality() < 50
-                //                        || joinA.getInputs().get(1).getValue().getCardinality() < 50) {
-                //                    Mutable<ILogicalOperator> opRef0 = joinA.getInputs().get(0);
-                //                    Mutable<ILogicalOperator> opRef1 = joinA.getInputs().get(1);
-                //                    ILogicalOperator tmp = opRef0.getValue();
-                //                    opRef0.setValue(opRef1.getValue());
-                //                    opRef1.setValue(tmp);
-                //                    sfceA.getAnnotations().put(IndexedNLJoinExpressionAnnotation.INSTANCE,
-                //                            IndexedNLJoinExpressionAnnotation.INSTANCE);
-                //                }
                 lvrA = ((VariableReferenceExpression) sfceA.getArguments().get(1).getValue()).getVariableReference();
                 lvlA = ((VariableReferenceExpression) sfceA.getArguments().get(0).getValue()).getVariableReference();
                 checkForJoin(joinA, lvlA, lvrA);
@@ -421,23 +406,19 @@ public class JoinReOrderRule implements IAlgebraicRewriteRule {
                 lvrB = ((VariableReferenceExpression) sfceB.getArguments().get(1).getValue()).getVariableReference();
             }
             DatasetDataSource datasourcelB = findDataSource(joinB, lvlB);
-            int sidelB = side;
             DatasetDataSource datasourcerB = findDataSource(joinB, lvrB);
-            int siderB = side;
             DatasetDataSource datasourcelA = findDataSource(joinA, lvlA);
-            //int sidelA = side;
             DatasetDataSource datasourcerA = findDataSource(joinA, lvrA);
-            // int siderA = side;
 
             if (datasourcelB == datasourcelA || datasourcelB == datasourcerA) {
                 InnerJoinOperator finaljoin = new InnerJoinOperator(joinB.getCondition(),
-                        new MutableObject<ILogicalOperator>(joinA), joinB.getInputs().get(siderB));
+                        new MutableObject<ILogicalOperator>(joinA), joinB.getInputs().get(1));
                 context.computeAndSetTypeEnvironmentForOperator(finaljoin);
                 alo.getInputs().clear();
                 alo.getInputs().add(new MutableObject<ILogicalOperator>(finaljoin));
             } else if (datasourcerB == datasourcerA || datasourcerB == datasourcelA) {
-                InnerJoinOperator finaljoin = new InnerJoinOperator(joinB.getCondition(),
-                        joinB.getInputs().get(sidelB/*0*/), new MutableObject<ILogicalOperator>(joinA));
+                InnerJoinOperator finaljoin = new InnerJoinOperator(joinB.getCondition(), joinB.getInputs().get(0),
+                        new MutableObject<ILogicalOperator>(joinA));
                 context.computeAndSetTypeEnvironmentForOperator(finaljoin);
                 alo.getInputs().clear();
                 alo.getInputs().add(new MutableObject<ILogicalOperator>(finaljoin));
@@ -491,24 +472,13 @@ public class JoinReOrderRule implements IAlgebraicRewriteRule {
 
             addArguments(dsl, arguments);
             addArguments(dsr, arguments);
-            if (join.getInputs().get(0).getValue().getCardinality() < 50
-                    || join.getInputs().get(1).getValue().getCardinality() < 50) {
-                Mutable<ILogicalOperator> opRef0 = join.getInputs().get(0);
-                Mutable<ILogicalOperator> opRef1 = join.getInputs().get(1);
-                ILogicalOperator tmp = opRef0.getValue();
-                opRef0.setValue(opRef1.getValue());
-                opRef1.setValue(tmp);
-                ((ScalarFunctionCallExpression) join.getCondition().getValue()).getAnnotations()
-                        .put(IndexedNLJoinExpressionAnnotation.INSTANCE, IndexedNLJoinExpressionAnnotation.INSTANCE);
-            }
         }
-
         map.clear();
         return true;
     }
 
     private void removeParticipation(DatasetDataSource ds) {
-        for (Node n : fields.get(ds)) {
+        for (CarNode n : fields.get(ds)) {
             if (n.field.equals(fieldName)) {
                 n.participation--;
                 break;
@@ -517,7 +487,7 @@ public class JoinReOrderRule implements IAlgebraicRewriteRule {
     }
 
     private void addArguments(DatasetDataSource ds, List<Mutable<ILogicalExpression>> arguments) {
-        for (Node n : fields.get(ds)) {
+        for (CarNode n : fields.get(ds)) {
             if (n.participation > 0) {
                 IAObject obj = new AString(n.field);
                 AsterixConstantValue acv = new AsterixConstantValue(obj);
@@ -610,32 +580,26 @@ public class JoinReOrderRule implements IAlgebraicRewriteRule {
             if (!fields.containsKey(datasourcer)) {
                 populateFields(true, datasourcer, rightField.get(0), right);
             }
+            long cardinalityl = context.getCardinalityEstimator().getTableCardinality(context.getMetadataProvider(),
+                    datasourcel.getDataset().getDataverseName(), datasourcel.getDataset().getDatasetName(), leftField);
+            long cardinalityr = context.getCardinalityEstimator().getTableCardinality(context.getMetadataProvider(),
+                    datasourcer.getDataset().getDataverseName(), datasourcer.getDataset().getDatasetName(), rightField);
             if (assignl != null) {
-                assignl.setCardinality(context.getCardinalityEstimator().getTableCardinality(
-                        context.getMetadataProvider(), datasourcel.getDataset().getDataverseName(),
-                        datasourcel.getDataset().getDatasetName(), leftField));
+                assignl.setCardinality(cardinalityl);
             } else {
-                op.getInputs().get(0).getValue()
-                        .setCardinality(context.getCardinalityEstimator().getTableCardinality(
-                                context.getMetadataProvider(), datasourcel.getDataset().getDataverseName(),
-                                datasourcel.getDataset().getDatasetName(), leftField));
+                op.getInputs().get(0).getValue().setCardinality(cardinalityl);
             }
             if (assignr != null) {
-                assignr.setCardinality(context.getCardinalityEstimator().getTableCardinality(
-                        context.getMetadataProvider(), datasourcer.getDataset().getDataverseName(),
-                        datasourcer.getDataset().getDatasetName(), rightField));
+                assignr.setCardinality(cardinalityr);
             } else {
-                op.getInputs().get(1).getValue()
-                        .setCardinality(context.getCardinalityEstimator().getTableCardinality(
-                                context.getMetadataProvider(), datasourcer.getDataset().getDataverseName(),
-                                datasourcer.getDataset().getDatasetName(), rightField));
+                op.getInputs().get(1).getValue().setCardinality(cardinalityr);
             }
             System.out.println(
                     datasourcel.getDataset().getDatasetName() + " " + datasourcer.getDataset().getDatasetName());
+
+            long joinCardinality = cardinalityl * cardinalityr;
             //estimate join cardinality
-            return context.getCardinalityEstimator().getJoinCardinality(context.getMetadataProvider(),
-                    datasourcel.getDataset().getDataverseName(), datasourcel.getDataset().getDatasetName(), leftField,
-                    datasourcer.getDataset().getDataverseName(), datasourcer.getDataset().getDatasetName(), rightField);
+            return joinCardinality;
         }
         return CardinalityInferenceVisitor.UNKNOWN;
     }
@@ -827,11 +791,11 @@ public class JoinReOrderRule implements IAlgebraicRewriteRule {
     private void populateFields(boolean notInFields, DatasetDataSource ds, String field, LogicalVariable lv) {
         if (notInFields) {
             fields.put(ds, new ArrayList<>());
-            Node n = new Node(field, 1, lv);
+            CarNode n = new CarNode(field, 1, lv);
             fields.get(ds).add(n);
         } else {
             Boolean found = false;
-            for (Node n : fields.get(ds)) {
+            for (CarNode n : fields.get(ds)) {
                 if (n.field.equals(field)) {
                     found = true;
                     n.participation++;
@@ -839,7 +803,7 @@ public class JoinReOrderRule implements IAlgebraicRewriteRule {
                 }
             }
             if (!found) {
-                fields.get(ds).add(new Node(field, 1, lv));
+                fields.get(ds).add(new CarNode(field, 1, lv));
             }
         }
 
@@ -847,12 +811,12 @@ public class JoinReOrderRule implements IAlgebraicRewriteRule {
 
 }
 
-class Node {
+class CarNode {
     String field;
     int participation;
     LogicalVariable lv;
 
-    public Node(String field, int participation, LogicalVariable lv) {
+    public CarNode(String field, int participation, LogicalVariable lv) {
         this.field = field;
         this.participation = participation;
         this.lv = lv;

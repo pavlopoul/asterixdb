@@ -75,6 +75,7 @@ public class NCMessageBroker implements INCMessageBroker {
 
     @Override
     public void sendMessageToPrimaryCC(ICcAddressedMessage message) throws Exception {
+        LOGGER.info("Send message: " + message);
         sendMessageToCC(ncs.getPrimaryCcId(), message);
     }
 

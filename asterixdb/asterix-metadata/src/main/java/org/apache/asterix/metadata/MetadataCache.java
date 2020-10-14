@@ -239,6 +239,7 @@ public class MetadataCache {
                     indexMap.get(stats.getIndexName());
             if (fieldMap == null) {
                 fieldMap = new HashMap<>();
+                // indexMap.put(stats.getDatasetName(), fieldMap);
                 datasetMap.put(stats.getDatasetName(), indexMap);
             }
             Map<String, Map<String, Map<ComponentStatisticsId, Statistics>>>[] matterAntimatterArray =

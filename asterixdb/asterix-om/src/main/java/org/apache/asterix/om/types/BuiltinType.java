@@ -18,8 +18,9 @@
  */
 package org.apache.asterix.om.types;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
 import org.apache.asterix.om.base.IAObject;
+
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 
 public abstract class BuiltinType implements IAType {

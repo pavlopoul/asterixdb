@@ -22,7 +22,9 @@ package org.apache.asterix.optimizer.base;
 import java.util.Collections;
 import java.util.LinkedList;
 import java.util.List;
+import java.util.Map;
 
+import org.apache.asterix.common.config.StatisticsProperties;
 import org.apache.asterix.common.dataflow.ICcApplicationContext;
 import org.apache.asterix.om.functions.BuiltinFunctions;
 import org.apache.asterix.optimizer.rules.AddEquivalenceClassForRecordConstructorRule;
@@ -81,6 +83,8 @@ import org.apache.asterix.optimizer.rules.SetupCommitExtensionOpRule;
 import org.apache.asterix.optimizer.rules.SimilarityCheckRule;
 import org.apache.asterix.optimizer.rules.SweepIllegalNonfunctionalFunctions;
 import org.apache.asterix.optimizer.rules.UnnestToDataScanRule;
+import org.apache.asterix.optimizer.rules.am.CardinalityRule;
+import org.apache.asterix.optimizer.rules.am.CostBasedRule;
 import org.apache.asterix.optimizer.rules.am.IntroduceJoinAccessMethodRule;
 import org.apache.asterix.optimizer.rules.am.IntroduceLSMComponentFilterRule;
 import org.apache.asterix.optimizer.rules.am.IntroducePrimaryIndexForAggregationRule;
@@ -404,11 +408,15 @@ public final class RuleCollections {
         return prepareForJobGenRewrites;
     }
 
-    public static List<IAlgebraicRewriteRule> buildInferCardinalityRuleCollection() {
+    public static List<IAlgebraicRewriteRule> buildInferCardinalityRuleCollection(Map<String, Object> map) {
         List<IAlgebraicRewriteRule> cardinalityRewrites = new LinkedList<>();
-        //cardinalityRewrites.add(new InferCardinalityRule());
-        cardinalityRewrites.add(new JoinReOrderRule());
-        //        cardinalityRewrites.add(new CostBasedRule());
+        if (map.get(StatisticsProperties.STATISTICS_INCREMENTAL) != null) {
+            cardinalityRewrites.add(new JoinReOrderRule());
+        } else if (map.get(StatisticsProperties.STATISTICS_COSTBASED) != null) {
+            cardinalityRewrites.add(new CostBasedRule());
+        } else if (map.get(StatisticsProperties.STATISTICS_CARDINALITYBASED) != null) {
+            cardinalityRewrites.add(new CardinalityRule());
+        }
         return cardinalityRewrites;
     }
 }

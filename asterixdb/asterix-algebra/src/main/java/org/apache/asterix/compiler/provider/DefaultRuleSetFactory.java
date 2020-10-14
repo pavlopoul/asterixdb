@@ -22,7 +22,6 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 
-import org.apache.asterix.common.config.StatisticsProperties;
 import org.apache.asterix.common.dataflow.ICcApplicationContext;
 import org.apache.asterix.optimizer.base.RuleCollections;
 import org.apache.hyracks.algebricks.common.exceptions.AlgebricksException;
@@ -73,9 +72,7 @@ public class DefaultRuleSetFactory implements IRuleSetFactory {
         defaultLogicalRewrites.add(new Pair<>(seqOnceCtrl, RuleCollections.buildDataExchangeRuleCollection()));
         defaultLogicalRewrites.add(new Pair<>(seqCtrlNoDfs, RuleCollections.buildConsolidationRuleCollection()));
         defaultLogicalRewrites.add(new Pair<>(seqOnceCtrl, RuleCollections.buildFulltextContainsRuleCollection()));
-        if (map.get(StatisticsProperties.STATISTICS_INCREMENTAL) != null) {
-            defaultLogicalRewrites.add(new Pair<>(seqOnceCtrl, RuleCollections.buildInferCardinalityRuleCollection()));
-        }
+        defaultLogicalRewrites.add(new Pair<>(seqOnceCtrl, RuleCollections.buildInferCardinalityRuleCollection(map)));
         defaultLogicalRewrites.add(new Pair<>(seqCtrlNoDfs, RuleCollections.buildAccessMethodRuleCollection()));
         defaultLogicalRewrites.add(new Pair<>(seqCtrlNoDfs, RuleCollections.buildPlanCleanupRuleCollection()));
 

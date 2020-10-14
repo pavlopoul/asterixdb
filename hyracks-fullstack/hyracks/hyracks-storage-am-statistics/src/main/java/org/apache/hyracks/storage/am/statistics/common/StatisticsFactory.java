@@ -20,6 +20,7 @@
 package org.apache.hyracks.storage.am.statistics.common;
 
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.logging.Logger;
 
@@ -37,6 +38,8 @@ import org.apache.hyracks.storage.am.statistics.wavelet.PrefixSumWaveletSynopsis
 import org.apache.hyracks.storage.am.statistics.wavelet.PrefixSumWaveletTransform;
 import org.apache.hyracks.storage.am.statistics.wavelet.WaveletSynopsis;
 import org.apache.hyracks.storage.am.statistics.wavelet.WaveletTransform;
+
+import it.unimi.dsi.fastutil.ints.Int2ByteOpenHashMap;
 
 public class StatisticsFactory extends AbstractStatisticsFactory {
     private static final Logger LOGGER = Logger.getLogger(StatisticsFactory.class.getName());
@@ -87,7 +90,8 @@ public class StatisticsFactory extends AbstractStatisticsFactory {
                 isAntimatter ? componentStatistics.getNumAntimatterTuples() : componentStatistics.getNumTuples();
         ISynopsis synopsis = SynopsisFactory.createSynopsis(type, fieldExtractor.getFieldTypeTraits(),
                 SynopsisElementFactory.createSynopsisElementsCollection(type, size), numElements, size,
-                new HashMap<Long, Integer>());
+                new HashMap<Long, Integer>(), new HashSet<>(), new Int2ByteOpenHashMap(),
+                new long[(int) (((5 * 1048576) + 63) >>> 6)]);
         switch (type) {
             case UniformHistogram:
             case ContinuousHistogram:

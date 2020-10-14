@@ -28,6 +28,7 @@ import java.util.Map;
 import java.util.NoSuchElementException;
 import java.util.PriorityQueue;
 import java.util.Queue;
+import java.util.Set;
 
 import org.apache.commons.collections4.iterators.PeekingIterator;
 import org.apache.commons.collections4.iterators.ReverseListIterator;
@@ -48,7 +49,7 @@ public class WaveletSynopsis extends AbstractSynopsis<WaveletCoefficient> {
     public WaveletSynopsis(long domainStart, long domainEnd, int maxLevel, int size,
             Collection<WaveletCoefficient> coefficients, boolean normalize, boolean linearApproximation,
             Map<Long, Integer> uniquemap) {
-        super(domainStart, domainEnd, maxLevel, size, coefficients, uniquemap);
+        super(domainStart, domainEnd, maxLevel, size, coefficients, uniquemap, null, null, null);
         this.normalize = normalize;
         this.linearApproximation = linearApproximation;
     }
@@ -466,5 +467,59 @@ public class WaveletSynopsis extends AbstractSynopsis<WaveletCoefficient> {
     public long uniqueQuery(boolean primIndex) {
         // TODO Auto-generated method stub
         return 0;
+    }
+
+    @Override
+    public Set<Long> getUnique() {
+        // TODO Auto-generated method stub
+        return null;
+    }
+
+    @Override
+    public Map<Integer, Byte> getSparseMap() {
+        // TODO Auto-generated method stub
+        return null;
+    }
+
+    @Override
+    public long[] getWordsAr() {
+        // TODO Auto-generated method stub
+        return null;
+    }
+
+    @Override
+    public void setWordsAr(long[] words) {
+        // TODO Auto-generated method stub
+
+    }
+
+    @Override
+    public void mergeUnique(ISynopsis<WaveletCoefficient> mergeSynopsis) throws HyracksDataException {
+        // TODO Auto-generated method stub
+
+    }
+
+    @Override
+    public void setSparse(Map<Integer, Byte> map) {
+        // TODO Auto-generated method stub
+
+    }
+
+    @Override
+    public void setUnique(Set<Long> set) {
+        // TODO Auto-generated method stub
+
+    }
+
+    @Override
+    public void setSparseMap(Map<Integer, Byte> map) {
+        // TODO Auto-generated method stub
+
+    }
+
+    @Override
+    public void setUniqueSet(Set<Long> set) {
+        // TODO Auto-generated method stub
+
     }
 }

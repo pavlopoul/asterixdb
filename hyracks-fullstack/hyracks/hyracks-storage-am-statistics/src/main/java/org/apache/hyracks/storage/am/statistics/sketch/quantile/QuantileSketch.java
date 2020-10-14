@@ -36,8 +36,6 @@ import com.google.common.collect.Iterators;
 import com.google.common.hash.HashFunction;
 import com.google.common.hash.Hashing;
 
-import net.agkn.hll.HLL;
-
 /**
  * Implementation of modified adaptive Greenwald-Khanna sketch from "Quantiles over data streams: An Experimental Study"
  */
@@ -186,7 +184,7 @@ public class QuantileSketch<T extends Comparable<T>> implements ISketch<T, T> {
     private final T domainStart;
     private final double accuracy;
     private final TreeMapWithDuplicates<T, QuantileSketchElement> elements;
-    private final HLL hll;
+    private final HLLSketch hll;
     private final HashFunction hashFunction;
     private final Queue<ThresholdEntry> compressibleElements;
     private int size;
@@ -196,7 +194,7 @@ public class QuantileSketch<T extends Comparable<T>> implements ISketch<T, T> {
         this.domainStart = domainStart;
         this.accuracy = accuracy;
         elements = new TreeMapWithDuplicates<>(new QuantileSketchElement(null, 1, 0));
-        hll = new HLL(20, 5);
+        hll = new HLLSketch(20, 5);
         hashFunction = Hashing.murmur3_128();
         //min heap to store elements thresholds
         compressibleElements = new PriorityQueue<>(Comparator.comparingDouble(o -> o.threshold));
@@ -215,7 +213,7 @@ public class QuantileSketch<T extends Comparable<T>> implements ISketch<T, T> {
         return elements;
     }
 
-    public HLL getHll() {
+    public HLLSketch getHll() {
         return hll;
     }
 

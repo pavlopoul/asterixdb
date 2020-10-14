@@ -68,8 +68,8 @@ public class JoinUtils {
 
             long size = 0;
             BroadcastSide side = null;
-            if (sizel > 0 && sizel <= 1500000 || sizer > 0 && sizer <= 1500000) {
-                if (sizer <= 1500000 && sizel <= 1500000) {
+            if (sizel > 0 && sizel <= 1000000 || sizer > 0 && sizer <= 1000000) {
+                if (sizer <= 1000000 && sizel <= 1000000) {
                     if (sizer < sizel) {
                         side = BroadcastSide.RIGHT;
                         size = sizer;
@@ -77,15 +77,19 @@ public class JoinUtils {
                         side = BroadcastSide.LEFT;
                         size = sizel;
                     }
-                } else if (sizer <= 1500000) {
+                } else if (sizer <= 1000000) {
                     side = BroadcastSide.RIGHT;
                     size = sizer;
                 } else {
                     side = BroadcastSide.LEFT;
                     size = sizel;
                 }
+            } else {
+                side = getBroadcastJoinSide(op.getCondition().getValue(), varsLeft, varsRight);
             }
-            //            BroadcastSide side = getBroadcastJoinSide(op.getCondition().getValue(), varsLeft, varsRight);
+            //   BroadcastSide side = getBroadcastJoinSide(op.getCondition().getValue(), varsLeft, varsRight);
+
+            // BroadcastSide side = BroadcastSide.RIGHT;
             if (side == null) {
                 setHashJoinOp(op, JoinPartitioningType.PAIRWISE, sideLeft, sideRight, context, size);
             } else {
@@ -132,7 +136,7 @@ public class JoinUtils {
                 context.getPhysicalOptimizationConfig().getFudgeFactor()));
         if (partitioningType == JoinPartitioningType.BROADCAST) {
             //hybridToInMemHashJoin(op, context);
-            inMemHashJoin(op, size);
+            inMemHashJoin(op, 75000);
         }
     }
 

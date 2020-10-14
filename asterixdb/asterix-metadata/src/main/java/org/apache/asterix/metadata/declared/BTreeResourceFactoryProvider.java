@@ -74,7 +74,10 @@ public class BTreeResourceFactoryProvider implements IResourceFactoryProvider {
         int[] filterFields = IndexUtil.getFilterFields(dataset, index, filterTypeTraits);
         int[] btreeFields = IndexUtil.getBtreeFieldsIfFiltered(dataset, index);
         IStorageComponentProvider storageComponentProvider = mdProvider.getStorageComponentProvider();
-        String statisticsFieldsHint = dataset.getHints().get(DatasetStatisticsHint.NAME);
+        String statisticsFieldsHint = null;
+        if (dataset.getHints() != null) {
+            statisticsFieldsHint = dataset.getHints().get(DatasetStatisticsHint.NAME);
+        }
         SynopsisType statisticsType = getStatsType(mdProvider.getConfig(),
                 mdProvider.getApplicationContext().getStatisticsProperties().getStatisticsSynopsisType());
         String[] unorderedStatisticsFields = null;

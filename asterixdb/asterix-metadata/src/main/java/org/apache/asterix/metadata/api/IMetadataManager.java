@@ -26,6 +26,7 @@ import org.apache.asterix.common.exceptions.ACIDException;
 import org.apache.asterix.common.functions.FunctionSignature;
 import org.apache.asterix.common.metadata.IMetadataBootstrap;
 import org.apache.asterix.external.indexing.ExternalFile;
+import org.apache.asterix.metadata.MetadataCache;
 import org.apache.asterix.metadata.MetadataTransactionContext;
 import org.apache.asterix.metadata.entities.CompactionPolicy;
 import org.apache.asterix.metadata.entities.Dataset;
@@ -724,4 +725,6 @@ public interface IMetadataManager extends IMetadataBootstrap {
     long getMaxTxnId();
 
     void dropFromCache(MetadataTransactionContext writeTxn, Dataverse newDataverse);
+
+    MetadataCache getCache();
 }

@@ -151,7 +151,8 @@ public class APIFramework {
             SqlppExpressionToPlanTranslator.REWRITE_IN_AS_OR_OPTION, "hash_merge", "output-record-type",
             AbstractIntroduceAccessMethodRule.NO_INDEX_ONLY_PLAN_OPTION,
             StatisticsProperties.STATISTICS_PRIMARY_KEYS_ENABLED, StatisticsProperties.STATISTICS_SYNOPSIS_SIZE_KEY,
-            StatisticsProperties.STATISTICS_SYNOPSIS_TYPE_KEY, StatisticsProperties.STATISTICS_INCREMENTAL);
+            StatisticsProperties.STATISTICS_SYNOPSIS_TYPE_KEY, StatisticsProperties.STATISTICS_INCREMENTAL,
+            StatisticsProperties.STATISTICS_COSTBASED, StatisticsProperties.STATISTICS_CARDINALITYBASED);
 
     private final IRewriterFactory rewriterFactory;
     private final IAstPrintVisitorFactory astPrintVisitorFactory;
@@ -217,8 +218,10 @@ public class APIFramework {
 
         // establish facts
         final boolean isQuery = query != null;
-        final boolean isIncremental =
-                metadataProvider.getConfig().get(StatisticsProperties.STATISTICS_INCREMENTAL) != null;;
+        boolean isIncremental = metadataProvider.getConfig().get(StatisticsProperties.STATISTICS_INCREMENTAL) != null;
+        if (!isIncremental) {
+            isIncremental = metadataProvider.getConfig().get(StatisticsProperties.STATISTICS_CARDINALITYBASED) != null;
+        }
         final boolean isLoad = statement != null && statement.getKind() == Statement.Kind.LOAD;
         final SourceLocation sourceLoc =
                 query != null ? query.getSourceLocation() : statement != null ? statement.getSourceLocation() : null;

@@ -131,6 +131,37 @@ public class DatasetHints {
     }
 
     public static class DatasetStatisticsHint implements IHint {
+        /**
+         * Hint representing the expected number of tuples in the dataset.
+         */
+        public static class DatasetCardinalityHint implements IHint {
+            public static final String NAME = "CARDINALITY";
+
+            public static final long DEFAULT = 1000000L;
+
+            @Override
+            public String getName() {
+                return NAME;
+            }
+
+            @Override
+            public Pair<Boolean, String> validateValue(ICcApplicationContext appCtx, String value) {
+                boolean valid = true;
+                long longValue;
+                try {
+                    longValue = Long.parseLong(value);
+                    if (longValue < 0) {
+                        return new Pair<>(false, "Value must be >= 0");
+                    }
+                } catch (NumberFormatException nfe) {
+                    valid = false;
+                    return new Pair<>(valid, "Inappropriate value");
+                }
+                return new Pair<>(true, null);
+            }
+
+        }
+
         public static final String NAME = "STATISTICS";
 
         public static final String DEFAULT = "";

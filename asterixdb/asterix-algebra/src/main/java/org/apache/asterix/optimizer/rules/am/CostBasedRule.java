@@ -18,17 +18,20 @@
  */
 package org.apache.asterix.optimizer.rules.am;
 
-import static org.apache.asterix.optimizer.rules.am.BTreeAccessMethod.LimitType.EQUAL;
-
 import java.util.ArrayList;
-import java.util.Collections;
+import java.util.HashMap;
 import java.util.List;
-import java.util.TreeMap;
+import java.util.Map;
 
+import org.apache.asterix.common.exceptions.AsterixException;
 import org.apache.asterix.metadata.declared.DatasetDataSource;
+import org.apache.asterix.metadata.entities.InternalDatasetDetails;
 import org.apache.asterix.om.base.AInt32;
+import org.apache.asterix.om.base.AIntegerObject;
+import org.apache.asterix.om.base.IAObject;
 import org.apache.asterix.om.constants.AsterixConstantValue;
 import org.apache.asterix.om.types.ARecordType;
+import org.apache.asterix.om.types.hierachy.ATypeHierarchy;
 import org.apache.asterix.om.utils.ConstantExpressionUtil;
 import org.apache.asterix.optimizer.rules.am.BTreeAccessMethod.LimitType;
 import org.apache.commons.lang3.mutable.Mutable;
@@ -58,14 +61,11 @@ import org.apache.hyracks.algebricks.core.rewriter.base.IAlgebraicRewriteRule;
 
 public class CostBasedRule implements IAlgebraicRewriteRule {
 
-    private Mutable<ILogicalOperator> mut;
-    private Boolean b = false;
-    private TreeMap<Long, List<Mutable<ILogicalOperator>>> map = new TreeMap<>(Collections.reverseOrder());
-    private AbstractLogicalOperator alo, sOp, lOp;
-    private String fieldName = "";
-    private String[] pKey;
-    private LogicalVariable[] dscanvar;
-    private SelectOperator select;
+    private Map<AbstractLogicalOperator, List<JoinNode>> joinMap = new HashMap<>();
+
+    private AbstractLogicalOperator alo, sOp, lOp, parentAssign;
+    private List<JoinNode> joins = new ArrayList<>();
+    private List<InnerJoinOperator> minJoins = new ArrayList<>();
 
     protected boolean checkAndReturnExpr(AbstractLogicalOperator op, IOptimizationContext context)
             throws AlgebricksException {
@@ -98,8 +98,7 @@ public class CostBasedRule implements IAlgebraicRewriteRule {
                             only2joins = true;
                         }
                     }
-                    b = true;
-                    // populateMap(op.getInputs(), datasourcer, assignr, context, only2joins);
+                    populateMap(op.getInputs(), datasourcer, assignr, context, only2joins);
                 } else {
                     return false;
                 }
@@ -119,115 +118,76 @@ public class CostBasedRule implements IAlgebraicRewriteRule {
                 InnerJoinOperator join = (InnerJoinOperator) child.getValue();
                 Mutable<ILogicalExpression> condition = join.getCondition();
                 ScalarFunctionCallExpression sfce = (ScalarFunctionCallExpression) condition.getValue();
-                if (sfce.getFunctionIdentifier().getName() == "and") {
-                    long key = Long.MAX_VALUE;
-                    for (Mutable<ILogicalExpression> arg : sfce.getArguments()) {
-                        join = new InnerJoinOperator(arg, join.getInputs().get(0), join.getInputs().get(1));
-                        context.computeAndSetTypeEnvironmentForOperator(join);
-                        sfce = (ScalarFunctionCallExpression) arg.getValue();
-                        LogicalVariable lvl = ((VariableReferenceExpression) sfce.getArguments().get(0).getValue())
-                                .getVariableReference();
-                        DatasetDataSource datasourcel = findDataSource(join, lvl);
-                        AssignOperator assignl = null;
-                        lOp = sOp;
-                        if (sOp.getOperatorTag() == LogicalOperatorTag.ASSIGN) {
-                            assignl = (AssignOperator) sOp;
-                        }
-                        LogicalVariable lvr = ((VariableReferenceExpression) sfce.getArguments().get(1).getValue())
-                                .getVariableReference();
-                        datasourcer = findDataSource(join, lvr);
-                        if (sOp.getOperatorTag() == LogicalOperatorTag.ASSIGN) {
-                            assignr = (AssignOperator) sOp;
-                        } else {
-                            assignr = null;
-                        }
-                        if (only2joins) {
-                            key = Math.min(key, inferCardinality((AbstractLogicalOperator) /*child.getValue()*/join,
-                                    context, datasourcel, datasourcer, assignl, assignr));
-                            System.out.println(key);
-                        } else {
-                            key = inferCardinality((AbstractLogicalOperator) /*child.getValue()*/join, context,
-                                    datasourcel, datasourcer, assignl, assignr);
-                            System.out.println(key);
-                        }
-                        if (!only2joins) {
-                            if (map.containsKey(key)) {
-                                map.get(key).add(new MutableObject<ILogicalOperator>(join));
-                            } else {
-                                map.put(key, new ArrayList<>());
-                                map.get(key).add(new MutableObject<ILogicalOperator>(join));
-                            }
-                        }
-                    }
-                    if (only2joins) {
-                        if (map.containsKey(key)) {
-                            map.get(key).add(child);
-                        } else {
-                            map.put(key, new ArrayList<>());
-                            map.get(key).add(child);
-                        }
+
+                LogicalVariable lvl =
+                        ((VariableReferenceExpression) sfce.getArguments().get(0).getValue()).getVariableReference();
+
+                AbstractLogicalOperator inputA = findDataSourceOp(null, join, lvl);
+                String fieldA = findFieldName(inputA, lvl);
+                DatasetDataSource datasourcel = findDataSource(inputA);
+                LogicalVariable lvr =
+                        ((VariableReferenceExpression) sfce.getArguments().get(1).getValue()).getVariableReference();
+                AbstractLogicalOperator A = inputA;
+                if (parentAssign != null) {
+                    A = parentAssign;
+                }
+                AbstractLogicalOperator inputB = findDataSourceOp(null, join, lvr);
+                String fieldB = findFieldName(inputB, lvr);
+                datasourcer = findDataSource(inputB);
+                AbstractLogicalOperator B = inputB;
+                if (parentAssign != null) {
+                    B = parentAssign;
+                }
+
+                if (join.getInputs().get(0).getValue().getOperatorTag() == LogicalOperatorTag.SELECT
+                        || join.getInputs().get(1).getValue().getOperatorTag() == LogicalOperatorTag.SELECT) {
+                    DatasetDataSource selectds;
+                    if (join.getInputs().get(0).getValue().getOperatorTag() == LogicalOperatorTag.SELECT) {
+                        selectds = datasourcel;
+                        A = (AbstractLogicalOperator) join.getInputs().get(0).getValue();
+                        A.setCardinality(inferSelectCardinality(A, context, selectds,
+                                (AssignOperator) A.getInputs().get(0).getValue()));
+                    } else {
+                        selectds = datasourcer;
+                        B = (AbstractLogicalOperator) join.getInputs().get(1).getValue();
+                        B.setCardinality(inferSelectCardinality(B, context, selectds,
+                                (AssignOperator) B.getInputs().get(0).getValue()));
                     }
 
-                } else {
-                    LogicalVariable lvl = ((VariableReferenceExpression) sfce.getArguments().get(0).getValue())
-                            .getVariableReference();
-                    DatasetDataSource datasourcel = findDataSource(join, lvl);
-                    AssignOperator assignl = null;
-                    lOp = sOp;
-                    if (sOp.getOperatorTag() == LogicalOperatorTag.ASSIGN) {
-                        assignl = (AssignOperator) sOp;
-                    }
-                    LogicalVariable lvr = ((VariableReferenceExpression) sfce.getArguments().get(1).getValue())
-                            .getVariableReference();
-                    datasourcer = findDataSource(join, lvr);
-                    if (sOp.getOperatorTag() == LogicalOperatorTag.ASSIGN) {
-                        assignr = (AssignOperator) sOp;
-                    } else {
-                        assignr = null;
-                    }
-                    long key = inferCardinality((AbstractLogicalOperator) child.getValue(), context, datasourcel,
-                            datasourcer, assignl, assignr);
-                    System.out.println(key);
-                    if (map.containsKey(key)) {
-                        map.get(key).add(child);
-                    } else {
-                        map.put(key, new ArrayList<>());
-                        map.get(key).add(child);
-                    }
                 }
-                populateMap(child.getValue().getInputs(), datasourcer, assignr, context, only2joins);
+                long key = inferCardinality((AbstractLogicalOperator) child.getValue(), context, datasourcel,
+                        datasourcer, A, B, fieldA, fieldB);
+                child.getValue().setCardinality(key);
+
+                JoinNode jnode = new JoinNode((InnerJoinOperator) child.getValue(), A, B);
+                if (!joinMap.containsKey(A)) {
+                    joinMap.put(A, new ArrayList<>());
+                }
+                joinMap.get(A).add(jnode);
+
+                if (!joinMap.containsKey(B)) {
+                    joinMap.put(B, new ArrayList<>());
+                }
+                joinMap.get(B).add(jnode);
+                joins.add(jnode);
+
+                System.out.println(key);
             }
+            populateMap(child.getValue().getInputs(), datasourcer, assignr, context, only2joins);
+
         }
     }
 
-    public DatasetDataSource findDataSource(AbstractLogicalOperator op, LogicalVariable lv) {
-        DatasetDataSource datasource = null;
-        if (op.getOperatorTag() != LogicalOperatorTag.ASSIGN
-                && op.getOperatorTag() != LogicalOperatorTag.DATASOURCESCAN) {
-            for (Mutable<ILogicalOperator> child : op.getInputs()) {
-                datasource = findDataSource((AbstractLogicalOperator) child.getValue(), lv);
-                if (datasource != null) {
-                    if (child.getValue().getOperatorTag() == LogicalOperatorTag.ASSIGN) {
-                        mut = child;
-                    } else if (child.getValue().getOperatorTag() == LogicalOperatorTag.DATASOURCESCAN) {
-                        mut = child;
-                    }
-                    break;
-                }
-            }
-            return datasource;
-        }
-        AssignOperator assign = null;
+    private String findFieldName(AbstractLogicalOperator op, LogicalVariable lv) {
+        String fieldName = "";
         DataSourceScanOperator scan = null;
-        boolean vfromAssign = false;
         if (op.getOperatorTag() == LogicalOperatorTag.ASSIGN) {
-            assign = (AssignOperator) op;
-            scan = /*null*/(DataSourceScanOperator) assign.getInputs().get(0).getValue();
+            AssignOperator assign = (AssignOperator) op;
+            scan = (DataSourceScanOperator) assign.getInputs().get(0).getValue();
             int i = -1;
-            for (LogicalVariable assignVar : assign.getVariables()) {
+            for (LogicalVariable var : assign.getVariables()) {
                 i++;
-                if (lv == assignVar) {
-                    vfromAssign = true;
+                if (var == lv) {
                     ScalarFunctionCallExpression sfce =
                             (ScalarFunctionCallExpression) assign.getExpressions().get(i).getValue();
                     ConstantExpression ce = (ConstantExpression) sfce.getArguments().get(1).getValue();
@@ -236,43 +196,70 @@ public class CostBasedRule implements IAlgebraicRewriteRule {
                     int field = aint32.getIntegerValue();
                     fieldName = ((ARecordType) ((DatasetDataSource) scan.getDataSource()).getItemType())
                             .getFieldNames()[field];
-                    int size = scan.getVariables().size() - 1;
-                    pKey = new String[size];
-                    dscanvar = new LogicalVariable[size];
-                    for (int j = 0; j < size; j++) {
-                        pKey[j] = ((ARecordType) ((DatasetDataSource) scan.getDataSource()).getItemType())
-                                .getFieldNames()[j];
-                        dscanvar[j] = scan.getVariables().get(j);
-                    }
-
-                    sOp = assign;
                 }
             }
         } else {
             scan = (DataSourceScanOperator) op;
-        }
-        if (!vfromAssign) {
-            for (LogicalVariable scanVar : scan.getVariables()) {
-                if (lv == scanVar) {
-                    vfromAssign = true;
-                    fieldName =
-                            ((ARecordType) ((DatasetDataSource) scan.getDataSource()).getItemType()).getFieldNames()[0];
-                    int size = scan.getVariables().size() - 1;
-                    pKey = new String[size];
-                    dscanvar = new LogicalVariable[size];
-                    for (int j = 0; j < size; j++) {
-                        pKey[j] = ((ARecordType) ((DatasetDataSource) scan.getDataSource()).getItemType())
-                                .getFieldNames()[j];
-                        dscanvar[j] = scan.getVariables().get(j);
-                    }
-                    sOp = scan;
+            int i = -1;
+            for (LogicalVariable var : scan.getVariables()) {
+                i++;
+                if (lv == var) {
+                    fieldName = ((InternalDatasetDetails) ((DatasetDataSource) scan.getDataSource()).getDataset()
+                            .getDatasetDetails()).getPrimaryKey().get(i).get(0);
                 }
             }
         }
-        if (!vfromAssign) {
-            scan = null;
+
+        return fieldName;
+    }
+
+    public AbstractLogicalOperator findDataSourceOp(AbstractLogicalOperator parent, AbstractLogicalOperator op,
+            LogicalVariable lv) {
+        AbstractLogicalOperator out = null;
+
+        AssignOperator assign = null;
+        DataSourceScanOperator scan = null;
+        if (op.getOperatorTag() == LogicalOperatorTag.ASSIGN) {
+            assign = (AssignOperator) op;
+            for (LogicalVariable assignVar : assign.getVariables()) {
+                if (lv == assignVar) {
+                    parentAssign = null;
+                    return assign;
+                }
+            }
         }
-        return scan != null ? (DatasetDataSource) scan.getDataSource() : datasource;
+        if (op.getOperatorTag() == LogicalOperatorTag.DATASOURCESCAN) {
+            scan = (DataSourceScanOperator) op;
+            for (LogicalVariable scanVar : scan.getVariables()) {
+                if (lv == scanVar) {
+                    if (parent instanceof AssignOperator) {
+                        parentAssign = parent;
+                    } else {
+                        parentAssign = null;
+                    }
+                    return scan;
+                }
+            }
+        }
+
+        for (Mutable<ILogicalOperator> child : op.getInputs()) {
+            out = findDataSourceOp(op, (AbstractLogicalOperator) child.getValue(), lv);
+            if (out != null)
+                break;
+        }
+        return out;
+
+    }
+
+    public DatasetDataSource findDataSource(AbstractLogicalOperator op) {
+        DataSourceScanOperator scan = null;
+        if (op.getOperatorTag() == LogicalOperatorTag.ASSIGN) {
+            AssignOperator assign = (AssignOperator) op;
+            scan = (DataSourceScanOperator) assign.getInputs().get(0).getValue();
+        } else if (op.getOperatorTag() == LogicalOperatorTag.DATASOURCESCAN) {
+            scan = (DataSourceScanOperator) op;
+        }
+        return scan != null ? (DatasetDataSource) scan.getDataSource() : null;
     }
 
     @Override
@@ -288,43 +275,111 @@ public class CostBasedRule implements IAlgebraicRewriteRule {
     @Override
     public boolean rewritePost(Mutable<ILogicalOperator> opRef, IOptimizationContext context)
             throws AlgebricksException {
-        if (!b)
+
+        int threshold = joins.size();
+        if (threshold <= 1) {
             return false;
-        InnerJoinOperator joinA = (InnerJoinOperator) alo.getInputs().get(0).getValue();
-        InnerJoinOperator joinB = (InnerJoinOperator) joinA.getInputs().get(0).getValue();
-        InnerJoinOperator joinC = (InnerJoinOperator) joinB.getInputs().get(0).getValue();
+        }
 
-        Mutable<ILogicalExpression> condition = joinA.getCondition();
-        ScalarFunctionCallExpression sfce = (ScalarFunctionCallExpression) condition.getValue();
-        List<Mutable<ILogicalExpression>> arguments = sfce.getArguments();
-        LogicalVariable lvl = ((VariableReferenceExpression) arguments.get(0).getValue()).getVariableReference();
-        DatasetDataSource ds = findDataSource((AbstractLogicalOperator) joinA, lvl);
+        while (threshold > 0) {
+            long min = Long.MAX_VALUE;
+            JoinNode selectedJoin = null;
+            for (JoinNode join : joins) {
+                if (join.join.getCardinality() < min) {
+                    selectedJoin = join;
+                    min = join.join.getCardinality();
+                }
+            }
 
-        joinA.getInputs().set(0, mut);
-        ScalarFunctionCallExpression newsfce =
-                ((ScalarFunctionCallExpression) joinB.getCondition().getValue()).cloneExpression();
-        List<Mutable<ILogicalExpression>> narguments = newsfce.getArguments();
-        Mutable<ILogicalExpression> mule = narguments.get(0);
-        newsfce.getArguments().set(0, narguments.get(1));
+            InnerJoinOperator newJoin = new InnerJoinOperator(selectedJoin.join.getCondition(),
+                    new MutableObject<ILogicalOperator>(selectedJoin.inputA),
+                    new MutableObject<ILogicalOperator>(selectedJoin.inputB));
 
-        newsfce.getArguments().set(1, mule);
-        Mutable<ILogicalExpression> conditionB = joinC.getCondition();
-        ScalarFunctionCallExpression sfceB = (ScalarFunctionCallExpression) conditionB.getValue();
-        List<Mutable<ILogicalExpression>> argumentsB = sfceB.getArguments();
-        newsfce.getArguments().set(1, argumentsB.get(0));
-        InnerJoinOperator finalJoin =
-                new InnerJoinOperator(joinB.getCondition(), new MutableObject<>(joinC), new MutableObject<>(joinA));
-        context.computeAndSetTypeEnvironmentForOperator(finalJoin);
+            context.computeAndSetTypeEnvironmentForOperator(newJoin);
+            minJoins.add(newJoin);
+
+            joins.remove(selectedJoin);
+            joinMap.get(selectedJoin.inputA).remove(selectedJoin);
+            joinMap.get(selectedJoin.inputB).remove(selectedJoin);
+
+            List<JoinNode> adjA = joinMap.get(selectedJoin.inputA);
+            List<JoinNode> adjB = joinMap.get(selectedJoin.inputB);
+
+            for (JoinNode jn : adjA) {
+                fixCardinality(jn, selectedJoin, "A");
+            }
+
+            for (JoinNode jn : adjB) {
+                fixCardinality(jn, selectedJoin, "B");
+            }
+            threshold--;
+        }
+        InnerJoinOperator searchJ = null;
+        for (int i = 0; i < minJoins.size() - 1; i++) {
+            InnerJoinOperator minJoin = minJoins.get(i);
+
+            AbstractLogicalOperator left = (AbstractLogicalOperator) minJoin.getInputs().get(0).getValue();
+            DatasetDataSource leftD = findDataSource(left);
+
+            AbstractLogicalOperator right = (AbstractLogicalOperator) minJoin.getInputs().get(1).getValue();
+            DatasetDataSource rightD = findDataSource(right);
+
+            for (int j = i + 1; j < minJoins.size(); j++) {
+                searchJ = minJoins.get(j);
+
+                AbstractLogicalOperator searchL = (AbstractLogicalOperator) searchJ.getInputs().get(0).getValue();
+                DatasetDataSource leftS = findDataSource(searchL);
+
+                AbstractLogicalOperator searchR = (AbstractLogicalOperator) searchJ.getInputs().get(1).getValue();
+                DatasetDataSource rightS = findDataSource(searchR);
+
+                if (left.equals(searchL) || right.equals(searchL)) {
+                    searchJ.getInputs().set(0, new MutableObject<ILogicalOperator>(minJoin));
+                } else if (left.equals(searchR) || right.equals(searchR)) {
+                    searchJ.getInputs().set(1, new MutableObject<ILogicalOperator>(minJoin));
+                } else if ((leftD != null || rightD != null) && leftS != null) {
+                    if ((leftD != null && leftD.equals(leftS)) || (rightD != null && rightD.equals(leftS))) {
+                        searchJ.getInputs().set(0, new MutableObject<ILogicalOperator>(minJoin));
+                    }
+                } else if ((leftD != null || rightD != null) && rightS != null) {
+                    if ((leftD != null && leftD.equals(rightS)) || (rightD != null && rightD.equals(rightS))) {
+                        searchJ.getInputs().set(1, new MutableObject<ILogicalOperator>(minJoin));
+                    }
+                }
+                context.computeAndSetTypeEnvironmentForOperator(searchJ);
+            }
+        }
         alo.getInputs().clear();
-        alo.getInputs().add(new MutableObject<>(finalJoin));
-        b = false;
+        alo.getInputs().add(new MutableObject<ILogicalOperator>(searchJ));
         return true;
 
     }
 
+    private void fixCardinality(JoinNode jn, JoinNode selectedJoin, String side) {
+        long cardinality = jn.join.getCardinality();
+        if (side.equals("A")) {
+            if (jn.inputA.equals(selectedJoin.inputA)) {
+                cardinality = (selectedJoin.join.getCardinality() * cardinality) / jn.inputA.getCardinality();
+            } else if (jn.inputB.equals(selectedJoin.inputA)) {
+                cardinality = (selectedJoin.join.getCardinality() * cardinality) / jn.inputB.getCardinality();
+            }
+        } else {
+            if (jn.inputA.equals(selectedJoin.inputB)) {
+                cardinality = (selectedJoin.join.getCardinality() * cardinality) / jn.inputA.getCardinality();
+            } else if (jn.inputB.equals(selectedJoin.inputB)) {
+                cardinality = (selectedJoin.join.getCardinality() * cardinality) / jn.inputB.getCardinality();
+            }
+        }
+
+        cardinality = Math.max(cardinality, 1);
+        //        cardinality = (long) temp * selectedJoin.join.getCardinality();
+        joins.remove(jn);
+        jn.join.setCardinality(cardinality);
+        joins.add(jn);
+    }
+
     public LogicalVariable findSelect(ILogicalOperator op) {
         if (op.getOperatorTag() == LogicalOperatorTag.SELECT) {
-            select = (SelectOperator) op;
             Mutable<ILogicalExpression> condition = ((SelectOperator) op).getCondition();
 
             ScalarFunctionCallExpression sfce = (ScalarFunctionCallExpression) condition.getValue();
@@ -340,13 +395,53 @@ public class CostBasedRule implements IAlgebraicRewriteRule {
     }
 
     private long inferCardinality(AbstractLogicalOperator op, IOptimizationContext context,
-            DatasetDataSource datasourcel, DatasetDataSource datasourcer, AssignOperator assignl,
-            AssignOperator assignr) throws AlgebricksException {
+            DatasetDataSource datasourcel, DatasetDataSource datasourcer, AbstractLogicalOperator inputA,
+            AbstractLogicalOperator inputB, String leftField, String rightField) throws AlgebricksException {
+        context.addToDontApplySet(this, op);
+
+        if (leftField != null && rightField != null) {
+            List<String> leftFields = new ArrayList<>();
+            leftFields.add(leftField);
+            List<String> rightFields = new ArrayList<>();
+            rightFields.add(rightField);
+            System.out.println(
+                    datasourcel.getDataset().getDatasetName() + " " + datasourcer.getDataset().getDatasetName());
+            if (inputA.getOperatorTag() != LogicalOperatorTag.SELECT) {
+                inputA.setCardinality(context.getCardinalityEstimator().getTableCardinality(
+                        context.getMetadataProvider(), datasourcel.getDataset().getDataverseName(),
+                        datasourcel.getDataset().getDatasetName(), leftFields));
+            } else {
+                return context.getCardinalityEstimator().getJoinAfterFilterCardinality(context.getMetadataProvider(),
+                        datasourcel.getDataset().getDataverseName(), datasourcel.getDataset().getDatasetName(),
+                        leftFields, datasourcer.getDataset().getDataverseName(),
+                        datasourcer.getDataset().getDatasetName(), rightFields, inputA.getCardinality());
+            }
+            if (inputB.getOperatorTag() != LogicalOperatorTag.SELECT) {
+                inputB.setCardinality(context.getCardinalityEstimator().getTableCardinality(
+                        context.getMetadataProvider(), datasourcer.getDataset().getDataverseName(),
+                        datasourcer.getDataset().getDatasetName(), rightFields));
+            } else {
+                return context.getCardinalityEstimator().getJoinAfterFilterCardinality(context.getMetadataProvider(),
+                        datasourcer.getDataset().getDataverseName(), datasourcer.getDataset().getDatasetName(),
+                        rightFields, datasourcel.getDataset().getDataverseName(),
+                        datasourcel.getDataset().getDatasetName(), leftFields, inputB.getCardinality());
+            }
+
+            return context.getCardinalityEstimator().getJoinCardinality(context.getMetadataProvider(),
+                    datasourcel.getDataset().getDataverseName(), datasourcel.getDataset().getDatasetName(), leftFields,
+                    datasourcer.getDataset().getDataverseName(), datasourcer.getDataset().getDatasetName(),
+                    rightFields);
+        }
+        return CardinalityInferenceVisitor.UNKNOWN;
+    }
+
+    private long inferSelectCardinality(AbstractLogicalOperator op, IOptimizationContext context, DatasetDataSource ds,
+            AssignOperator assign) throws AlgebricksException {
         context.addToDontApplySet(this, op);
 
         ILogicalExpression condExpr = null;
-        if (op.getOperatorTag() == LogicalOperatorTag.INNERJOIN) {
-            condExpr = ((InnerJoinOperator) op).getCondition().getValue();
+        if (op.getOperatorTag() == LogicalOperatorTag.SELECT) {
+            condExpr = ((SelectOperator) op).getCondition().getValue();
         }
         if (condExpr == null || condExpr.getExpressionTag() != LogicalExpressionTag.FUNCTION_CALL) {
             return CardinalityInferenceVisitor.UNKNOWN;
@@ -362,45 +457,79 @@ public class CostBasedRule implements IAlgebraicRewriteRule {
 
         for (int j = 0; j < analysisCtx.getMatchedFuncExprs().size(); j++) {
             IOptimizableFuncExpr optFuncExpr = analysisCtx.getMatchedFuncExpr(j);
-            fillOptimizableFuncExpr(optFuncExpr, datasourcel, assignl, true);
-            fillOptimizableFuncExpr(optFuncExpr, datasourcer, assignr, false);
+            fillOptimizableFuncExpr(optFuncExpr, ds, assign, false);
         }
 
+        AIntegerObject lowKey = null;
+        AIntegerObject highKey = null;
+        int lowKeyAdjustment = 0;
+        int highKeyAdjustment = 0;
         List<String> leftField = null;
-        List<String> rightField = null;
+        long cardinality = 1;
+        long minCardinality = Long.MAX_VALUE;
+        long tempCardinality = -1;
         for (IOptimizableFuncExpr optFuncExpr : analysisCtx.getMatchedFuncExprs()) {
             OptimizableOperatorSubTree optSubTree = optFuncExpr.getOperatorSubTree(0);
             LimitType limit = BTreeAccessMethod.getLimitType(optFuncExpr, optSubTree);
             //inferring cardinality for join
-            if (optFuncExpr.getNumLogicalVars() == 2) {
-                // cannot calculate cardinality for non equi-joins
-                if (limit != EQUAL) {
-                    return CardinalityInferenceVisitor.UNKNOWN;
-                }
-                // cannot calculate cardinality for complex (conjunctive) join conditions
-                if (leftField != null && rightField != null) {
-                    return CardinalityInferenceVisitor.UNKNOWN;
-                }
-                leftField = optFuncExpr.getFieldName(0);
-                rightField = optFuncExpr.getFieldName(1);
-            } else if (optFuncExpr.getNumLogicalVars() == 1) {
+            if (optFuncExpr.getNumLogicalVars() == 1) {
                 if (leftField == null) {
                     leftField = optFuncExpr.getFieldName(0);
                 } else if (!leftField.equals(optFuncExpr.getFieldName(0))) {
                     // cannot calculate cardinality for expressions on different fields
                     return CardinalityInferenceVisitor.UNKNOWN;
                 }
+                ILogicalExpression expr = optFuncExpr.getConstantExpr(0);
+                //inferring cardinality for selection
+                switch (limit) {
+                    case EQUAL:
+                        highKey = extractConstantIntegerExpr(expr);
+                        lowKey = highKey;
+                        if (leftField != null) {
+                            Long lowKeyValue = null;
+                            Long highKeyValue = null;
+                            lowKeyValue = lowKey.longValue() + lowKeyAdjustment;
+                            highKeyValue = highKey.longValue() + highKeyAdjustment;
+                            if (lowKeyValue != null && highKeyValue != null) {
+                                tempCardinality = context.getCardinalityEstimator().getRangeCardinality(
+                                        context.getMetadataProvider(), ds.getDataset().getDataverseName(),
+                                        ds.getDataset().getDatasetName(), leftField, lowKeyValue, highKeyValue);
+                                minCardinality = Math.min(minCardinality, tempCardinality);
+
+                                cardinality *= tempCardinality;
+                            }
+                        }
+                        leftField = null;
+                        break;
+                    case HIGH_EXCLUSIVE:
+                        lowKeyAdjustment = 1;
+                    case HIGH_INCLUSIVE:
+                        lowKey = extractConstantIntegerExpr(expr);
+                        break;
+                    case LOW_EXCLUSIVE:
+                        highKeyAdjustment = -1;
+                    case LOW_INCLUSIVE:
+                        highKey = extractConstantIntegerExpr(expr);
+                        break;
+                }
             }
         }
-        if (leftField != null && rightField != null) {
-            System.out.println(
-                    datasourcel.getDataset().getDatasetName() + " " + datasourcer.getDataset().getDatasetName());
-            //estimate join cardinality
-            return context.getCardinalityEstimator().getJoinCardinality(context.getMetadataProvider(),
-                    datasourcel.getDataset().getDataverseName(), datasourcel.getDataset().getDatasetName(), leftField,
-                    datasourcer.getDataset().getDataverseName(), datasourcer.getDataset().getDatasetName(), rightField);
+        op.setCardinality(minCardinality);
+        return cardinality;
+    }
+
+    private AIntegerObject extractConstantIntegerExpr(ILogicalExpression expr) throws AsterixException {
+        if (expr == null) {
+            return null;
         }
-        return CardinalityInferenceVisitor.UNKNOWN;
+        if (expr.getExpressionTag() == LogicalExpressionTag.CONSTANT) {
+            IAObject constExprValue = ((AsterixConstantValue) ((ConstantExpression) expr).getValue()).getObject();
+            if (ATypeHierarchy.belongsToDomain(constExprValue.getType().getTypeTag(), ATypeHierarchy.Domain.INTEGER)) {
+                return (AIntegerObject) constExprValue;
+            }
+        }
+        return null;
+
     }
 
     protected boolean analyzeCondition(ILogicalExpression cond, IOptimizationContext context,
@@ -453,10 +582,15 @@ public class CostBasedRule implements IAlgebraicRewriteRule {
                 if (funcVarIndex == -1) {
                     continue;
                 }
-
-                ARecordType recordType = (ARecordType) datasource.getItemType();
+                int k = -1;
                 List<String> fieldName = new ArrayList<>();
-                fieldName.add(recordType.getFieldNames()[0]);
+                for (LogicalVariable scanVar : scan.getVariables()) {
+                    k++;
+                    if (var == scanVar) {
+                        fieldName.add(((InternalDatasetDetails) ((DatasetDataSource) scan.getDataSource()).getDataset()
+                                .getDatasetDetails()).getPrimaryKey().get(k).get(0));
+                    }
+                }
                 optFuncExpr.setFieldName(funcVarIndex, fieldName);
                 return true;
             }
@@ -482,4 +616,16 @@ public class CostBasedRule implements IAlgebraicRewriteRule {
         return false;
     }
 
+}
+
+class JoinNode {
+    InnerJoinOperator join;
+    AbstractLogicalOperator inputA;
+    AbstractLogicalOperator inputB;
+
+    public JoinNode(InnerJoinOperator join, AbstractLogicalOperator inputA, AbstractLogicalOperator inputB) {
+        this.join = join;
+        this.inputA = inputA;
+        this.inputB = inputB;
+    }
 }

@@ -46,6 +46,7 @@ import org.apache.hyracks.api.dataflow.IOperatorDescriptor;
 import org.apache.hyracks.api.dataflow.OperatorDescriptorId;
 import org.apache.hyracks.api.dataflow.value.RecordDescriptor;
 import org.apache.hyracks.api.job.JobSpecification;
+import org.apache.hyracks.dataflow.std.union.UnionAllOperatorDescriptor;
 import org.apache.hyracks.storage.am.statistics.dataflow.IncrementalSinkOperatorDescriptor;
 
 public class JobBuilder implements IHyracksJobBuilder {
@@ -314,9 +315,14 @@ public class JobBuilder implements IHyracksJobBuilder {
                 outOp = outEdges.get(exchg).get(0);
                 outOpDesc = findOpDescForAlgebraicOp(outOp);
             } else {
-                RecordDescriptor[] rds =
-                        ((AlgebricksMetaOperatorDescriptor) inOpDesc).getPipeline().getRecordDescriptors();
-                outOpDesc = new IncrementalSinkOperatorDescriptor(jobSpec, null, rds[rds.length - 1], null);
+                if (inOpDesc instanceof UnionAllOperatorDescriptor) {
+                    RecordDescriptor[] rds = ((UnionAllOperatorDescriptor) inOpDesc).getOutputRecordDescriptors();
+                    outOpDesc = new IncrementalSinkOperatorDescriptor(jobSpec, null, rds[rds.length - 1], null);
+                } else {
+                    RecordDescriptor[] rds =
+                            ((AlgebricksMetaOperatorDescriptor) inOpDesc).getPipeline().getRecordDescriptors();
+                    outOpDesc = new IncrementalSinkOperatorDescriptor(jobSpec, null, rds[rds.length - 1], null);
+                }
             }
             Pair<IConnectorDescriptor, TargetConstraint> connPair = connectors.get(exchg);
             IConnectorDescriptor conn = connPair.first;

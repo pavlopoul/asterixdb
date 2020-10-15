@@ -482,20 +482,35 @@ public class JoinReOrderRule implements IAlgebraicRewriteRule {
             addArguments(ds, arguments);
         } else {
             alo.getInputs().add(new MutableObject<ILogicalOperator>(join));
-            LogicalVariable lv = ((VariableReferenceExpression) ((ScalarFunctionCallExpression) ((AssignOperator) alo)
-                    .getExpressions().get(0).getValue()).getArguments().get(1).getValue()).getVariableReference();
+            List<Mutable<ILogicalExpression>> arguments =
+                    ((ScalarFunctionCallExpression) ((AssignOperator) alo).getExpressions().get(0).getValue())
+                            .getArguments();
+            List<LogicalVariable> lvs = new ArrayList<>();
+            List<Mutable<ILogicalExpression>> mutel = new ArrayList<>();
+            for (int i = 0; i < arguments.size(); i++) {
+                if (i % 2 != 0) {
+                    lvs.add(((VariableReferenceExpression) arguments.get(i).getValue()).getVariableReference());
+                    mutel.add(arguments.get(i));
+                }
+            }
+            //            LogicalVariable lv = ((VariableReferenceExpression) ((ScalarFunctionCallExpression) ((AssignOperator) alo)
+            //                    .getExpressions().get(0).getValue()).getArguments().get(1).getValue()).getVariableReference();
             DatasetDataSource dsl = findDataSource(join, lvl);
             removeParticipation(dsl);
 
             DatasetDataSource dsr = findDataSource(join, lvr);
             removeParticipation(dsr);
-            List<Mutable<ILogicalExpression>> arguments =
-                    ((ScalarFunctionCallExpression) ((AssignOperator) alo).getExpressions().get(0).getValue())
-                            .getArguments();
-            if (findDataSource(join, lv) == null) {
-                arguments.clear();
+            //            List<Mutable<ILogicalExpression>> arguments =
+            //                    ((ScalarFunctionCallExpression) ((AssignOperator) alo).getExpressions().get(0).getValue())
+            //                            .getArguments();
+            int lvIndex = 0;
+            for (LogicalVariable lv : lvs) {
+                if (findDataSource(join, lv) == null) {
+                    arguments.remove(arguments.indexOf(mutel.get(lvIndex)) - 1);
+                    arguments.remove(mutel.get(lvIndex));
+                }
+                lvIndex++;
             }
-
             addArguments(dsl, arguments);
             addArguments(dsr, arguments);
             if (join.getInputs().get(0).getValue().getCardinality() < 50

@@ -926,8 +926,9 @@ public class QueryTranslator extends AbstractLangTranslator implements IStatemen
                     overridesFieldTypes = true;
                 }
                 if (fieldType == null) {
-                    throw new CompilationException(ErrorCode.UNKNOWN_TYPE, sourceLoc, fieldExpr.second == null
-                            ? String.valueOf(fieldExpr.first) : String.valueOf(fieldExpr.second));
+                    throw new CompilationException(ErrorCode.UNKNOWN_TYPE, sourceLoc,
+                            fieldExpr.second == null ? String.valueOf(fieldExpr.first)
+                                    : String.valueOf(fieldExpr.second));
                 }
 
                 // try to add the key & its source to the set of keys, if key couldn't be added,
@@ -3120,22 +3121,43 @@ public class QueryTranslator extends AbstractLangTranslator implements IStatemen
         if (!newd.contentEquals("")) {
             datasources.set(0, newd);
         }
-        VariableExpr oldselexp =
-                (VariableExpr) ((FieldAccessor) oldselect.getSelectRegular().getProjections().get(0).getExpression())
-                        .getExpr();
+
+        List<VariableExpr> oldselexps = new ArrayList<>();
+        for (int i = 0; i < oldselect.getSelectRegular().getProjections().size(); i++) {
+            oldselexps.add((VariableExpr) ((FieldAccessor) oldselect.getSelectRegular().getProjections().get(i)
+                    .getExpression()).getExpr());
+        }
+
+        //        VariableExpr oldselexp =
+        //                (VariableExpr) ((FieldAccessor) oldselect.getSelectRegular().getProjections().get(0).getExpression())
+        //                        .getExpr();
         List<Projection> newprojection = new ArrayList<>();
         for (String datasource : datasources) {
-            if (oldselexp.getVar().getValue().substring(1).equals(datasource)) {
-                newprojection
-                        .add(new Projection(
-                                new FieldAccessor(fromTermLeftExpr,
-                                        ((FieldAccessor) oldselect.getSelectRegular().getProjections().get(0)
-                                                .getExpression()).getIdent()),
-                                oldselect.getSelectRegular().getProjections().get(0).getName(), false, false));
-                break;
+            int pindex = 0;
+            for (VariableExpr oldselexp : oldselexps) {
+                if (oldselexp.getVar().getValue().substring(1).equals(datasource)) {
+                    newprojection.add(new Projection(
+                            new FieldAccessor(fromTermLeftExpr,
+                                    ((FieldAccessor) oldselect.getSelectRegular().getProjections().get(pindex)
+                                            .getExpression()).getIdent()),
+                            oldselect.getSelectRegular().getProjections().get(pindex).getName(), false, false));
+                    // break;
+                }
+                pindex++;
             }
         }
+        List<Projection> projections = new ArrayList<>();
         if (!newprojection.isEmpty()) {
+            for (Projection projection : oldselect.getSelectRegular().getProjections()) {
+                for (Projection newproject : newprojection) {
+                    if (!newproject.getName().equals(projection.getName())) {
+                        projections.add(projection);
+                    }
+                }
+            }
+            for (Projection p : projections) {
+                newprojection.add(p);
+            }
             newselect = new SelectClause(null, new SelectRegular(newprojection), false);
         }
         int j = 0;

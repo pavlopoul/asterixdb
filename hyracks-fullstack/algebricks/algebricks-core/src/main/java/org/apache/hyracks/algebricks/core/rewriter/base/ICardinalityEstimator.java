@@ -41,4 +41,8 @@ public interface ICardinalityEstimator {
     long getTableCardinality(IMetadataProvider metadataProvider, String dataverseName, String datasetName,
             List<String> fieldName) throws AlgebricksException;
 
+    long getICardinality(IMetadataProvider metadataProvider, String innerDataverseName, String innerDatasetName,
+            List<String> innerFieldName, String outerDataverseName, String outerDatasetName,
+            List<String> outerFieldName) throws AlgebricksException;
+
 }

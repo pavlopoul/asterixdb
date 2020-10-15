@@ -126,8 +126,11 @@ public class JoinReOrderRule implements IAlgebraicRewriteRule {
                 InnerJoinOperator join = (InnerJoinOperator) child.getValue();
                 Mutable<ILogicalExpression> condition = join.getCondition();
                 ScalarFunctionCallExpression sfce = (ScalarFunctionCallExpression) condition.getValue();
+                boolean multipleConditions = false;
                 if (sfce.getFunctionIdentifier().getName() == "and") {
+                    multipleConditions = true;
                     long key = Long.MAX_VALUE;
+                    long unique = 1L;
                     for (Mutable<ILogicalExpression> arg : sfce.getArguments()) {
                         join = new InnerJoinOperator(arg, join.getInputs().get(0), join.getInputs().get(1));
                         context.computeAndSetTypeEnvironmentForOperator(join);
@@ -148,23 +151,21 @@ public class JoinReOrderRule implements IAlgebraicRewriteRule {
                         } else {
                             assignr = null;
                         }
-                        if (only2joins) {
-                            key = Math.min(key, inferCardinality((AbstractLogicalOperator) /*child.getValue()*/join,
-                                    context, datasourcel, datasourcer, assignl, assignr, lvl, lvr));
-                            System.out.println(key);
-                        } else {
-                            key = inferCardinality((AbstractLogicalOperator) /*child.getValue()*/join, context,
-                                    datasourcel, datasourcer, assignl, assignr, lvl, lvr);
-                            System.out.println(key);
-                        }
-                        if (!only2joins) {
-                            if (map.containsKey(key)) {
-                                map.get(key).add(new MutableObject<ILogicalOperator>(join));
-                            } else {
-                                map.put(key, new ArrayList<>());
-                                map.get(key).add(new MutableObject<ILogicalOperator>(join));
-                            }
-                        }
+                        unique *= inferCardinality((AbstractLogicalOperator) join, context, datasourcel, datasourcer,
+                                assignl, assignr, lvl, lvr, multipleConditions);
+                    }
+                    long size = child.getValue().getInputs().get(0).getValue().getCardinality()
+                            + child.getValue().getInputs().get(1).getValue().getCardinality();
+                    key = (((AbstractLogicalOperator) child.getValue()).getInputs().get(0).getValue().getCardinality()
+                            * ((AbstractLogicalOperator) child.getValue()).getInputs().get(1).getValue()
+                                    .getCardinality())
+                            / unique;
+                    key = (long) (0.7 * key + 0.3 * size);
+                    if (map.containsKey(key)) {
+                        map.get(key).add(child);
+                    } else {
+                        map.put(key, new ArrayList<>());
+                        map.get(key).add(child);
                     }
                     if (only2joins) {
                         if (map.containsKey(key)) {
@@ -221,9 +222,25 @@ public class JoinReOrderRule implements IAlgebraicRewriteRule {
                         } else {
                             assignr = null;
                         }
+
                         long key = inferCardinality((AbstractLogicalOperator) child.getValue(), context, datasourcel,
-                                datasourcer, assignl, assignr, lvl, lvr);
+                                datasourcer, assignl, assignr, lvl, lvr, multipleConditions);
+                        long sizel = 1L;
+                        long sizer = 1L;
+                        if (assignl == null) {
+                            sizel = child.getValue().getInputs().get(0).getValue().getCardinality();
+                        } else {
+                            sizel = assignl.getCardinality();
+                        }
+
+                        if (assignr == null) {
+                            sizer = child.getValue().getInputs().get(1).getValue().getCardinality();
+                        } else {
+                            sizer = assignr.getCardinality();
+                        }
+                        long size = sizel + sizer;
                         child.getValue().setCardinality(key);
+                        key = (long) (0.7 * key + 0.3 * size);
                         System.out.println(key);
                         if (map.containsKey(key)) {
                             map.get(key).add(child);
@@ -348,7 +365,6 @@ public class JoinReOrderRule implements IAlgebraicRewriteRule {
                 lvrA = ((VariableReferenceExpression) sfceA.getArguments().get(1).getValue()).getVariableReference();
                 lvlA = ((VariableReferenceExpression) sfceA.getArguments().get(0).getValue()).getVariableReference();
 
-                // checkForJoin(joinA, lvlA, lvrA);
             } else {
                 TreeMap<Long, List<Mutable<ILogicalOperator>>> twomap = new TreeMap<>();
                 twomap.put(map.lastKey(), map.lastEntry().getValue());
@@ -364,19 +380,10 @@ public class JoinReOrderRule implements IAlgebraicRewriteRule {
 
                 ScalarFunctionCallExpression sfceA = (ScalarFunctionCallExpression) conditionA.getValue();
                 if (sfceA.getFunctionIdentifier().getName() == "and") {
-                    map.clear();
-                    return false;
+                    ScalarFunctionCallExpression internalSfceA =
+                            (ScalarFunctionCallExpression) sfceA.getArguments().get(0).getValue();
+                    sfceA = internalSfceA;
                 }
-                //                if (joinA.getInputs().get(0).getValue().getCardinality() < 50
-                //                        || joinA.getInputs().get(1).getValue().getCardinality() < 50) {
-                //                    Mutable<ILogicalOperator> opRef0 = joinA.getInputs().get(0);
-                //                    Mutable<ILogicalOperator> opRef1 = joinA.getInputs().get(1);
-                //                    ILogicalOperator tmp = opRef0.getValue();
-                //                    opRef0.setValue(opRef1.getValue());
-                //                    opRef1.setValue(tmp);
-                //                    sfceA.getAnnotations().put(IndexedNLJoinExpressionAnnotation.INSTANCE,
-                //                            IndexedNLJoinExpressionAnnotation.INSTANCE);
-                //                }
                 lvrA = ((VariableReferenceExpression) sfceA.getArguments().get(1).getValue()).getVariableReference();
                 lvlA = ((VariableReferenceExpression) sfceA.getArguments().get(0).getValue()).getVariableReference();
                 checkForJoin(joinA, lvlA, lvrA);
@@ -528,25 +535,10 @@ public class JoinReOrderRule implements IAlgebraicRewriteRule {
         }
     }
 
-    //    public LogicalVariable findSelect(ILogicalOperator op) {
-    //        if (op.getOperatorTag() == LogicalOperatorTag.SELECT) {
-    //            Mutable<ILogicalExpression> condition = ((SelectOperator) op).getCondition();
-    //
-    //            ScalarFunctionCallExpression sfce = (ScalarFunctionCallExpression) condition.getValue();
-    //            LogicalVariable lvl =
-    //                    ((VariableReferenceExpression) sfce.getArguments().get(0).getValue()).getVariableReference();
-    //            return lvl;
-    //        }
-    //        LogicalVariable lv = null;
-    //        for (Mutable<ILogicalOperator> opChild : op.getInputs()) {
-    //            lv = findSelect(opChild.getValue());
-    //        }
-    //        return lv;
-    //    }
-
     private long inferCardinality(AbstractLogicalOperator op, IOptimizationContext context,
             DatasetDataSource datasourcel, DatasetDataSource datasourcer, AssignOperator assignl,
-            AssignOperator assignr, LogicalVariable left, LogicalVariable right) throws AlgebricksException {
+            AssignOperator assignr, LogicalVariable left, LogicalVariable right, boolean multipleConditions)
+            throws AlgebricksException {
         context.addToDontApplySet(this, op);
 
         ILogicalExpression condExpr = null;
@@ -633,9 +625,17 @@ public class JoinReOrderRule implements IAlgebraicRewriteRule {
             System.out.println(
                     datasourcel.getDataset().getDatasetName() + " " + datasourcer.getDataset().getDatasetName());
             //estimate join cardinality
-            return context.getCardinalityEstimator().getJoinCardinality(context.getMetadataProvider(),
-                    datasourcel.getDataset().getDataverseName(), datasourcel.getDataset().getDatasetName(), leftField,
-                    datasourcer.getDataset().getDataverseName(), datasourcer.getDataset().getDatasetName(), rightField);
+            if (!multipleConditions) {
+                return context.getCardinalityEstimator().getJoinCardinality(context.getMetadataProvider(),
+                        datasourcel.getDataset().getDataverseName(), datasourcel.getDataset().getDatasetName(),
+                        leftField, datasourcer.getDataset().getDataverseName(),
+                        datasourcer.getDataset().getDatasetName(), rightField);
+            } else {
+                return context.getCardinalityEstimator().getICardinality(context.getMetadataProvider(),
+                        datasourcel.getDataset().getDataverseName(), datasourcel.getDataset().getDatasetName(),
+                        leftField, datasourcer.getDataset().getDataverseName(),
+                        datasourcer.getDataset().getDatasetName(), rightField);
+            }
         }
         return CardinalityInferenceVisitor.UNKNOWN;
     }

@@ -135,6 +135,29 @@ public class CardinalityEstimator implements ICardinalityEstimator {
     }
 
     @Override
+    public long getICardinality(IMetadataProvider metadataProvider, String innerDataverseName, String innerDatasetName,
+            List<String> innerFieldName, String outerDataverseName, String outerDatasetName,
+            List<String> outerFieldName) throws AlgebricksException {
+        long result = getTableCardinality(metadataProvider, innerDataverseName, innerDatasetName, innerFieldName);
+        long innerUniqueValues = 0;
+        long outerUniqueValues = 0;
+        if (statistics != null) {
+            innerUniqueValues = getUniqueCardinality(metadataProvider, statistics);
+        }
+
+        long resultout = getTableCardinality(metadataProvider, outerDataverseName, outerDatasetName, outerFieldName);
+        if (result == 0 || resultout == 0)
+            return 0;
+        if (statistics != null) {
+            outerUniqueValues = getUniqueCardinality(metadataProvider, statistics);
+        }
+
+        System.out.println(result + ", " + resultout);
+        System.out.println(innerUniqueValues + ", " + outerUniqueValues);
+        return Math.max(innerUniqueValues, outerUniqueValues);
+    }
+
+    @Override
     public long getJoinAfterFilterCardinality(IMetadataProvider metadataProvider, String innerDataverseName,
             String innerDatasetName, List<String> innerFieldName, String outerDataverseName, String outerDatasetName,
             List<String> outerFieldName, long result) throws AlgebricksException {

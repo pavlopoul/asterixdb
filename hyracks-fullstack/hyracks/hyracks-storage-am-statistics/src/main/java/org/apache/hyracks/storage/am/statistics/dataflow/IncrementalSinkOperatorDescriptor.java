@@ -21,8 +21,6 @@ package org.apache.hyracks.storage.am.statistics.dataflow;
 
 import java.nio.ByteBuffer;
 
-import org.apache.hyracks.api.comm.IFrame;
-import org.apache.hyracks.api.comm.IFrameWriter;
 import org.apache.hyracks.api.context.IHyracksTaskContext;
 import org.apache.hyracks.api.dataflow.ActivityId;
 import org.apache.hyracks.api.dataflow.IActivityGraphBuilder;
@@ -33,13 +31,9 @@ import org.apache.hyracks.api.dataflow.value.RecordDescriptor;
 import org.apache.hyracks.api.exceptions.HyracksDataException;
 import org.apache.hyracks.api.job.IOperatorDescriptorRegistry;
 import org.apache.hyracks.api.job.IOperatorEnvironment;
-import org.apache.hyracks.api.job.JobId;
-import org.apache.hyracks.dataflow.common.comm.io.FrameOutputStream;
 import org.apache.hyracks.dataflow.common.comm.io.FrameTupleAccessor;
-import org.apache.hyracks.dataflow.common.io.FrameOutputStreamReader;
 import org.apache.hyracks.dataflow.std.base.AbstractActivityNode;
 import org.apache.hyracks.dataflow.std.base.AbstractOperatorDescriptor;
-import org.apache.hyracks.dataflow.std.base.AbstractStateObject;
 import org.apache.hyracks.dataflow.std.base.AbstractUnaryInputSinkOperatorNodePushable;
 import org.apache.hyracks.dataflow.std.misc.MaterializerTaskState;
 import org.apache.hyracks.storage.am.common.tuples.PermutingFrameTupleReference;
@@ -82,59 +76,6 @@ public class IncrementalSinkOperatorDescriptor extends AbstractOperatorDescripto
         this.statsManagerProvider = statsManagerProvider;
     }
 
-    public static class IncrementalTaskState extends AbstractStateObject {
-        private FrameOutputStreamWriter frameOutputStreamWriter;
-
-        private IncrementalTaskState(JobId jobId, TaskId taskId) {
-            super(jobId, taskId);
-        }
-
-        public void open(IHyracksTaskContext ctx) throws HyracksDataException {
-            frameOutputStreamWriter =
-                    new FrameOutputStreamWriter(new FrameOutputStream(ctx.getInitialFrameSize()), ctx);
-            frameOutputStreamWriter.open();
-        }
-
-        public void appendFrame(ByteBuffer buffer) throws HyracksDataException {
-            frameOutputStreamWriter.nextFrame(buffer);
-        }
-
-        public void writeOut(IFrameWriter writer, IFrame frame, boolean failed) throws HyracksDataException {
-            FrameOutputStreamReader in = null;
-            if (frameOutputStreamWriter != null) {
-                in = frameOutputStreamWriter.createReader();
-            }
-            writer.open();
-            try {
-                if (failed) {
-                    writer.fail();
-                    return;
-                }
-                if (in != null) {
-                    in.open();
-                    try {
-                        while (in.nextFrame(frame)) {
-                            writer.nextFrame(frame.getBuffer());
-                        }
-                    } finally {
-                        in.close();
-                    }
-                }
-            } catch (Exception e) {
-                writer.fail();
-                throw e;
-            } finally {
-                try {
-                    writer.close();
-                } finally {
-                    //                    if (numConsumers.decrementAndGet() == 0 && out != null) {
-                    //                        out.getFileReference().delete();
-                    //                    }
-                }
-            }
-        }
-    }
-
     private class IncrementalActivityNode extends AbstractActivityNode {
         private static final long serialVersionUID = 1L;
 
@@ -147,7 +88,6 @@ public class IncrementalSinkOperatorDescriptor extends AbstractOperatorDescripto
                 IRecordDescriptorProvider recordDescProvider, int partition, int nPartitions,
                 IOperatorEnvironment pastEnv) throws HyracksDataException {
             return new AbstractUnaryInputSinkOperatorNodePushable() {
-                private IncrementalTaskState incrementState;
                 private MaterializerTaskState state;
                 protected FrameTupleAccessor accessor;
                 protected final PermutingFrameTupleReference tuple = new PermutingFrameTupleReference();
@@ -157,10 +97,6 @@ public class IncrementalSinkOperatorDescriptor extends AbstractOperatorDescripto
                 @Override
                 public void open() throws HyracksDataException {
                     accessor = new FrameTupleAccessor(recDesc);
-                    //final IFrame frame = new VSizeFrame(ctx);
-                    //                    incrementState = new IncrementalTaskState(ctx.getJobletContext().getJobId(),
-                    //                            new TaskId(getActivityId(), partition));
-                    //                    incrementState.open(ctx);
                     state = new MaterializerTaskState(ctx.getJobletContext().getJobId(),
                             new TaskId(getActivityId(), partition));
                     state.open(ctx);
@@ -175,10 +111,8 @@ public class IncrementalSinkOperatorDescriptor extends AbstractOperatorDescripto
 
                 @Override
                 public void nextFrame(ByteBuffer buffer) throws HyracksDataException {
-                    //                    incrementState.appendFrame(buffer);
                     state.appendFrame(buffer);
                     accessor.reset(buffer);
-                    //incrementState.appendFrame(buffer);
                     int tupleCount = accessor.getTupleCount();
 
                     for (int i = 0; i < tupleCount; i++) {
@@ -196,7 +130,6 @@ public class IncrementalSinkOperatorDescriptor extends AbstractOperatorDescripto
                 @Override
                 public void close() throws HyracksDataException {
                     state.close();
-                    //System.out.println(partition);
                     if (builder != null) {
                         builder.end();
                         builder.gatherIntermediateStatistics(
@@ -206,7 +139,6 @@ public class IncrementalSinkOperatorDescriptor extends AbstractOperatorDescripto
                     }
 
                     ctx.setStateObject(state);
-                    //                    ctx.setStateObject(incrementState);
 
                 }
 

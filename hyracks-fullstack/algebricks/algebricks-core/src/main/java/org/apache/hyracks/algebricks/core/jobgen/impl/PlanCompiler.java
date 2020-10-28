@@ -39,8 +39,8 @@ public class PlanCompiler {
     private JobGenContext context;
     private List<ILogicalOperator> operators = new ArrayList<>();
     private boolean finished = false;
-    private Map<Mutable<ILogicalOperator>, List<ILogicalOperator>> operatorVisitedToParents =
-            new HashMap<Mutable<ILogicalOperator>, List<ILogicalOperator>>();
+    private Map<Mutable<ILogicalOperator>, List<Mutable<ILogicalOperator>>> operatorVisitedToParents =
+            new HashMap<Mutable<ILogicalOperator>, List<Mutable<ILogicalOperator>>>();
 
     public PlanCompiler(JobGenContext context) {
         this.context = context;
@@ -62,7 +62,7 @@ public class PlanCompiler {
 
     public JobSpecification compileNestedPlan(ILogicalPlan plan, IOperatorSchema outerPlanSchema)
             throws AlgebricksException {
-        return compilePlanImpl(plan, true, outerPlanSchema, null, null, true, true);
+        return compileLoadPlanImpl(plan, true, outerPlanSchema, null);
     }
 
     private JobSpecification compileLoadPlanImpl(ILogicalPlan plan, boolean isNestedPlan,
@@ -97,16 +97,16 @@ public class PlanCompiler {
         IOperatorSchema[] schemas = new IOperatorSchema[n];
         int i = 0;
         for (Mutable<ILogicalOperator> opChild : op.getInputs()) {
-            List<ILogicalOperator> parents = operatorVisitedToParents.get(opChild);
+            List<Mutable<ILogicalOperator>> parents = operatorVisitedToParents.get(opChild);
             if (parents == null) {
-                parents = new ArrayList<ILogicalOperator>();
+                parents = new ArrayList<Mutable<ILogicalOperator>>();
                 operatorVisitedToParents.put(opChild, parents);
-                parents.add(opRef.getValue());
+                parents.add(opRef);
                 compileLoadOpRef(opChild, spec, builder, outerPlanSchema);
                 schemas[i++] = context.getSchema(opChild.getValue());
             } else {
-                if (!parents.contains(opRef.getValue()))
-                    parents.add(opRef.getValue());
+                if (!parents.contains(opRef))
+                    parents.add(opRef);
                 schemas[i++] = context.getSchema(opChild.getValue());
                 continue;
             }
@@ -177,21 +177,21 @@ public class PlanCompiler {
         IOperatorSchema[] schemas = new IOperatorSchema[n];
         int i = 0;
         for (Mutable<ILogicalOperator> opChild : op.getInputs()) {
-            List<ILogicalOperator> parents = operatorVisitedToParents.get(opChild);
+            List<Mutable<ILogicalOperator>> parents = operatorVisitedToParents.get(opChild);
             if (parents == null) {
-                parents = new ArrayList<ILogicalOperator>();
+                parents = new ArrayList<Mutable<ILogicalOperator>>();
                 operatorVisitedToParents.put(opChild, parents);
-                parents.add(opRef.getValue());
+                parents.add(opRef);
                 compileOpRef(opChild, spec, builder, outerPlanSchema, first, notJoinInPlan);
                 schemas[i++] = context.getSchema(opChild.getValue());
             } else {
-                if (!parents.contains(opRef.getValue()))
-                    parents.add(opRef.getValue());
+                if (!parents.contains(opRef))
+                    parents.add(opRef);
                 schemas[i++] = context.getSchema(opChild.getValue());
                 continue;
             }
         }
-        if (!notJoinInPlan || onlySelect()) {
+        if (!notJoinInPlan /*|| onlySelect()*/) {
             if (op.getOperatorTag() != LogicalOperatorTag.DISTRIBUTE_RESULT) {
                 IOperatorSchema opSchema = new OperatorSchemaImpl();
                 context.putSchema(op, opSchema);
@@ -281,13 +281,14 @@ public class PlanCompiler {
                     if (rop.isBlocker()) {
                         // make the order of the graph edges consistent with the order of rop's outputs
                         List<Mutable<ILogicalOperator>> outputs = rop.getOutputs();
-                        for (ILogicalOperator parent : parents) {
-                            builder.contributeGraphEdge(child.getValue(), outputs.indexOf(parent), parent, 0);
+                        for (Mutable<ILogicalOperator> parent : parents) {
+                            builder.contributeGraphEdge(child.getValue(), outputs.indexOf(parent), parent.getValue(),
+                                    0);
                         }
                     } else {
                         int i = 0;
-                        for (ILogicalOperator parent : parents) {
-                            builder.contributeGraphEdge(child.getValue(), i, parent, 0);
+                        for (Mutable<ILogicalOperator> parent : parents) {
+                            builder.contributeGraphEdge(child.getValue(), i, parent.getValue(), 0);
                             i++;
                         }
                     }

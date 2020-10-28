@@ -83,9 +83,12 @@ import org.apache.asterix.lang.common.base.IReturningStatement;
 import org.apache.asterix.lang.common.base.IRewriterFactory;
 import org.apache.asterix.lang.common.base.IStatementRewriter;
 import org.apache.asterix.lang.common.base.Statement;
+import org.apache.asterix.lang.common.clause.GroupbyClause;
+import org.apache.asterix.lang.common.clause.OrderbyClause;
 import org.apache.asterix.lang.common.clause.WhereClause;
 import org.apache.asterix.lang.common.expression.CallExpr;
 import org.apache.asterix.lang.common.expression.FieldAccessor;
+import org.apache.asterix.lang.common.expression.GbyVariableExpressionPair;
 import org.apache.asterix.lang.common.expression.IndexedTypeExpression;
 import org.apache.asterix.lang.common.expression.LiteralExpr;
 import org.apache.asterix.lang.common.expression.OperatorExpr;
@@ -1915,31 +1918,29 @@ public class QueryTranslator extends AbstractLangTranslator implements IStatemen
                 metadataProvider.getLocks().unlock();
             }
         };
-        final IStatementCompiler compiler = (/*JobSpecification spec, JobBuilder builder,*/
-                List<ILogicalOperator> operators, boolean first,
-                /*JobGenContext context, PlanCompiler pc,
-                Map<Mutable<ILogicalOperator>, List<ILogicalOperator>> operatorVisitedToParents, */Query newQuery) -> {
-            MetadataTransactionContext mdTxnCtx = MetadataManager.INSTANCE.beginTransaction();
-            boolean bActiveTxn = true;
-            metadataProvider.setMetadataTxnContext(mdTxnCtx);
-            try {
-                metadataProvider.setWriteTransaction(true);
-                final JobSpecification jobSpec =
-                        rewriteCompileInsertUpsert(hcc, metadataProvider, stmtInsertUpsert, stmtParams, stmtRewriter);
-                MetadataManager.INSTANCE.commitTransaction(mdTxnCtx);
-                bActiveTxn = false;
-                return jobSpec;
-            } catch (Exception e) {
-                if (bActiveTxn) {
-                    abort(e, e, mdTxnCtx);
-                }
-                throw e;
-            }
-        };
+        final IStatementCompiler compiler =
+                (List<ILogicalOperator> operators, boolean first, Query newQuery, Query cleanQuery) -> {
+                    MetadataTransactionContext mdTxnCtx = MetadataManager.INSTANCE.beginTransaction();
+                    boolean bActiveTxn = true;
+                    metadataProvider.setMetadataTxnContext(mdTxnCtx);
+                    try {
+                        metadataProvider.setWriteTransaction(true);
+                        final JobSpecification jobSpec = rewriteCompileInsertUpsert(hcc, metadataProvider,
+                                stmtInsertUpsert, stmtParams, stmtRewriter);
+                        MetadataManager.INSTANCE.commitTransaction(mdTxnCtx);
+                        bActiveTxn = false;
+                        return jobSpec;
+                    } catch (Exception e) {
+                        if (bActiveTxn) {
+                            abort(e, e, mdTxnCtx);
+                        }
+                        throw e;
+                    }
+                };
         if (compileOnly) {
             locker.lock();
             try {
-                return compiler.compile(null, true, null);
+                return compiler.compile(null, true, null, null);
             } finally {
                 locker.unlock();
             }
@@ -1951,7 +1952,7 @@ public class QueryTranslator extends AbstractLangTranslator implements IStatemen
         } else {
             locker.lock();
             try {
-                final JobSpecification jobSpec = compiler.compile(null, true, null);
+                final JobSpecification jobSpec = compiler.compile(null, true, null, null);
                 if (jobSpec == null) {
                     return jobSpec;
                 }
@@ -2010,7 +2011,7 @@ public class QueryTranslator extends AbstractLangTranslator implements IStatemen
 
         // Query Rewriting (happens under the same ongoing metadata transaction)
         Pair<IReturningStatement, Integer> rewrittenResult = apiFramework.reWriteQuery(declaredFunctions,
-                metadataProvider, query, sessionOutput, true, externalVars.keySet());
+                metadataProvider, newQuery != null ? newQuery : query, sessionOutput, true, externalVars.keySet());
 
         // Query Compilation (happens under the same ongoing metadata transaction)
         return apiFramework.compileQuery(clusterInfoCollector, metadataProvider, (Query) rewrittenResult.first,
@@ -2516,7 +2517,7 @@ public class QueryTranslator extends AbstractLangTranslator implements IStatemen
     }
 
     private interface IStatementCompiler {
-        JobSpecification compile(List<ILogicalOperator> operators, boolean first, Query newQuery)
+        JobSpecification compile(List<ILogicalOperator> operators, boolean first, Query newQuery, Query cleanQuery)
                 throws AlgebricksException, RemoteException, ACIDException;
     }
 
@@ -2536,30 +2537,32 @@ public class QueryTranslator extends AbstractLangTranslator implements IStatemen
                 ExternalDatasetsRegistry.INSTANCE.releaseAcquiredLocks(metadataProvider);
             }
         };
-        final IStatementCompiler compiler = (List<ILogicalOperator> operators, boolean first, Query newQuery) -> {
-            MetadataTransactionContext mdTxnCtx = null;
-            if (newQuery == null) {
-                mdTxnCtx = MetadataManager.INSTANCE.beginTransaction();
-            } else {
-                mdTxnCtx = metadataProvider.getMetadataTxnContext();
-            }
-            boolean bActiveTxn = true;
-            metadataProvider.setMetadataTxnContext(mdTxnCtx);
-            try {
-                final JobSpecification jobSpec = rewriteCompileQuery(hcc, metadataProvider, query, null, stmtParams,
-                        stmtRewriter, operators, first, newQuery);
-                afterCompile();
-                MetadataManager.INSTANCE.commitTransaction(mdTxnCtx);
-                bActiveTxn = false;
-                return query.isExplain() || !sessionConfig.isExecuteQuery() ? null : jobSpec;
-            } catch (Exception e) {
-                LOGGER.log(Level.INFO, e.getMessage(), e);
-                if (bActiveTxn) {
-                    abort(e, e, mdTxnCtx);
-                }
-                throw e;
-            }
-        };
+        final IStatementCompiler compiler =
+                (List<ILogicalOperator> operators, boolean first, Query newQuery, Query cleanQuery) -> {
+                    MetadataTransactionContext mdTxnCtx = null;
+                    if (newQuery == null) {
+                        mdTxnCtx = MetadataManager.INSTANCE.beginTransaction();
+                        newQuery = cleanQuery;
+                    } else {
+                        mdTxnCtx = metadataProvider.getMetadataTxnContext();
+                    }
+                    boolean bActiveTxn = true;
+                    metadataProvider.setMetadataTxnContext(mdTxnCtx);
+                    try {
+                        final JobSpecification jobSpec = rewriteCompileQuery(hcc, metadataProvider, query, null,
+                                stmtParams, stmtRewriter, operators, first, newQuery);
+                        afterCompile();
+                        MetadataManager.INSTANCE.commitTransaction(mdTxnCtx);
+                        bActiveTxn = false;
+                        return query.isExplain() || !sessionConfig.isExecuteQuery() ? null : jobSpec;
+                    } catch (Exception e) {
+                        LOGGER.log(Level.INFO, e.getMessage(), e);
+                        if (bActiveTxn) {
+                            abort(e, e, mdTxnCtx);
+                        }
+                        throw e;
+                    }
+                };
         deliverResult(hcc, resultSet, compiler, metadataProvider, locker, resultDelivery, outMetadata, stats,
                 clientContextId, ctx);
     }
@@ -2684,7 +2687,7 @@ public class QueryTranslator extends AbstractLangTranslator implements IStatemen
             IStatementCompiler compiler, IMetadataLocker locker, ResultDelivery resultDelivery, IResultPrinter printer,
             String clientContextId, IStatementExecutorContext ctx) throws Exception {
         locker.lock();
-        final JobSpecification jobSpec = compiler.compile(null, false, null);
+        final JobSpecification jobSpec = compiler.compile(null, false, null, null);
         ClientJobRequest req = null;
         if (jobSpec == null) {
             return;
@@ -2711,6 +2714,81 @@ public class QueryTranslator extends AbstractLangTranslator implements IStatemen
         }
     }
 
+    private Query removeClausesFromQuery() {
+        Query oldQuery = (Query) statements.get(statements.size() - 1);
+        SelectExpression body = null;
+        Query res = null;
+        if (((SelectExpression) oldQuery.getBody()).getSelectSetOperation().getLeftInput().getSelectBlock()
+                .hasGroupbyClause()) {
+
+            SelectSetOperation ssop = ((SelectExpression) oldQuery.getBody()).getSelectSetOperation();
+            SelectBlock selectBlock = new SelectBlock(ssop.getLeftInput().getSelectBlock().getSelectClause(),
+                    ssop.getLeftInput().getSelectBlock().getFromClause(),
+                    ssop.getLeftInput().getSelectBlock().getLetList(),
+                    ssop.getLeftInput().getSelectBlock().getWhereClause(), null,
+                    ssop.getLeftInput().getSelectBlock().getLetListAfterGroupby(),
+                    ssop.getLeftInput().getSelectBlock().getHavingClause());
+
+            SelectSetOperation selectSetOperation =
+                    new SelectSetOperation(new SetOperationInput(selectBlock, null), null);
+            body = new SelectExpression(null, selectSetOperation, null, null, true);
+            res = new Query(oldQuery.isExplain(), oldQuery.isTopLevel(), body, oldQuery.getVarCounter());
+        }
+        if (((SelectExpression) oldQuery.getBody()).getOrderbyClause() != null) {
+
+            SelectExpression selectExpression;
+            if (res == null) {
+                selectExpression = new SelectExpression(((SelectExpression) oldQuery.getBody()).getLetList(),
+                        ((SelectExpression) oldQuery.getBody()).getSelectSetOperation(), null,
+                        ((SelectExpression) oldQuery.getBody()).getLimitClause(),
+                        ((SelectExpression) oldQuery.getBody()).isSubquery());
+            } else {
+                selectExpression = (SelectExpression) res.getBody();
+            }
+
+            List<Projection> projections = selectExpression.getSelectSetOperation().getLeftInput().getSelectBlock()
+                    .getSelectClause().getSelectRegular().getProjections();
+            List<Projection> newprojections = new ArrayList<>();
+            List<Expression> projectExpressions = new ArrayList<>();
+            for (Projection projection : projections) {
+                projectExpressions.add(projection.getExpression());
+            }
+            List<Expression> orderExpressions =
+                    ((SelectExpression) oldQuery.getBody()).getOrderbyClause().getOrderbyList();
+            List<Projection> toBeAdded = new ArrayList<>();
+
+            for (Expression orderExpression : orderExpressions) {
+                if (!projectExpressions.contains(orderExpression)) {
+                    Projection p = new Projection(orderExpression,
+                            ((FieldAccessor) orderExpression).getIdent().getValue(), false, false);
+                    toBeAdded.add(p);
+                }
+            }
+
+            for (Projection p : toBeAdded) {
+                newprojections.add(p);
+            }
+
+            newprojections.addAll(projections);
+            SelectClause selectClause = new SelectClause(null, new SelectRegular(newprojections), false);
+            SetOperationInput oldset = ((SelectExpression) oldQuery.getBody()).getSelectSetOperation().getLeftInput();
+            SelectBlock selectBlock = new SelectBlock(selectClause, oldset.getSelectBlock().getFromClause(),
+                    oldset.getSelectBlock().getLetList(), oldset.getSelectBlock().getWhereClause(),
+                    (res == null) ? oldset.getSelectBlock().getGroupbyClause()
+                            : ((SelectExpression) res.getBody()).getSelectSetOperation().getLeftInput().getSelectBlock()
+                                    .getGroupbyClause(),
+                    oldset.getSelectBlock().getLetListAfterGroupby(), oldset.getSelectBlock().getHavingClause());
+
+            SelectSetOperation selectSetOperation =
+                    new SelectSetOperation(new SetOperationInput(selectBlock, null), null);
+            body = new SelectExpression(null, selectSetOperation, null, null, true);
+            res = new Query(oldQuery.isExplain(), oldQuery.isTopLevel(), body, oldQuery.getVarCounter());
+        }
+
+        return res;
+
+    }
+
     private void createAndRunJob(IHyracksClientConnection hcc, EnumSet<JobFlag> jobFlags, Mutable<JobId> jId,
             IStatementCompiler compiler, IMetadataLocker locker, ResultDelivery resultDelivery, IResultPrinter printer,
             String clientContextId, IStatementExecutorContext ctx, MetadataProvider mp) throws Exception {
@@ -2719,6 +2797,7 @@ public class QueryTranslator extends AbstractLangTranslator implements IStatemen
             createAndRunJobWithout(hcc, jobFlags, jId, compiler, locker, resultDelivery, printer, clientContextId, ctx);
             return;
         }
+        Query cleanQuery = removeClausesFromQuery();
         ClientJobRequest req = null;
         JobSpecification jobSpec = null;
         List<ILogicalOperator> operators = new ArrayList<>();
@@ -2729,7 +2808,7 @@ public class QueryTranslator extends AbstractLangTranslator implements IStatemen
         boolean finished = false;
         while (!finished) {
             locker.lock();
-            jobSpec = compiler.compile(operators, first, newQuery);
+            jobSpec = compiler.compile(operators, first, newQuery, cleanQuery);
             if (jobSpec == null) {
                 return;
             }
@@ -2835,8 +2914,6 @@ public class QueryTranslator extends AbstractLangTranslator implements IStatemen
                                     dataSource1 = (DatasetDataSource) scan.getDataSource();
                                     ARecordType recordType = (ARecordType) dataSource1.getItemType();
                                     int m = 0;
-                                    //                                    for (Mutable<ILogicalExpression> expression : expressions) {
-                                    //                                        m++;
                                     ScalarFunctionCallExpression sfce =
                                             (ScalarFunctionCallExpression) expressions.get(j).getValue();
                                     ConstantExpression ce = (ConstantExpression) sfce.getArguments().get(1).getValue();
@@ -2845,22 +2922,10 @@ public class QueryTranslator extends AbstractLangTranslator implements IStatemen
 
                                     IAType type = recordType.getFieldTypes()[aint32];
                                     types[vars.indexOf(var)] = type;
-                                    //fieldNames[j] = recordType.getFieldNames()[aint32];
-                                    //                                        j = -1;
-                                    //                                        for (LogicalVariable invar : vars) {
-                                    //                                            j++;
-                                    //                                            if (nestedvarlist.size() > m && invar == nestedvarlist.get(m)) {
-                                    //                                                break;
-                                    //                                            }
-                                    //
-                                    //                                        }
-                                    //                                    }
                                     ScalarFunctionCallExpression sfce1 =
                                             (ScalarFunctionCallExpression) expressions.get(0).getValue();
                                     varexpr = (VariableReferenceExpression) sfce1.getArguments().get(0).getValue();
                                     recordTypeName = varexpr.getVariableReference().toString().substring(2);
-                                    //                                    datasources.add(recordTypeName);
-                                    //break;
                                 }
                             }
                     } else if (op.getOperatorTag() == LogicalOperatorTag.DATASOURCESCAN) {
@@ -2956,17 +3021,6 @@ public class QueryTranslator extends AbstractLangTranslator implements IStatemen
                 IAType newRecordType = new ARecordType(recordTypeName + String.valueOf(cid), fieldNames, types, false);
                 final MetadataTransactionContext writeTxn = MetadataManager.INSTANCE.beginTransaction();
                 mp.setMetadataTxnContext(writeTxn);
-                //                String fieldName = "";
-                //                if (dataSource1.getDataset().getHints().get(DatasetStatisticsHint.NAME) == null) {
-                //                    fieldName = ((InternalDatasetDetails) dataSource1.getDataset().getDatasetDetails()).getPrimaryKey()
-                //                            .get(0).get(0);
-                //                } else {
-                //                    String[] fields = dataSource1.getDataset().getHints().get(DatasetStatisticsHint.NAME).split(",");
-                //                    fieldName = fields[fields.length - 1];
-                //                }
-                //                List<Statistics> stats = MetadataManager.INSTANCE.getFieldStatistics(writeTxn,
-                //                        dataSource1.getDataset().getDataverseName(), dataSource1.getDataset().getDatasetName(),
-                //                        dataSource1.getDataset().getDatasetName(), fieldName, false);
                 int statsSize = 10;
                 String statisticsFieldsHint = "";
                 for (String source : fieldNames) {
@@ -2974,7 +3028,7 @@ public class QueryTranslator extends AbstractLangTranslator implements IStatemen
                 }
                 statisticsFieldsHint = statisticsFieldsHint.substring(0, statisticsFieldsHint.length() - 1);
                 newQuery = makeConnectionQuery(varexpr, recordTypeName + String.valueOf(cid), dataSource1,
-                        newRecordType, mp, datasources, newQuery, statisticsFieldsHint, cid);
+                        newRecordType, mp, datasources, newQuery, statisticsFieldsHint, cid, cleanQuery);
                 OperatorDescriptorId id = null;
                 for (Entry<OperatorDescriptorId, IOperatorDescriptor> entry : jobSpec.getOperatorMap().entrySet()) {
                     if (entry.getValue() instanceof IncrementalSinkOperatorDescriptor) {
@@ -3072,7 +3126,7 @@ public class QueryTranslator extends AbstractLangTranslator implements IStatemen
 
     private Query makeConnectionQuery(VariableReferenceExpression varexpr, String recordTypeName,
             DatasetDataSource dataSource, IAType newRecordType, MetadataProvider mp, List<String> datasources,
-            Query newQuery, String statisticsFieldHint, long cid)
+            Query newQuery, String statisticsFieldHint, long cid, Query cleanQuery)
             throws AlgebricksException, ACIDException, RemoteException {
         VarIdentifier fromVarId = new VarIdentifier(varexpr.getVariableReference().toString().substring(1));
         VariableExpr fromTermLeftExpr = new VariableExpr(fromVarId);
@@ -3088,7 +3142,11 @@ public class QueryTranslator extends AbstractLangTranslator implements IStatemen
         FromTerm fromterm = new FromTerm(datasrouceCallFunction, fromTermLeftExpr, null, null);
         Query oldQuery = null;
         if (newQuery == null) {
-            oldQuery = (Query) statements.get(statements.size() - 1);
+            if (cleanQuery != null) {
+                oldQuery = cleanQuery;
+            } else {
+                oldQuery = (Query) statements.get(statements.size() - 1);
+            }
         } else {
             oldQuery = newQuery;
         }
@@ -3267,14 +3325,91 @@ public class QueryTranslator extends AbstractLangTranslator implements IStatemen
             while (newWhereExpr.getOpList().size() > opSize) {
                 newWhereExpr.getOpList().remove(newWhereExpr.getOpList().size() - 1);
             }
+
+            OrderbyClause order = null;
+            GroupbyClause group = null;
+            if (fromClause.getFromTerms().size() == 3) {
+                List<Expression> orderList = combineClausesToQuery(newselect);
+                Query original = (Query) statements.get(statements.size() - 1);
+                if (((SelectExpression) original.getBody()).hasOrderby()) {
+                    order = new OrderbyClause(orderList,
+                            ((SelectExpression) original.getBody()).getOrderbyClause().getModifierList());
+                }
+                if (((SelectExpression) original.getBody()).getSelectSetOperation().getLeftInput().getSelectBlock()
+                        .hasGroupbyClause()) {
+                    List<GbyVariableExpressionPair> gbylist = new ArrayList<>();
+                    for (Projection projection : newselect.getSelectRegular().getProjections()) {
+                        GbyVariableExpressionPair gby = new GbyVariableExpressionPair(
+                                new VariableExpr(new VarIdentifier("$" + projection.getName())),
+                                projection.getExpression());
+                        gbylist.add(gby);
+                    }
+                    List<Pair<Expression, Identifier>> groupfield = new ArrayList<>();
+                    for (FromTerm from : fromClause.getFromTerms()) {
+                        groupfield.add(new Pair(from.getLeftVariable(),
+                                new VarIdentifier(from.getLeftVariable().getVar().getValue().substring(1))));
+                    }
+                    group = new GroupbyClause(gbylist,
+                            ((SelectExpression) original.getBody()).getSelectSetOperation().getLeftInput()
+                                    .getSelectBlock().getGroupbyClause().getDecorPairList(),
+                            ((SelectExpression) original.getBody()).getSelectSetOperation().getLeftInput()
+                                    .getSelectBlock().getGroupbyClause().getWithVarMap(),
+                            ((SelectExpression) original.getBody()).getSelectSetOperation().getLeftInput()
+                                    .getSelectBlock().getGroupbyClause().getGroupVar(),
+                            groupfield, ((SelectExpression) original.getBody()).getSelectSetOperation().getLeftInput()
+                                    .getSelectBlock().getGroupbyClause().hasHashGroupByHint());
+                }
+            }
             WhereClause newwhere = new WhereClause(newWhereExpr);
-            SelectBlock selectBlock = new SelectBlock(newselect, fromClause, null, newwhere, null, null, null);
+            SelectBlock selectBlock = new SelectBlock(newselect, fromClause, null, newwhere, group, null, null);
             SelectSetOperation selectSetOperation =
                     new SelectSetOperation(new SetOperationInput(selectBlock, null), null);
-            SelectExpression body = new SelectExpression(null, selectSetOperation, null, null, true);
+            SelectExpression body = new SelectExpression(null, selectSetOperation, order, null, true);
             newQuery = new Query(false, true, body, 0);
         }
         return newQuery;
+    }
+
+    private List<Expression> combineClausesToQuery(SelectClause selectClause) {
+        List<Expression> res = new ArrayList<>();
+        Query original = (Query) statements.get(statements.size() - 1);
+        if (((SelectExpression) original.getBody()).hasOrderby()) {
+            SelectSetOperation sop = ((SelectExpression) original.getBody()).getSelectSetOperation();
+            List<Projection> proj =
+                    sop.getLeftInput().getSelectBlock().getSelectClause().getSelectRegular().getProjections();
+            List<String> names = new ArrayList<>();
+            for (Projection pr : proj) {
+                names.add(pr.getName());
+            }
+            List<Projection> newproj = selectClause.getSelectRegular().getProjections();
+            List<String> newnames = new ArrayList<>();
+            for (Projection pr : newproj) {
+                newnames.add(pr.getName());
+            }
+            int i = 0;
+            for (String name : newnames) {
+                if (!names.contains(name)) {
+                    res.add(newproj.get(i).getExpression());
+                    newproj.remove(i);
+
+                }
+                i++;
+            }
+            List<Identifier> idents = new ArrayList<>();
+
+            for (Expression e : ((SelectExpression) original.getBody()).getOrderbyClause().getOrderbyList()) {
+                FieldAccessor fa = (FieldAccessor) e;
+                idents.add(fa.getIdent());
+            }
+
+            for (Projection p : newproj) {
+                if (idents.contains(((FieldAccessor) p.getExpression()).getIdent())) {
+                    res.add(p.getExpression());
+                }
+            }
+
+        }
+        return res;
     }
 
     protected void handleCreateNodeGroupStatement(MetadataProvider metadataProvider, Statement stmt) throws Exception {

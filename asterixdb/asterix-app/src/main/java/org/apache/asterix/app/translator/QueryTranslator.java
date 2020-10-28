@@ -84,6 +84,7 @@ import org.apache.asterix.lang.common.base.IRewriterFactory;
 import org.apache.asterix.lang.common.base.IStatementRewriter;
 import org.apache.asterix.lang.common.base.Statement;
 import org.apache.asterix.lang.common.clause.GroupbyClause;
+import org.apache.asterix.lang.common.clause.LimitClause;
 import org.apache.asterix.lang.common.clause.OrderbyClause;
 import org.apache.asterix.lang.common.clause.WhereClause;
 import org.apache.asterix.lang.common.expression.CallExpr;
@@ -2589,8 +2590,8 @@ public class QueryTranslator extends AbstractLangTranslator implements IStatemen
                     updateJobStats(id, stats);
                     // stop buffering and allow for streaming result delivery
                     sessionOutput.release();
-                    //                    ResultUtil.printResults(appCtx, resultReader, sessionOutput, stats,
-                    //                            metadataProvider.findOutputRecordType());
+                    ResultUtil.printResults(appCtx, resultReader, sessionOutput, stats,
+                            metadataProvider.findOutputRecordType());
                 }, clientContextId, ctx, metadataProvider);
                 break;
             case DEFERRED:
@@ -3328,6 +3329,7 @@ public class QueryTranslator extends AbstractLangTranslator implements IStatemen
 
             OrderbyClause order = null;
             GroupbyClause group = null;
+            LimitClause limit = null;
             if (fromClause.getFromTerms().size() == 3) {
                 List<Expression> orderList = combineClausesToQuery(newselect);
                 Query original = (Query) statements.get(statements.size() - 1);
@@ -3359,12 +3361,16 @@ public class QueryTranslator extends AbstractLangTranslator implements IStatemen
                             groupfield, ((SelectExpression) original.getBody()).getSelectSetOperation().getLeftInput()
                                     .getSelectBlock().getGroupbyClause().hasHashGroupByHint());
                 }
+                if (((SelectExpression) original.getBody()).hasLimit()) {
+                    limit = ((SelectExpression) original.getBody()).getLimitClause();
+                }
+
             }
             WhereClause newwhere = new WhereClause(newWhereExpr);
             SelectBlock selectBlock = new SelectBlock(newselect, fromClause, null, newwhere, group, null, null);
             SelectSetOperation selectSetOperation =
                     new SelectSetOperation(new SetOperationInput(selectBlock, null), null);
-            SelectExpression body = new SelectExpression(null, selectSetOperation, order, null, true);
+            SelectExpression body = new SelectExpression(null, selectSetOperation, order, limit, true);
             newQuery = new Query(false, true, body, 0);
         }
         return newQuery;

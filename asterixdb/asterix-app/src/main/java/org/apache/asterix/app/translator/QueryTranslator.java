@@ -2941,7 +2941,16 @@ public class QueryTranslator extends AbstractLangTranslator implements IStatemen
                                         DataSourceScanOperator scan = (DataSourceScanOperator) op;
 
                                         IAType type = (IAType) scan.getDataSource().getSchemaTypes()[nestedvars];
-                                        types[j] = type;
+                                        if (type instanceof ARecordType) {
+                                            int vindex = vars.indexOf(var);
+                                            String name = fieldNames[vindex];
+                                            int tindex = ((ARecordType) ((DatasetDataSource) scan.getDataSource())
+                                                    .getItemType()).getFieldIndex(name);
+                                            types[j] = ((ARecordType) ((DatasetDataSource) scan.getDataSource())
+                                                    .getItemType()).getFieldTypes()[tindex];
+                                        } else {
+                                            types[j] = type;
+                                        }
                                         //  types[vars.indexOf(var)] = type;
                                         DatasetDataSource datasource = (DatasetDataSource) scan.getDataSource();
                                         if (dataSource1 == null) {

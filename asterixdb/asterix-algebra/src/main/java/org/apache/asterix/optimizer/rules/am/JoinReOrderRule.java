@@ -131,6 +131,7 @@ public class JoinReOrderRule implements IAlgebraicRewriteRule {
                     multipleConditions = true;
                     long key = Long.MAX_VALUE;
                     long unique = 1L;
+                    AssignOperator assignl = null;
                     for (Mutable<ILogicalExpression> arg : sfce.getArguments()) {
                         join = new InnerJoinOperator(arg, join.getInputs().get(0), join.getInputs().get(1));
                         context.computeAndSetTypeEnvironmentForOperator(join);
@@ -138,10 +139,12 @@ public class JoinReOrderRule implements IAlgebraicRewriteRule {
                         LogicalVariable lvl = ((VariableReferenceExpression) sfce.getArguments().get(0).getValue())
                                 .getVariableReference();
                         DatasetDataSource datasourcel = findDataSource(join, lvl);
-                        AssignOperator assignl = null;
+                        //                        AssignOperator assignl = null;
                         lOp = sOp;
                         if (sOp.getOperatorTag() == LogicalOperatorTag.ASSIGN) {
                             assignl = (AssignOperator) sOp;
+                        } else {
+                            assignl = null;
                         }
                         LogicalVariable lvr = ((VariableReferenceExpression) sfce.getArguments().get(1).getValue())
                                 .getVariableReference();
@@ -154,12 +157,12 @@ public class JoinReOrderRule implements IAlgebraicRewriteRule {
                         unique *= inferCardinality((AbstractLogicalOperator) join, context, datasourcel, datasourcer,
                                 assignl, assignr, lvl, lvr, multipleConditions);
                     }
-                    long size = child.getValue().getInputs().get(0).getValue().getCardinality()
-                            + child.getValue().getInputs().get(1).getValue().getCardinality();
-                    key = (((AbstractLogicalOperator) child.getValue()).getInputs().get(0).getValue().getCardinality()
-                            * ((AbstractLogicalOperator) child.getValue()).getInputs().get(1).getValue()
-                                    .getCardinality())
-                            / unique;
+                    long sizel = assignl == null ? child.getValue().getInputs().get(0).getValue().getCardinality()
+                            : assignl.getCardinality();
+                    long sizer = assignr == null ? child.getValue().getInputs().get(1).getValue().getCardinality()
+                            : assignr.getCardinality();
+                    long size = sizel + sizer;
+                    key = unique == 0 ? 0 : (sizel * sizer) / unique;
                     key = (long) (0.7 * key + 0.3 * size);
                     if (map.containsKey(key)) {
                         map.get(key).add(child);
@@ -189,6 +192,18 @@ public class JoinReOrderRule implements IAlgebraicRewriteRule {
                     LogicalVariable lvr = ((VariableReferenceExpression) sfce.getArguments().get(1).getValue())
                             .getVariableReference();
                     datasourcer = findDataSource(join, lvr);
+                    //                    if (fields.containsKey(datasourcel)) {
+                    //                        populateFields(false, datasourcel, leftField, lvl);
+                    //                    }
+                    //                    if (fields.containsKey(datasourcer)) {
+                    //                        populateFields(false, datasourcer, fieldName, lvr);
+                    //                    }
+                    //                    if (!fields.containsKey(datasourcel)) {
+                    //                        populateFields(true, datasourcel, leftField, lvl);
+                    //                    }
+                    //                    if (!fields.containsKey(datasourcer)) {
+                    //                        populateFields(true, datasourcer, fieldName, lvr);
+                    //                    }
                     if (join.getInputs().get(0).getValue().getOperatorTag() == LogicalOperatorTag.SELECT
                             || join.getInputs().get(1).getValue().getOperatorTag() == LogicalOperatorTag.SELECT) {
                         DatasetDataSource selectds;
@@ -249,9 +264,10 @@ public class JoinReOrderRule implements IAlgebraicRewriteRule {
                             map.get(key).add(child);
                         }
                     }
-                    populateMap(child.getValue().getInputs(), datasourcer, assignr, context, only2joins);
+                    //                    populateMap(child.getValue().getInputs(), datasourcer, assignr, context, only2joins);
                 }
             }
+            populateMap(child.getValue().getInputs(), datasourcer, assignr, context, only2joins);
         }
     }
 

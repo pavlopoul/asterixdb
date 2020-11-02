@@ -34,7 +34,6 @@ import org.apache.asterix.om.types.ARecordType;
 import org.apache.asterix.translator.CompiledStatements.ICompiledDmlStatement;
 import org.apache.commons.lang3.tuple.Triple;
 import org.apache.hyracks.algebricks.common.exceptions.AlgebricksException;
-import org.apache.hyracks.algebricks.core.algebra.base.ILogicalOperator;
 import org.apache.hyracks.api.client.IClusterInfoCollector;
 import org.apache.hyracks.api.client.IHyracksClientConnection;
 import org.apache.hyracks.api.job.JobId;
@@ -147,7 +146,7 @@ public interface IStatementExecutor {
      */
     JobSpecification rewriteCompileQuery(IClusterInfoCollector clusterInfoCollector, MetadataProvider metadataProvider,
             Query query, ICompiledDmlStatement dmlStatement, Map<String, IAObject> statementParameters,
-            IStatementRewriter statementRewriter, List<ILogicalOperator> operators, boolean first, Query newQuery)
+            IStatementRewriter statementRewriter, /*List<ILogicalOperator> operators, boolean first,*/ Query newQuery)
             throws RemoteException, AlgebricksException, ACIDException;
 
     /**

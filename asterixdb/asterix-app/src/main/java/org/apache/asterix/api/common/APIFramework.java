@@ -214,7 +214,8 @@ public class APIFramework {
     public JobSpecification compileQuery(IClusterInfoCollector clusterInfoCollector, MetadataProvider metadataProvider,
             Query query, int varCounter, String outputDatasetName, SessionOutput output,
             ICompiledDmlStatement statement, Map<VarIdentifier, IAObject> externalVars,
-            List<ILogicalOperator> operators, boolean first, Query newQuery) throws AlgebricksException, ACIDException {
+            /*List<ILogicalOperator> operators, boolean first,*/ Query newQuery)
+            throws AlgebricksException, ACIDException {
 
         // establish facts
         final boolean isQuery = query != null;
@@ -337,11 +338,9 @@ public class APIFramework {
                     notJoinInPlan = false;
                 }
             }
-            operators = compiler.traversePlan(metadataProvider.getApplicationContext(), first, context, pc);
-            spec = compiler.createJob(metadataProvider.getApplicationContext(), jobEventListenerFactory, operators,
-                    first, notJoinInPlan);
-            finished = compiler.getFinished(metadataProvider.getApplicationContext(), first, context, pc);
-            this.operators = compiler.getOperators();
+            operators = compiler.traversePlan(metadataProvider.getApplicationContext(), context, pc);
+            spec = compiler.createJob(metadataProvider.getApplicationContext(), jobEventListenerFactory, notJoinInPlan);
+            finished = compiler.getFinished(metadataProvider.getApplicationContext(), context, pc);
         }
 
         if (isQuery) {

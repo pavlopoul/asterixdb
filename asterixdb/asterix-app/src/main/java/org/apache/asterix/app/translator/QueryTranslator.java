@@ -1884,7 +1884,7 @@ public class QueryTranslator extends AbstractLangTranslator implements IStatemen
                             loadStmt.getAdapter(), loadStmt.getProperties(), loadStmt.dataIsAlreadySorted());
             cls.setSourceLocation(stmt.getSourceLocation());
             JobSpecification spec = apiFramework.compileQuery(hcc, metadataProvider, null, 0, null, sessionOutput, cls,
-                    null, null, true, null);
+                    null, /*null, true,*/ null);
             afterCompile();
             MetadataManager.INSTANCE.commitTransaction(mdTxnCtx);
             bActiveTxn = false;
@@ -1920,7 +1920,7 @@ public class QueryTranslator extends AbstractLangTranslator implements IStatemen
             }
         };
         final IStatementCompiler compiler =
-                (List<ILogicalOperator> operators, boolean first, Query newQuery, Query cleanQuery) -> {
+                (/*List<ILogicalOperator> operators, boolean first,*/ Query newQuery, Query cleanQuery) -> {
                     MetadataTransactionContext mdTxnCtx = MetadataManager.INSTANCE.beginTransaction();
                     boolean bActiveTxn = true;
                     metadataProvider.setMetadataTxnContext(mdTxnCtx);
@@ -1941,7 +1941,7 @@ public class QueryTranslator extends AbstractLangTranslator implements IStatemen
         if (compileOnly) {
             locker.lock();
             try {
-                return compiler.compile(null, true, null, null);
+                return compiler.compile(null, null);
             } finally {
                 locker.unlock();
             }
@@ -1953,7 +1953,7 @@ public class QueryTranslator extends AbstractLangTranslator implements IStatemen
         } else {
             locker.lock();
             try {
-                final JobSpecification jobSpec = compiler.compile(null, true, null, null);
+                final JobSpecification jobSpec = compiler.compile(null, null);
                 if (jobSpec == null) {
                     return jobSpec;
                 }
@@ -1982,7 +1982,7 @@ public class QueryTranslator extends AbstractLangTranslator implements IStatemen
                     stmtDelete.getQuery());
             clfrqs.setSourceLocation(stmt.getSourceLocation());
             JobSpecification jobSpec = rewriteCompileQuery(hcc, metadataProvider, clfrqs.getQuery(), clfrqs, stmtParams,
-                    stmtRewriter, null, true, null);
+                    stmtRewriter, /*null, true,*/ null);
             afterCompile();
 
             MetadataManager.INSTANCE.commitTransaction(mdTxnCtx);
@@ -2005,8 +2005,9 @@ public class QueryTranslator extends AbstractLangTranslator implements IStatemen
     @Override
     public JobSpecification rewriteCompileQuery(IClusterInfoCollector clusterInfoCollector,
             MetadataProvider metadataProvider, Query query, ICompiledDmlStatement stmt,
-            Map<String, IAObject> stmtParams, IStatementRewriter stmtRewriter, List<ILogicalOperator> operators,
-            boolean first, Query newQuery) throws AlgebricksException, ACIDException {
+            Map<String, IAObject> stmtParams, IStatementRewriter stmtRewriter, /*List<ILogicalOperator> operators,
+                                                                               boolean first,*/ Query newQuery)
+            throws AlgebricksException, ACIDException {
 
         Map<VarIdentifier, IAObject> externalVars = createExternalVariables(stmtParams, stmtRewriter);
 
@@ -2017,7 +2018,7 @@ public class QueryTranslator extends AbstractLangTranslator implements IStatemen
         // Query Compilation (happens under the same ongoing metadata transaction)
         return apiFramework.compileQuery(clusterInfoCollector, metadataProvider, (Query) rewrittenResult.first,
                 rewrittenResult.second, stmt == null ? null : stmt.getDatasetName(), sessionOutput, stmt, externalVars,
-                operators, first, newQuery);
+                /*operators, first,*/ newQuery);
     }
 
     public boolean getFinished(Query newQuery) {
@@ -2077,7 +2078,7 @@ public class QueryTranslator extends AbstractLangTranslator implements IStatemen
         // Insert/upsert statement compilation (happens under the same ongoing metadata
         // transaction)
         return apiFramework.compileQuery(clusterInfoCollector, metadataProvider, rewrittenInsertUpsert.getQuery(),
-                rewrittenResult.second, datasetName, sessionOutput, clfrqs, externalVars, null, true, null);
+                rewrittenResult.second, datasetName, sessionOutput, clfrqs, externalVars, /*null,  true,*/ null);
     }
 
     protected void handleCreateFeedStatement(MetadataProvider metadataProvider, Statement stmt) throws Exception {
@@ -2518,7 +2519,7 @@ public class QueryTranslator extends AbstractLangTranslator implements IStatemen
     }
 
     private interface IStatementCompiler {
-        JobSpecification compile(List<ILogicalOperator> operators, boolean first, Query newQuery, Query cleanQuery)
+        JobSpecification compile(/*List<ILogicalOperator> operators, boolean first, */Query newQuery, Query cleanQuery)
                 throws AlgebricksException, RemoteException, ACIDException;
     }
 
@@ -2539,7 +2540,7 @@ public class QueryTranslator extends AbstractLangTranslator implements IStatemen
             }
         };
         final IStatementCompiler compiler =
-                (List<ILogicalOperator> operators, boolean first, Query newQuery, Query cleanQuery) -> {
+                (/*List<ILogicalOperator> operators, boolean first,*/ Query newQuery, Query cleanQuery) -> {
                     MetadataTransactionContext mdTxnCtx = null;
                     if (newQuery == null) {
                         mdTxnCtx = MetadataManager.INSTANCE.beginTransaction();
@@ -2551,7 +2552,7 @@ public class QueryTranslator extends AbstractLangTranslator implements IStatemen
                     metadataProvider.setMetadataTxnContext(mdTxnCtx);
                     try {
                         final JobSpecification jobSpec = rewriteCompileQuery(hcc, metadataProvider, query, null,
-                                stmtParams, stmtRewriter, operators, first, newQuery);
+                                stmtParams, stmtRewriter, /*operators, first,*/ newQuery);
                         afterCompile();
                         MetadataManager.INSTANCE.commitTransaction(mdTxnCtx);
                         bActiveTxn = false;
@@ -2688,7 +2689,7 @@ public class QueryTranslator extends AbstractLangTranslator implements IStatemen
             IStatementCompiler compiler, IMetadataLocker locker, ResultDelivery resultDelivery, IResultPrinter printer,
             String clientContextId, IStatementExecutorContext ctx) throws Exception {
         locker.lock();
-        final JobSpecification jobSpec = compiler.compile(null, false, null, null);
+        final JobSpecification jobSpec = compiler.compile(null, null);
         ClientJobRequest req = null;
         if (jobSpec == null) {
             return;
@@ -2803,13 +2804,12 @@ public class QueryTranslator extends AbstractLangTranslator implements IStatemen
         JobSpecification jobSpec = null;
         List<ILogicalOperator> operators = new ArrayList<>();
         Query newQuery = null;
-        boolean first = true;
 
         List<String> datasources = new ArrayList<>();
         boolean finished = false;
         while (!finished) {
             locker.lock();
-            jobSpec = compiler.compile(operators, first, newQuery, cleanQuery);
+            jobSpec = compiler.compile(newQuery, cleanQuery);
             if (jobSpec == null) {
                 return;
             }

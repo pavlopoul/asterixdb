@@ -101,28 +101,22 @@ public class HeuristicCompilerFactoryBuilder extends AbstractCompilerFactoryBuil
 
                     @Override
                     public JobSpecification createJob(Object appContext,
-                            IJobletEventListenerFactory jobEventListenerFactory, List<ILogicalOperator> operators,
-                            boolean first, boolean notJoinInPlan) throws AlgebricksException {
+                            IJobletEventListenerFactory jobEventListenerFactory, boolean notJoinInPlan)
+                            throws AlgebricksException {
                         AlgebricksConfig.ALGEBRICKS_LOGGER.trace("Starting Job Generation.\n");
-                        return pc.compilePlan(plan, jobEventListenerFactory, operators, first, notJoinInPlan);
+                        return pc.compilePlan(plan, jobEventListenerFactory, notJoinInPlan);
                     }
 
                     @Override
-                    public List<ILogicalOperator> getOperators() throws AlgebricksException {
-                        AlgebricksConfig.ALGEBRICKS_LOGGER.trace("Starting Job Generation.\n");
-                        return pc.getOperators();
-                    }
-
-                    @Override
-                    public boolean getFinished(Object appContext, boolean first, JobGenContext context1,
-                            PlanCompiler pc1) throws AlgebricksException {
+                    public boolean getFinished(Object appContext, JobGenContext context1, PlanCompiler pc1)
+                            throws AlgebricksException {
                         AlgebricksConfig.ALGEBRICKS_LOGGER.trace("Starting Job Generation.\n");
 
                         return pc.getFinished();
                     }
 
                     @Override
-                    public List<ILogicalOperator> traversePlan(Object appContext, boolean first, JobGenContext context1,
+                    public List<ILogicalOperator> traversePlan(Object appContext, JobGenContext context1,
                             PlanCompiler pc1) throws AlgebricksException {
                         AlgebricksConfig.ALGEBRICKS_LOGGER.trace("Starting Job Generation.\n");
                         context = new JobGenContext(null, metadata, appContext, serializerDeserializerProvider,

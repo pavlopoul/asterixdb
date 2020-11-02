@@ -2951,7 +2951,6 @@ public class QueryTranslator extends AbstractLangTranslator implements IStatemen
                                         } else {
                                             types[j] = type;
                                         }
-                                        //  types[vars.indexOf(var)] = type;
                                         DatasetDataSource datasource = (DatasetDataSource) scan.getDataSource();
                                         if (dataSource1 == null) {
                                             dataSource1 = datasource;
@@ -3023,7 +3022,6 @@ public class QueryTranslator extends AbstractLangTranslator implements IStatemen
                     args[j + 1] = new ColumnAccessEvalFactory(j / 2);
                 }
                 ARecordType recType = new ARecordType(null, fieldNames, types, false);
-                //                ClosedRecordConstructorEvalFactory crc = new ClosedRecordConstructorEvalFactory(args, recType);
                 queries++;
 
                 long cid = ((ClusterControllerService) mp.getApplicationContext().getServiceContext()
@@ -3081,7 +3079,6 @@ public class QueryTranslator extends AbstractLangTranslator implements IStatemen
             } else {
                 hcc.waitForCompletion(jobId);
                 if (finished) {
-                    //                if (getFinished()) {
                     printer.print(jobId);
                     locker.unlock();
                     if (req != null) {
@@ -3196,9 +3193,6 @@ public class QueryTranslator extends AbstractLangTranslator implements IStatemen
                     .getExpression()).getExpr());
         }
 
-        //        VariableExpr oldselexp =
-        //                (VariableExpr) ((FieldAccessor) oldselect.getSelectRegular().getProjections().get(0).getExpression())
-        //                        .getExpr();
         List<Projection> newprojection = new ArrayList<>();
         for (String datasource : datasources) {
             int pindex = 0;
@@ -3209,7 +3203,6 @@ public class QueryTranslator extends AbstractLangTranslator implements IStatemen
                                     ((FieldAccessor) oldselect.getSelectRegular().getProjections().get(pindex)
                                             .getExpression()).getIdent()),
                             oldselect.getSelectRegular().getProjections().get(pindex).getName(), false, false));
-                    // break;
                 }
                 pindex++;
             }
@@ -3236,15 +3229,12 @@ public class QueryTranslator extends AbstractLangTranslator implements IStatemen
                             && !oldterm.getLeftVariable().toString().substring(1).equals(datasources.get(1)))) {
                 fromTermNew.add(oldterm);
             } else {
-                //            else if (oldterm.getLeftVariable().toString().substring(1)
-                //                    .equals(fromterm.getLeftVariable().toString().substring(1))) {
                 j++;
                 if (j == 1) {
                     fromTermNew.add(fromterm);
                 }
             }
         }
-        //        fromTermNew.add(0, fromterm);
         FromClause fromClause = new FromClause(fromTermNew);
         Dataverse newDataverse = new Dataverse("newdata", "", 0);
         Datatype newDatatype = new Datatype("newdata", recordTypeName, newRecordType, false);

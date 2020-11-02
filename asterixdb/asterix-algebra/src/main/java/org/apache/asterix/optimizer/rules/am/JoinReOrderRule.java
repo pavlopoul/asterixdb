@@ -192,18 +192,6 @@ public class JoinReOrderRule implements IAlgebraicRewriteRule {
                     LogicalVariable lvr = ((VariableReferenceExpression) sfce.getArguments().get(1).getValue())
                             .getVariableReference();
                     datasourcer = findDataSource(join, lvr);
-                    //                    if (fields.containsKey(datasourcel)) {
-                    //                        populateFields(false, datasourcel, leftField, lvl);
-                    //                    }
-                    //                    if (fields.containsKey(datasourcer)) {
-                    //                        populateFields(false, datasourcer, fieldName, lvr);
-                    //                    }
-                    //                    if (!fields.containsKey(datasourcel)) {
-                    //                        populateFields(true, datasourcel, leftField, lvl);
-                    //                    }
-                    //                    if (!fields.containsKey(datasourcer)) {
-                    //                        populateFields(true, datasourcer, fieldName, lvr);
-                    //                    }
                     if (join.getInputs().get(0).getValue().getOperatorTag() == LogicalOperatorTag.SELECT
                             || join.getInputs().get(1).getValue().getOperatorTag() == LogicalOperatorTag.SELECT) {
                         DatasetDataSource selectds;
@@ -264,7 +252,6 @@ public class JoinReOrderRule implements IAlgebraicRewriteRule {
                             map.get(key).add(child);
                         }
                     }
-                    //                    populateMap(child.getValue().getInputs(), datasourcer, assignr, context, only2joins);
                 }
             }
             populateMap(child.getValue().getInputs(), datasourcer, assignr, context, only2joins);
@@ -509,16 +496,11 @@ public class JoinReOrderRule implements IAlgebraicRewriteRule {
                     mutel.add(arguments.get(i));
                 }
             }
-            //            LogicalVariable lv = ((VariableReferenceExpression) ((ScalarFunctionCallExpression) ((AssignOperator) alo)
-            //                    .getExpressions().get(0).getValue()).getArguments().get(1).getValue()).getVariableReference();
             DatasetDataSource dsl = findDataSource(join, lvl);
             removeParticipation(dsl);
 
             DatasetDataSource dsr = findDataSource(join, lvr);
             removeParticipation(dsr);
-            //            List<Mutable<ILogicalExpression>> arguments =
-            //                    ((ScalarFunctionCallExpression) ((AssignOperator) alo).getExpressions().get(0).getValue())
-            //                            .getArguments();
             int lvIndex = 0;
             for (LogicalVariable lv : lvs) {
                 if (findDataSource(join, lv) == null) {

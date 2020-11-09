@@ -120,8 +120,6 @@ public class CardinalityEstimator implements ICardinalityEstimator {
             outerUniqueValues = getUniqueCardinality(metadataProvider, statistics);
         }
 
-        System.out.println(result + ", " + resultout);
-        System.out.println(innerUniqueValues + ", " + outerUniqueValues);
         return Math.max(1, result) * Math.max(1, resultout) / Math.max(innerUniqueValues, outerUniqueValues);
     }
 
@@ -143,8 +141,6 @@ public class CardinalityEstimator implements ICardinalityEstimator {
             outerUniqueValues = getUniqueCardinality(metadataProvider, statistics);
         }
 
-        System.out.println(result + ", " + resultout);
-        System.out.println(innerUniqueValues + ", " + outerUniqueValues);
         return Math.max(innerUniqueValues, outerUniqueValues);
     }
 
@@ -172,8 +168,6 @@ public class CardinalityEstimator implements ICardinalityEstimator {
             }
         }
 
-        System.out.println(result + ", " + resultout);
-        System.out.println(innerUniqueValues + ", " + outerUniqueValues);
         return Math.max(1, result) * Math.max(1, resultout) / Math.max(innerUniqueValues, outerUniqueValues);
     }
 

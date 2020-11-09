@@ -244,7 +244,6 @@ public class JoinReOrderRule implements IAlgebraicRewriteRule {
                         long size = sizel + sizer;
                         child.getValue().setCardinality(key);
                         key = (long) (0.7 * key + 0.3 * size);
-                        System.out.println(key);
                         if (map.containsKey(key)) {
                             map.get(key).add(child);
                         } else {
@@ -635,8 +634,6 @@ public class JoinReOrderRule implements IAlgebraicRewriteRule {
                         context.getMetadataProvider(), datasourcer.getDataset().getDataverseName().getCanonicalForm(),
                         datasourcer.getDataset().getDatasetName(), rightField));
             }
-            System.out.println(
-                    datasourcel.getDataset().getDatasetName() + " " + datasourcer.getDataset().getDatasetName());
             //estimate join cardinality
             if (!multipleConditions) {
                 return context.getCardinalityEstimator().getJoinCardinality(context.getMetadataProvider(),

@@ -1104,9 +1104,8 @@ public class QueryTranslator extends AbstractLangTranslator implements IStatemen
                     overridesFieldTypes = true;
                 }
                 if (fieldType == null) {
-                    throw new CompilationException(ErrorCode.UNKNOWN_TYPE, sourceLoc,
-                            fieldExpr.second == null ? String.valueOf(fieldExpr.first)
-                                    : String.valueOf(fieldExpr.second));
+                    throw new CompilationException(ErrorCode.UNKNOWN_TYPE, sourceLoc, fieldExpr.second == null
+                            ? String.valueOf(fieldExpr.first) : String.valueOf(fieldExpr.second));
                 }
 
                 // try to add the key & its source to the set of keys, if key couldn't be added,
@@ -3530,11 +3529,11 @@ public class QueryTranslator extends AbstractLangTranslator implements IStatemen
                     }
                 }
 
-                List<IFieldExtractor> extractors =
-                        StatisticsUtil.computeStatisticsFieldExtractors(metadataProvider.getStorageComponentProvider(),
-                                recType, new ArrayList<>(), true, metadataProvider.getApplicationContext()
-                                        .getStatisticsProperties().isStatisticsOnPrimaryKeysEnabled(),
-                                statisticsFieldsHint.split(","));
+                List<IFieldExtractor> extractors = StatisticsUtil.computeStatisticsFieldExtractors(
+                        metadataProvider.getStorageComponentProvider(),
+                        recType, new ArrayList<>(), true, metadataProvider.getApplicationContext()
+                                .getStatisticsProperties().isStatisticsOnPrimaryKeysEnabled(),
+                        statisticsFieldsHint.split(","));
 
                 StatisticsFactory statisticsFactory = new StatisticsFactory(SynopsisType.QuantileSketch, "newdata",
                         recordTypeName + String.valueOf(cid), recordTypeName + String.valueOf(cid), extractors,

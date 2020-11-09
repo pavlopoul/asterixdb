@@ -39,6 +39,7 @@ import org.apache.hyracks.storage.am.lsm.common.api.ILSMDiskComponent;
 import org.apache.hyracks.storage.am.lsm.common.api.IStatisticsManager;
 import org.apache.hyracks.storage.am.lsm.common.api.ISynopsis;
 import org.apache.hyracks.storage.am.lsm.common.impls.AbstractLSMIndexFileManager;
+import org.apache.hyracks.storage.am.lsm.common.impls.ComponentStatistics;
 import org.apache.hyracks.storage.am.lsm.common.impls.ComponentStatisticsId;
 
 public class StatisticsManager implements IStatisticsManager {
@@ -90,11 +91,13 @@ public class StatisticsManager implements IStatisticsManager {
     //TODO:refactor this to use component IDs instead
     private MultiValuedMap<ILSMDiskComponent, StatisticsEntry> synopsisMap;
     private MultiValuedMap<ILSMDiskComponent, StatisticsEntry> antimatterSynopsisMap;
+    private MultiValuedMap<ComponentStatistics, StatisticsEntry> synopsisInterMap;
 
     public StatisticsManager(INCServiceContext ncApplicationContext) {
         ncContext = ncApplicationContext;
         synopsisMap = new HashSetValuedHashMap<>();
         antimatterSynopsisMap = new HashSetValuedHashMap<>();
+        synopsisInterMap = new HashSetValuedHashMap<>();
     }
 
     private void sendMessage(ICcAddressedMessage msg) throws HyracksDataException {
@@ -204,6 +207,26 @@ public class StatisticsManager implements IStatisticsManager {
             antimatterSynopsisMap.put(component, newEntry);
         } else {
             synopsisMap.put(component, newEntry);
+        }
+    }
+
+    @Override
+    public void addIntermediateStatistics(ISynopsis synopsis, String dataverse, String dataset, String index,
+            String field, boolean isAntimatter, ComponentStatistics component, int partition)
+            throws HyracksDataException {
+        StatisticsEntry newEntry = new StatisticsEntry(synopsis, dataverse, dataset, index, field);
+        //        StatisticsEntry newEntry =
+        //                new StatisticsEntry(SynopsisFactory.createSynopsisCopy(synopsis), dataverse, dataset, index, field);
+        //String[] partitions = partition.getDeviceHandle().getMount().getPath().split("/");
+        synopsisInterMap.put(component, newEntry);
+        ICcAddressedMessage msg = new ReportFlushComponentStatisticsMessage(newEntry, ncContext.getNodeId(),
+                //                partitions[partitions.length - 2],
+                "partition_" + String.valueOf(partition),
+                new ComponentStatisticsId(/*component.getNumAntimatterTuples()*/100l, /*component.getNumTuples()*/100l),
+                isAntimatter);
+        if (!synopsis.getElements().isEmpty()) {
+            sendMessage(msg);
+            // System.out.println(partition + " n");
         }
     }
 

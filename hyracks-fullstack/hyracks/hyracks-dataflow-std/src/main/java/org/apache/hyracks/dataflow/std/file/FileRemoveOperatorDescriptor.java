@@ -32,6 +32,7 @@ import org.apache.hyracks.api.exceptions.HyracksDataException;
 import org.apache.hyracks.api.io.FileSplit;
 import org.apache.hyracks.api.io.IIOManager;
 import org.apache.hyracks.api.job.IOperatorDescriptorRegistry;
+import org.apache.hyracks.api.job.IOperatorEnvironment;
 import org.apache.hyracks.dataflow.std.base.AbstractOperatorNodePushable;
 import org.apache.hyracks.dataflow.std.base.AbstractSingleActivityOperatorDescriptor;
 
@@ -60,7 +61,8 @@ public class FileRemoveOperatorDescriptor extends AbstractSingleActivityOperator
 
     @Override
     public IOperatorNodePushable createPushRuntime(IHyracksTaskContext ctx,
-            IRecordDescriptorProvider recordDescProvider, int partition, int nPartitions) throws HyracksDataException {
+            IRecordDescriptorProvider recordDescProvider, int partition, int nPartitions, IOperatorEnvironment pastEnv)
+            throws HyracksDataException {
         final FileSplit split = fileSplitProvider.getFileSplits()[partition];
         final IIOManager ioManager = ctx.getIoManager();
         return new AbstractOperatorNodePushable() {
@@ -99,6 +101,12 @@ public class FileRemoveOperatorDescriptor extends AbstractSingleActivityOperator
             public void deinitialize() throws HyracksDataException {
             }
         };
+    }
+
+    @Override
+    public int getLocalIntermediateResultId() {
+        // TODO Auto-generated method stub
+        return 0;
     }
 
 }

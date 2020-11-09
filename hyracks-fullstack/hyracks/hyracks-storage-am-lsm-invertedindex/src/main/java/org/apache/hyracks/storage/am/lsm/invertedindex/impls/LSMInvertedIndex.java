@@ -324,6 +324,7 @@ public class LSMInvertedIndex extends AbstractLSMIndex implements IInvertedIndex
         LSMInvertedIndexMergeOperation mergeOp = (LSMInvertedIndexMergeOperation) operation;
         RangePredicate mergePred = new RangePredicate(null, null, true, true, null, null);
         IIndexCursor cursor = mergeOp.getCursor();
+
         ILSMIndexOperationContext opCtx = ((LSMInvertedIndexMergeCursor) cursor).getOpCtx();
         // Scan diskInvertedIndexes ignoring the memoryInvertedIndex.
         // Create an inverted index instance.
@@ -358,6 +359,7 @@ public class LSMInvertedIndex extends AbstractLSMIndex implements IInvertedIndex
             while (cursor.hasNext()) {
                 cursor.next();
                 componentBulkLoader.add(cursor.getTuple());
+
             }
         } finally {
             try {

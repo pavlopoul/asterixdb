@@ -37,6 +37,7 @@ import org.apache.hyracks.api.dataflow.IOperatorNodePushable;
 import org.apache.hyracks.api.dataflow.value.IRecordDescriptorProvider;
 import org.apache.hyracks.api.dataflow.value.RecordDescriptor;
 import org.apache.hyracks.api.exceptions.HyracksDataException;
+import org.apache.hyracks.api.job.IOperatorEnvironment;
 import org.apache.hyracks.api.job.JobSpecification;
 import org.apache.hyracks.dataflow.std.base.AbstractSingleActivityOperatorDescriptor;
 import org.apache.logging.log4j.LogManager;
@@ -96,7 +97,8 @@ public class FeedIntakeOperatorDescriptor extends AbstractSingleActivityOperator
 
     @Override
     public IOperatorNodePushable createPushRuntime(IHyracksTaskContext ctx,
-            IRecordDescriptorProvider recordDescProvider, int partition, int nPartitions) throws HyracksDataException {
+            IRecordDescriptorProvider recordDescProvider, int partition, int nPartitions, IOperatorEnvironment pastEnv)
+            throws HyracksDataException {
         if (adaptorFactory == null) {
             adaptorFactory = createExternalAdapterFactory(ctx);
         }
@@ -158,6 +160,12 @@ public class FeedIntakeOperatorDescriptor extends AbstractSingleActivityOperator
 
     public String getAdaptorFactoryClassName() {
         return this.adaptorFactoryClassName;
+    }
+
+    @Override
+    public int getLocalIntermediateResultId() {
+        // TODO Auto-generated method stub
+        return 0;
     }
 
 }

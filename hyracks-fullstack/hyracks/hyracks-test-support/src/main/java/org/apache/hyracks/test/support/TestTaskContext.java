@@ -200,4 +200,10 @@ public class TestTaskContext implements IHyracksTaskContext {
     public IThreadStats getThreadStats() {
         return threadStats;
     }
+
+    @Override
+    public Set<Object> getStateObjectKeys() {
+        // TODO Auto-generated method stub
+        return null;
+    }
 }

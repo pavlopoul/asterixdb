@@ -121,6 +121,7 @@ public class DatasetTupleTranslator extends AbstractTupleTranslator<Dataset> {
         Pair<String, Map<String, String>> compactionPolicy = readCompactionPolicy(datasetType, datasetRecord);
 
         switch (datasetType) {
+            case READER:
             case INTERNAL: {
                 ARecord datasetDetailsRecord = (ARecord) datasetRecord
                         .getValueByPos(MetadataRecordTypes.DATASET_ARECORD_INTERNALDETAILS_FIELD_INDEX);
@@ -488,6 +489,7 @@ public class DatasetTupleTranslator extends AbstractTupleTranslator<Dataset> {
             throws HyracksDataException {
         dataset.getDatasetDetails().writeDatasetDetailsRecordType(dataOutput);
         switch (dataset.getDatasetType()) {
+            case READER:
             case INTERNAL:
                 recordBuilder.addField(MetadataRecordTypes.DATASET_ARECORD_INTERNALDETAILS_FIELD_INDEX, fieldValue);
                 break;

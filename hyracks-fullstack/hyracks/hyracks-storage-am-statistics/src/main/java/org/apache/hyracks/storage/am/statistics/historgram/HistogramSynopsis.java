@@ -22,13 +22,17 @@ import java.util.Collection;
 import java.util.Collections;
 import java.util.Comparator;
 import java.util.List;
+import java.util.Map;
+import java.util.Set;
 
+import org.apache.hyracks.storage.am.lsm.common.api.ISynopsis;
 import org.apache.hyracks.storage.am.statistics.common.AbstractSynopsis;
 
 public abstract class HistogramSynopsis<T extends HistogramBucket> extends AbstractSynopsis<T> {
     public HistogramSynopsis(long domainStart, long domainEnd, int maxLevel, int bucketsNum,
-            Collection<T> synopsisElements) {
-        super(domainStart, domainEnd, maxLevel, bucketsNum, synopsisElements);
+            Collection<T> synopsisElements, Map<Long, Integer> uniqueMap, Set<Long> uniqueSet, Map<Integer, Byte> map,
+            long[] words) {
+        super(domainStart, domainEnd, maxLevel, bucketsNum, synopsisElements, uniqueMap, uniqueSet, map, words);
     }
 
     //implicit cast to operate with buckets as a list
@@ -46,7 +50,7 @@ public abstract class HistogramSynopsis<T extends HistogramBucket> extends Abstr
     }
 
     protected int getPointBucket(long position) {
-        int idx = Collections.binarySearch(getBuckets(), new HistogramBucket(position, 0.0),
+        int idx = Collections.binarySearch(getBuckets(), new HistogramBucket(position, 0.0, 0, 0),
                 Comparator.comparingLong(HistogramBucket::getKey));
         if (idx < 0) {
             idx = -idx - 1;
@@ -64,6 +68,16 @@ public abstract class HistogramSynopsis<T extends HistogramBucket> extends Abstr
     public double rangeQuery(long startPosition, long endPosition) {
         int startBucket = getPointBucket(startPosition);
         int endBucket = getPointBucket(endPosition);
+        if (startBucket == getBuckets().size()) {
+            return 0.0;
+        }
+        if (endBucket == getBuckets().size()) {
+            endBucket = endBucket - 1;
+        }
+        if (this.getType() == SynopsisType.ContinuousHistogram) {
+            endPosition = endPosition > getBuckets().get(endBucket).getKey() ? getBuckets().get(endBucket).getKey()
+                    : endPosition;
+        }
         long endBucketLeftBorder = getBucketStartPosition(endBucket);
         double value = 0.0;
         if (startBucket == endBucket) {
@@ -81,8 +95,35 @@ public abstract class HistogramSynopsis<T extends HistogramBucket> extends Abstr
         return value;
     }
 
+    @Override
+    public double joinQuery(ISynopsis synopsis, boolean primIndex) {
+        double estimate = 0.0;
+        for (int i = 0; i < getBuckets().size(); i++) {
+            if (getBuckets().get(i).getValue() != 0.0) {
+                estimate += getBuckets().get(i).getValue();
+            }
+        }
+
+        return estimate;
+    }
+
+    @Override
+    public long uniqueQuery(boolean primIndex) {
+        long distinctValues = 0;
+        int size = getBuckets().size();
+        if (size > 0) {
+            distinctValues = getBuckets().get(size - 1).getUniqueValue();
+        }
+
+        return distinctValues;
+    }
+
     public double approximateValueWithinBucket(int bucketIdx, long startPosition, long endPosition) {
-        return getBuckets().get(bucketIdx).getValue() * (endPosition - startPosition + 1) / getBucketSpan(bucketIdx);
+        if (getBuckets().size() > 0) {
+            return getBuckets().get(bucketIdx).getValue() * (endPosition - startPosition + 1)
+                    / getBucketSpan(bucketIdx);
+        }
+        return 0;
     }
 
     public abstract void appendToBucket(int bucketId, int bucketNum, long tuplePos, double frequency);

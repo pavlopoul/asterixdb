@@ -30,6 +30,7 @@ import org.apache.hyracks.api.dataflow.value.IRecordDescriptorProvider;
 import org.apache.hyracks.api.dataflow.value.RecordDescriptor;
 import org.apache.hyracks.api.exceptions.HyracksDataException;
 import org.apache.hyracks.api.job.IOperatorDescriptorRegistry;
+import org.apache.hyracks.api.job.IOperatorEnvironment;
 import org.apache.hyracks.dataflow.std.base.AbstractSingleActivityOperatorDescriptor;
 import org.apache.hyracks.dataflow.std.base.AbstractUnaryInputUnaryOutputOperatorNodePushable;
 import org.apache.hyracks.dataflow.std.base.AbstractUnaryOutputSourceOperatorNodePushable;
@@ -77,7 +78,8 @@ public class AlgebricksMetaOperatorDescriptor extends AbstractSingleActivityOper
 
     @Override
     public IOperatorNodePushable createPushRuntime(final IHyracksTaskContext ctx,
-            final IRecordDescriptorProvider recordDescProvider, int partition, int nPartitions) {
+            final IRecordDescriptorProvider recordDescProvider, int partition, int nPartitions,
+            IOperatorEnvironment pastEnv) {
         if (inputArity == 0) {
             return new SourcePushRuntime(ctx);
         } else {
@@ -179,5 +181,10 @@ public class AlgebricksMetaOperatorDescriptor extends AbstractSingleActivityOper
                 return AlgebricksMetaOperatorDescriptor.this.toString();
             }
         };
+    }
+
+    @Override
+    public int getLocalIntermediateResultId() {
+        return 0;
     }
 }

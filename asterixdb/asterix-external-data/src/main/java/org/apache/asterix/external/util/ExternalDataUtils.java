@@ -351,7 +351,8 @@ public class ExternalDataUtils {
     /**
      * Fills the configuration of the external dataset and its adapter with default values if not provided by user.
      *
-     * @param configuration external data configuration
+     * @param configuration
+     *            external data configuration
      */
     public static void defaultConfiguration(Map<String, String> configuration) {
         String format = configuration.get(ExternalDataConstants.KEY_FORMAT);
@@ -373,8 +374,10 @@ public class ExternalDataUtils {
      * Prepares the configuration of the external data and its adapter by filling the information required by
      * adapters and parsers.
      *
-     * @param adapterName adapter name
-     * @param configuration external data configuration
+     * @param adapterName
+     *            adapter name
+     * @param configuration
+     *            external data configuration
      */
     public static void prepare(String adapterName, Map<String, String> configuration) {
         if (!configuration.containsKey(ExternalDataConstants.KEY_READER)) {
@@ -390,7 +393,8 @@ public class ExternalDataUtils {
      * Normalizes the values of certain parameters of the adapter configuration. This should happen before persisting
      * the metadata (e.g. when creating external datasets or feeds) and when creating an adapter factory.
      *
-     * @param configuration external data configuration
+     * @param configuration
+     *            external data configuration
      */
     public static void normalize(Map<String, String> configuration) {
         // normalize the "format" parameter
@@ -410,8 +414,10 @@ public class ExternalDataUtils {
     /**
      * Validates the parameter values of the adapter configuration. This should happen after normalizing the values.
      *
-     * @param configuration external data configuration
-     * @throws HyracksDataException HyracksDataException
+     * @param configuration
+     *            external data configuration
+     * @throws HyracksDataException
+     *             HyracksDataException
      */
     public static void validate(Map<String, String> configuration) throws HyracksDataException {
         String format = configuration.get(ExternalDataConstants.KEY_FORMAT);
@@ -473,7 +479,8 @@ public class ExternalDataUtils {
      * Validates adapter specific external dataset properties. Specific properties for different adapters should be
      * validated here
      *
-     * @param configuration properties
+     * @param configuration
+     *            properties
      */
     public static void validateAdapterSpecificProperties(Map<String, String> configuration, SourceLocation srcLoc)
             throws CompilationException {
@@ -492,7 +499,8 @@ public class ExternalDataUtils {
     /**
      * Regex matches all the provided patterns against the provided path
      *
-     * @param path path to check against
+     * @param path
+     *            path to check against
      *
      * @return {@code true} if all patterns match, {@code false} otherwise
      */
@@ -508,7 +516,8 @@ public class ExternalDataUtils {
     /**
      * Converts the wildcard to proper regex
      *
-     * @param wildcard wildcard pattern to convert
+     * @param wildcard
+     *            wildcard pattern to convert
      *
      * @return regex expression
      */
@@ -588,9 +597,11 @@ public class ExternalDataUtils {
         /**
          * Builds the S3 client using the provided configuration
          *
-         * @param configuration properties
+         * @param configuration
+         *            properties
          * @return S3 client
-         * @throws CompilationException CompilationException
+         * @throws CompilationException
+         *             CompilationException
          */
         public static S3Client buildAwsS3Client(Map<String, String> configuration) throws CompilationException {
             // TODO(Hussain): Need to ensure that all required parameters are present in a previous step
@@ -637,9 +648,11 @@ public class ExternalDataUtils {
         /**
          * Validate external dataset properties
          *
-         * @param configuration properties
+         * @param configuration
+         *            properties
          *
-         * @throws CompilationException Compilation exception
+         * @throws CompilationException
+         *             Compilation exception
          */
         public static void validateProperties(Map<String, String> configuration, SourceLocation srcLoc)
                 throws CompilationException {
@@ -675,6 +688,7 @@ public class ExternalDataUtils {
 
         /**
          * TODO(Hussain)
+         * 
          * @param configuration
          * @throws CompilationException
          */

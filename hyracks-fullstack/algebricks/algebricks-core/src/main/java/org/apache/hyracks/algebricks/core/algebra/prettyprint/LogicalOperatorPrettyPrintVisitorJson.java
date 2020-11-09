@@ -929,4 +929,5 @@ public class LogicalOperatorPrettyPrintVisitorJson extends AbstractLogicalOperat
             throw new AlgebricksException(e, ErrorCode.ERROR_PRINTING_PLAN);
         }
     }
+
 }

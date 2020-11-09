@@ -60,6 +60,7 @@ import org.apache.asterix.external.operators.ExternalLookupOperatorDescriptor;
 import org.apache.asterix.external.operators.ExternalRTreeSearchOperatorDescriptor;
 import org.apache.asterix.external.operators.ExternalScanOperatorDescriptor;
 import org.apache.asterix.external.operators.FeedIntakeOperatorDescriptor;
+import org.apache.asterix.external.operators.ReaderJobOperatorDescriptor;
 import org.apache.asterix.external.provider.AdapterFactoryProvider;
 import org.apache.asterix.external.util.ExternalDataConstants;
 import org.apache.asterix.external.util.FeedConstants;
@@ -68,6 +69,7 @@ import org.apache.asterix.formats.nontagged.BinaryBooleanInspector;
 import org.apache.asterix.formats.nontagged.BinaryComparatorFactoryProvider;
 import org.apache.asterix.formats.nontagged.LinearizeComparatorFactoryProvider;
 import org.apache.asterix.formats.nontagged.TypeTraitProvider;
+import org.apache.asterix.metadata.MetadataCache;
 import org.apache.asterix.metadata.MetadataManager;
 import org.apache.asterix.metadata.MetadataTransactionContext;
 import org.apache.asterix.metadata.api.ICCExtensionManager;
@@ -413,6 +415,10 @@ public class MetadataProvider implements IMetadataProvider<DataSourceId, String>
                 : null;
     }
 
+    public MetadataCache getCache() {
+        return MetadataManager.INSTANCE.getCache();
+    }
+
     public Index getIndex(DataverseName dataverseName, String datasetName, String indexName)
             throws AlgebricksException {
         return MetadataManager.INSTANCE.getIndex(mdTxnCtx, dataverseName, datasetName, indexName);
@@ -452,6 +458,7 @@ public class MetadataProvider implements IMetadataProvider<DataSourceId, String>
     public void addStatistics(String dataverseName, String datasetName, String indexName, String fieldName, String node,
             String partition, ComponentStatisticsId componentId, boolean isAntimatter, ISynopsis synopsis)
             throws AlgebricksException {
+        dropStatistics(dataverseName, datasetName, indexName, fieldName, node, partition, componentId, isAntimatter);
         MetadataManager.INSTANCE.addStatistics(mdTxnCtx, new Statistics(dataverseName, datasetName, indexName,
                 fieldName, node, partition, componentId, false, isAntimatter, synopsis));
     }
@@ -567,7 +574,7 @@ public class MetadataProvider implements IMetadataProvider<DataSourceId, String>
                         primaryKeyFields, primaryKeyFieldsInSecondaryIndex, proceedIndexOnlyPlan);
         IStorageManager storageManager = getStorageComponentProvider().getStorageManager();
         IIndexDataflowHelperFactory indexHelperFactory = new IndexDataflowHelperFactory(storageManager, spPc.first);
-        BTreeSearchOperatorDescriptor btreeSearchOp;
+        IOperatorDescriptor btreeSearchOp;
 
         if (dataset.getDatasetType() == DatasetType.INTERNAL) {
             btreeSearchOp = !isSecondary && isPrimaryIndexPointSearch
@@ -580,11 +587,13 @@ public class MetadataProvider implements IMetadataProvider<DataSourceId, String>
                             context.getMissingWriterFactory(), searchCallbackFactory, minFilterFieldIndexes,
                             maxFilterFieldIndexes, propagateFilter, tupleFilterFactory, outputLimit,
                             proceedIndexOnlyPlan, failValueForIndexOnlyPlan, successValueForIndexOnlyPlan);
-        } else {
+        } else if (dataset.getDatasetType() == DatasetType.EXTERNAL) {
             btreeSearchOp = new ExternalBTreeSearchOperatorDescriptor(jobSpec, outputRecDesc, lowKeyFields,
                     highKeyFields, lowKeyInclusive, highKeyInclusive, indexHelperFactory, retainInput, retainMissing,
                     context.getMissingWriterFactory(), searchCallbackFactory, minFilterFieldIndexes,
                     maxFilterFieldIndexes, ExternalDatasetsRegistry.INSTANCE.getAndLockDatasetVersion(dataset, this));
+        } else {
+            btreeSearchOp = new ReaderJobOperatorDescriptor(jobSpec, outputRecDesc, dataset.getDatasetId());
         }
         return new Pair<>(btreeSearchOp, spPc.second);
     }

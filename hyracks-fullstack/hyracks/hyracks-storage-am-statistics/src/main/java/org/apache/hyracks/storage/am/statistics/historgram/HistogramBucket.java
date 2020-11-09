@@ -26,10 +26,14 @@ public class HistogramBucket implements ISynopsisElement<Long> {
 
     private long rightBorder;
     private double value;
+    private long unique;
+    private long height;
 
-    public HistogramBucket(long border, double value) {
+    public HistogramBucket(long border, double value, long unique, long height) {
         this.rightBorder = border;
         this.value = value;
+        this.unique = unique;
+        this.height = height;
     }
 
     public void setRightBorder(long rightBorder) {
@@ -38,6 +42,14 @@ public class HistogramBucket implements ISynopsisElement<Long> {
 
     public void appendToValue(double appendedValue) {
         this.value += appendedValue;
+    }
+
+    public void appendToUniqueValue(long appendedValue) {
+        this.unique += appendedValue;
+    }
+
+    public void setUniqueValue(long appendedValue) {
+        this.unique = appendedValue;
     }
 
     @Override
@@ -49,4 +61,16 @@ public class HistogramBucket implements ISynopsisElement<Long> {
     public double getValue() {
         return value;
     }
+
+    @Override
+    public Long getUniqueValue() {
+        return unique;
+    }
+
+    @Override
+    public Long getHeight() {
+
+        return height;
+    }
+
 }

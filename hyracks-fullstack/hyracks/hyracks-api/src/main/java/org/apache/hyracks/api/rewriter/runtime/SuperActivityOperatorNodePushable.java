@@ -47,6 +47,7 @@ import org.apache.hyracks.api.dataflow.TimedOperatorNodePushable;
 import org.apache.hyracks.api.dataflow.value.IRecordDescriptorProvider;
 import org.apache.hyracks.api.dataflow.value.RecordDescriptor;
 import org.apache.hyracks.api.exceptions.HyracksDataException;
+import org.apache.hyracks.api.job.IOperatorEnvironment;
 import org.apache.hyracks.api.job.JobFlag;
 import org.apache.hyracks.api.util.ExceptionUtils;
 
@@ -60,20 +61,22 @@ public class SuperActivityOperatorNodePushable implements IOperatorNodePushable 
     private final Map<ActivityId, IActivity> startActivities;
     private final SuperActivity parent;
     private final IHyracksTaskContext ctx;
+    private final IOperatorEnvironment pastEnv;
     private final IRecordDescriptorProvider recordDescProvider;
     private final int partition;
     private final int nPartitions;
     private int inputArity = 0;
 
     public SuperActivityOperatorNodePushable(SuperActivity parent, Map<ActivityId, IActivity> startActivities,
-            IHyracksTaskContext ctx, IRecordDescriptorProvider recordDescProvider, int partition, int nPartitions)
-            throws HyracksDataException {
+            IHyracksTaskContext ctx, IRecordDescriptorProvider recordDescProvider, int partition, int nPartitions,
+            IOperatorEnvironment pastEnv) throws HyracksDataException {
         this.parent = parent;
         this.startActivities = startActivities;
         this.ctx = ctx;
         this.recordDescProvider = recordDescProvider;
         this.partition = partition;
         this.nPartitions = nPartitions;
+        this.pastEnv = pastEnv;
 
         /*
          * initialize the writer-relationship for the internal DAG of operator
@@ -108,10 +111,12 @@ public class SuperActivityOperatorNodePushable implements IOperatorNodePushable 
         for (Entry<ActivityId, IActivity> entry : startActivities.entrySet()) {
             IOperatorNodePushable opPushable = null;
             if (profile) {
-                opPushable = TimedOperatorNodePushable
-                        .time(entry.getValue().createPushRuntime(ctx, recordDescProvider, partition, nPartitions), ctx);
+                opPushable = TimedOperatorNodePushable.time(
+                        entry.getValue().createPushRuntime(ctx, recordDescProvider, partition, nPartitions, pastEnv),
+                        ctx);
             } else {
-                opPushable = entry.getValue().createPushRuntime(ctx, recordDescProvider, partition, nPartitions);
+                opPushable =
+                        entry.getValue().createPushRuntime(ctx, recordDescProvider, partition, nPartitions, pastEnv);
             }
             operatorNodePushablesBFSOrder.add(opPushable);
             operatorNodePushables.put(entry.getKey(), opPushable);
@@ -141,10 +146,10 @@ public class SuperActivityOperatorNodePushable implements IOperatorNodePushable 
             if (destOp == null) {
                 if (profile) {
                     destOp = TimedOperatorNodePushable.time(channel.getRight().getLeft().createPushRuntime(ctx,
-                            recordDescProvider, partition, nPartitions), ctx);
+                            recordDescProvider, partition, nPartitions, pastEnv), ctx);
                 } else {
                     destOp = channel.getRight().getLeft().createPushRuntime(ctx, recordDescProvider, partition,
-                            nPartitions);
+                            nPartitions, pastEnv);
                 }
                 operatorNodePushablesBFSOrder.add(destOp);
                 operatorNodePushables.put(destId, destOp);

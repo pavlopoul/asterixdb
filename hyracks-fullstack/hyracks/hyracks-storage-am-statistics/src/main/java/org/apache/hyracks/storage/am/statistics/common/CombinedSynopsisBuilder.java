@@ -27,6 +27,7 @@ import org.apache.hyracks.storage.am.lsm.common.api.ILSMIOOperation.LSMIOOperati
 import org.apache.hyracks.storage.am.lsm.common.api.ILSMTreeTupleReference;
 import org.apache.hyracks.storage.am.lsm.common.api.IStatisticsManager;
 import org.apache.hyracks.storage.am.lsm.common.api.ISynopsisBuilder;
+import org.apache.hyracks.storage.am.lsm.common.impls.ComponentStatistics;
 import org.apache.hyracks.storage.common.buffercache.ICachedPage;
 
 public class CombinedSynopsisBuilder implements ISynopsisBuilder {
@@ -90,4 +91,11 @@ public class CombinedSynopsisBuilder implements ISynopsisBuilder {
         // TODO Auto-generated method stub
 
     }
+
+    public void gatherIntermediateStatistics(IStatisticsManager statisticsManager, ComponentStatistics component,
+            int partition) throws HyracksDataException {
+        // TODO Auto-generated method stub
+
+    }
+
 }

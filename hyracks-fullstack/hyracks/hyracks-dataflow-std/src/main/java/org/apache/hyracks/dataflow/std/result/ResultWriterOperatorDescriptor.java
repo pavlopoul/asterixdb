@@ -34,6 +34,7 @@ import org.apache.hyracks.api.dataflow.value.RecordDescriptor;
 import org.apache.hyracks.api.exceptions.HyracksDataException;
 import org.apache.hyracks.api.exceptions.HyracksException;
 import org.apache.hyracks.api.job.IOperatorDescriptorRegistry;
+import org.apache.hyracks.api.job.IOperatorEnvironment;
 import org.apache.hyracks.api.result.IResultMetadata;
 import org.apache.hyracks.api.result.IResultPartitionManager;
 import org.apache.hyracks.api.result.ResultSetId;
@@ -66,8 +67,8 @@ public class ResultWriterOperatorDescriptor extends AbstractSingleActivityOperat
 
     @Override
     public IOperatorNodePushable createPushRuntime(final IHyracksTaskContext ctx,
-            IRecordDescriptorProvider recordDescProvider, final int partition, final int nPartitions)
-            throws HyracksDataException {
+            IRecordDescriptorProvider recordDescProvider, final int partition, final int nPartitions,
+            IOperatorEnvironment pastEnv) throws HyracksDataException {
         final IResultPartitionManager resultPartitionManager = ctx.getResultPartitionManager();
 
         final IFrame frame = new VSizeFrame(ctx);
@@ -152,5 +153,11 @@ public class ResultWriterOperatorDescriptor extends AbstractSingleActivityOperat
                 return "Result Writer";
             }
         };
+    }
+
+    @Override
+    public int getLocalIntermediateResultId() {
+        // TODO Auto-generated method stub
+        return 0;
     }
 }

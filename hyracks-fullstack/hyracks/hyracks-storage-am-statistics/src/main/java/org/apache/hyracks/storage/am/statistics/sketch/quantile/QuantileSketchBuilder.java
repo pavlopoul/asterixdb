@@ -18,6 +18,7 @@
  */
 package org.apache.hyracks.storage.am.statistics.sketch.quantile;
 
+import java.util.Arrays;
 import java.util.List;
 
 import org.apache.hyracks.api.exceptions.HyracksDataException;
@@ -27,6 +28,8 @@ import org.apache.hyracks.storage.am.statistics.common.IFieldExtractor;
 import org.apache.hyracks.storage.am.statistics.historgram.EquiHeightHistogramSynopsis;
 import org.apache.hyracks.storage.am.statistics.historgram.HistogramBucket;
 import org.apache.hyracks.storage.common.buffercache.ICachedPage;
+
+import net.agkn.hll.HLLType;
 
 public class QuantileSketchBuilder
         extends AbstractIntegerSynopsisBuilder<EquiHeightHistogramSynopsis<HistogramBucket>> {
@@ -44,26 +47,44 @@ public class QuantileSketchBuilder
     public void finishSynopsisBuild() throws HyracksDataException {
         //extract quantiles from the sketch, i.e. create an equi-height histogram
         List<Long> ranks = sketch.finish();
-        long height = Math.max(sketch.length() / (Math.max(ranks.size(), 1)), 1);
+        double height = sketch.length() / (double) (Math.max(ranks.size(), 1));
+        long cardinality = /*sketch.finishHll()*/0l;
+        //
+        if (sketch.getHll().getType() == HLLType.EXPLICIT) {
+            for (long value : sketch.getHll().getExplicit()) {
+                synopsis.getSet().add(value);
+            }
+        } else if (sketch.getHll().getType() == HLLType.SPARSE) {
+            for (final int registerIndex : sketch.getHll().getSparse().keySet()) {
+                final byte registerValue = sketch.getHll().getSparse().get(registerIndex);
+                synopsis.getSparse().put(registerIndex, registerValue);
+            }
+        } else {
+            long[] words = Arrays.copyOf(sketch.getHll().getWords(), sketch.getHll().getWords().length);
+            synopsis.setWords(words);
+        }
         // take into account that rank values could contain duplicates
         Long prev = null;
-        long bucketHeight = 0;
+        double bucketHeight = 0;
+        long uniqueValues = 0;
         for (Long r : ranks) {
             if (prev != null && r != prev) {
-                synopsis.getElements().add(new HistogramBucket(prev, bucketHeight));
+
+                synopsis.getElements().add(new HistogramBucket(prev, bucketHeight, uniqueValues, (long) height));
                 bucketHeight = 0;
             }
             bucketHeight += height;
             prev = r;
         }
         if (prev != null) {
-            synopsis.getElements().add(new HistogramBucket(prev, bucketHeight));
+            synopsis.getElements().add(new HistogramBucket(prev, bucketHeight, cardinality, (long) height));
         }
     }
 
     @Override
     public void addValue(long value) {
         sketch.insert(value);
+        sketch.insertToHll(value);
     }
 
     @Override

@@ -69,4 +69,10 @@ public class LineFileWriteOperatorDescriptor extends AbstractFileWriteOperatorDe
             throws HyracksDataException {
         return new LineWriterImpl(fileSplit.getFile(ioManager), columns, separator);
     }
+
+    @Override
+    public int getLocalIntermediateResultId() {
+        // TODO Auto-generated method stub
+        return 0;
+    }
 }

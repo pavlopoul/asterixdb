@@ -404,11 +404,6 @@ public class ClusterControllerService implements IControllerService {
         return executor;
     }
 
-    @Override
-    public Timer getTimer() {
-        return timer;
-    }
-
     public CCConfig getConfig() {
         return ccConfig;
     }
@@ -560,6 +555,11 @@ public class ClusterControllerService implements IControllerService {
     @Override
     public Object getApplicationContext() {
         return application.getApplicationContext();
+    }
+
+    @Override
+    public Timer getTimer() {
+        return timer;
     }
 
     @Override

@@ -19,17 +19,26 @@
 package org.apache.asterix.optimizer.rules.am;
 
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.HashMap;
+import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.TreeMap;
 
 import org.apache.asterix.algebra.operators.CommitOperator;
+import org.apache.asterix.common.exceptions.AsterixException;
 import org.apache.asterix.common.exceptions.CompilationException;
 import org.apache.asterix.common.exceptions.ErrorCode;
 import org.apache.asterix.metadata.declared.MetadataProvider;
 import org.apache.asterix.metadata.entities.Index;
+import org.apache.asterix.metadata.entities.Statistics;
+import org.apache.asterix.om.base.AIntegerObject;
+import org.apache.asterix.om.base.IAObject;
+import org.apache.asterix.om.constants.AsterixConstantValue;
+import org.apache.asterix.om.types.hierachy.ATypeHierarchy;
+import org.apache.asterix.optimizer.rules.am.BTreeAccessMethod.LimitType;
 import org.apache.commons.lang3.mutable.Mutable;
 import org.apache.commons.lang3.mutable.MutableObject;
 import org.apache.hyracks.algebricks.common.exceptions.AlgebricksException;
@@ -41,6 +50,7 @@ import org.apache.hyracks.algebricks.core.algebra.base.LogicalExpressionTag;
 import org.apache.hyracks.algebricks.core.algebra.base.LogicalOperatorTag;
 import org.apache.hyracks.algebricks.core.algebra.base.LogicalVariable;
 import org.apache.hyracks.algebricks.core.algebra.expressions.AbstractFunctionCallExpression;
+import org.apache.hyracks.algebricks.core.algebra.expressions.ConstantExpression;
 import org.apache.hyracks.algebricks.core.algebra.expressions.IVariableTypeEnvironment;
 import org.apache.hyracks.algebricks.core.algebra.expressions.VariableReferenceExpression;
 import org.apache.hyracks.algebricks.core.algebra.functions.FunctionIdentifier;
@@ -52,6 +62,7 @@ import org.apache.hyracks.algebricks.core.algebra.operators.logical.OrderOperato
 import org.apache.hyracks.algebricks.core.algebra.operators.logical.SelectOperator;
 import org.apache.hyracks.algebricks.core.algebra.operators.logical.visitors.VariableUtilities;
 import org.apache.hyracks.algebricks.core.algebra.util.OperatorPropertiesUtil;
+import org.apache.hyracks.storage.am.lsm.common.api.ISynopsisElement;
 
 /**
  * This rule optimizes simple selections with secondary or primary indexes.
@@ -426,7 +437,78 @@ public class IntroduceSelectAccessMethodRule extends AbstractIntroduceAccessMeth
 
                     // Finds the field name of each variable in the sub-tree.
                     fillFieldNamesInTheSubTree(subTree);
-
+                    List<String> leftField = null;
+                    AIntegerObject lowKey = null;
+                    AIntegerObject highKey = null;
+                    int lowKeyAdjustment = 0;
+                    int highKeyAdjustment = 0;
+                    for (IOptimizableFuncExpr optFuncExpr : analysisCtx.getMatchedFuncExprs()) {
+                        OptimizableOperatorSubTree optSubTree = optFuncExpr.getOperatorSubTree(0);
+                        LimitType limit = BTreeAccessMethod.getLimitType(optFuncExpr, optSubTree);
+                        leftField = optFuncExpr.getFieldName(0);
+                        ILogicalExpression expr = optFuncExpr.getConstantExpr(0);
+                        //inferring cardinality for selection
+                        switch (limit) {
+                            case EQUAL:
+                                highKey = extractConstantIntegerExpr(expr);
+                                lowKey = highKey;
+                                break;
+                            case HIGH_EXCLUSIVE:
+                                lowKeyAdjustment = 1;
+                            case HIGH_INCLUSIVE:
+                                lowKey = extractConstantIntegerExpr(expr);
+                                break;
+                            case LOW_EXCLUSIVE:
+                                highKeyAdjustment = -1;
+                            case LOW_INCLUSIVE:
+                                highKey = extractConstantIntegerExpr(expr);
+                                break;
+                        }
+                    }
+                    Long lowKeyValue = null;
+                    Long highKeyValue = null;
+                    if (lowKey != null) {
+                        lowKeyValue = lowKey.longValue() + lowKeyAdjustment;
+                    } else if (highKey != null) {
+                        lowKeyValue = highKey.minDomainValue();
+                    }
+                    if (highKey != null) {
+                        highKeyValue = highKey.longValue() + highKeyAdjustment;
+                    } else if (lowKey != null) {
+                        highKeyValue = lowKey.maxDomainValue();
+                    }
+                    List<Statistics> fieldStats = ((MetadataProvider) metadataProvider).getMergedStatistics(
+                            chosenIndexes.get(0).second.getDataverseName(),
+                            chosenIndexes.get(0).second.getDatasetName(), chosenIndexes.get(0).second.getIndexName(),
+                            String.join(".", leftField));
+                    double allRecords = 0;
+                    Collection<ISynopsisElement<Long>> synopsis = null;
+                    if (fieldStats.size() != 0) {
+                        if (fieldStats.size() == 1) {
+                            synopsis =
+                                    (Collection<ISynopsisElement<Long>>) fieldStats.get(0).getSynopsis().getElements();
+                        } else {
+                            for (Statistics stats : fieldStats) {
+                                synopsis.addAll(stats.getSynopsis().getElements());
+                            }
+                        }
+                        for (Iterator<? extends ISynopsisElement<Long>> iterator = synopsis.iterator(); iterator
+                                .hasNext();) {
+                            double value = iterator.next().getValue();
+                            if (value != 0.0) {
+                                allRecords += value;
+                            }
+                        }
+                    }
+                    double chosenValues =
+                            context.getCardinalityEstimator().getRangeCardinality(context.getMetadataProvider(),
+                                    chosenIndexes.get(0).second.getDataverseName().getCanonicalForm(),
+                                    chosenIndexes.get(0).second.getDatasetName(), leftField, lowKeyValue, highKeyValue);
+                    double sortedValues = chosenValues * Math.log(chosenValues);
+                    double totalValuesWithIndexing = chosenValues + sortedValues;
+                    if (allRecords < totalValuesWithIndexing) {
+                        return false;
+                    }
                     // Finally, try to apply plan transformation using chosen index.
                     res = chosenIndexes.get(0).first.applySelectPlanTransformation(afterSelectRefs, selectRef, subTree,
                             chosenIndexes.get(0).second, analysisCtx, context);
@@ -455,6 +537,20 @@ public class IntroduceSelectAccessMethodRule extends AbstractIntroduceAccessMeth
         afterSelectRefs.remove(opRef);
 
         return false;
+
+    }
+
+    private AIntegerObject extractConstantIntegerExpr(ILogicalExpression expr) throws AsterixException {
+        if (expr == null) {
+            return null;
+        }
+        if (expr.getExpressionTag() == LogicalExpressionTag.CONSTANT) {
+            IAObject constExprValue = ((AsterixConstantValue) ((ConstantExpression) expr).getValue()).getObject();
+            if (ATypeHierarchy.getTypeDomain(constExprValue.getType().getTypeTag()) == ATypeHierarchy.Domain.INTEGER) {
+                return (AIntegerObject) constExprValue;
+            }
+        }
+        return null;
 
     }
 

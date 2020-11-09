@@ -20,7 +20,9 @@ package org.apache.hyracks.storage.am.statistics.common;
 
 import java.util.Collection;
 import java.util.List;
+import java.util.Map;
 import java.util.Objects;
+import java.util.Set;
 
 import org.apache.commons.collections4.CollectionUtils;
 import org.apache.hyracks.api.exceptions.HyracksDataException;
@@ -37,13 +39,23 @@ public abstract class AbstractSynopsis<T extends ISynopsisElement> implements IS
     protected final int size;
 
     protected Collection<T> synopsisElements;
+    protected Map<Long, Integer> uniqueMap;
+    protected Set<Long> uniqueSet;
 
-    public AbstractSynopsis(long domainStart, long domainEnd, int maxLevel, int size, Collection<T> synopsisElements) {
+    protected Map<Integer, Byte> sparseMap;
+    protected long[] words;
+
+    public AbstractSynopsis(long domainStart, long domainEnd, int maxLevel, int size, Collection<T> synopsisElements,
+            Map<Long, Integer> uniqueMap, Set<Long> uniqueSet, Map<Integer, Byte> map, long[] words) {
         this.domainStart = domainStart;
         this.domainEnd = domainEnd;
         this.maxLevel = maxLevel;
         this.size = size;
         this.synopsisElements = synopsisElements;
+        this.uniqueMap = uniqueMap;
+        this.uniqueSet = uniqueSet;
+        this.sparseMap = map;
+        this.words = words;
     }
 
     public long getDomainEnd() {
@@ -67,9 +79,43 @@ public abstract class AbstractSynopsis<T extends ISynopsisElement> implements IS
         return synopsisElements;
     }
 
+    public Set<Long> getSet() {
+        return uniqueSet;
+    }
+
+    public Map<Long, Integer> getMap() {
+        return uniqueMap;
+    }
+
+    public Map<Integer, Byte> getSparse() {
+        return sparseMap;
+    }
+
+    public long[] getWords() {
+        return words;
+    }
+
+    public void setWords(long[] words) {
+        this.words = words;
+    }
+
+    public void setSparse(Map<Integer, Byte> map) {
+        this.sparseMap = map;
+    }
+
+    public void setUnique(Set<Long> set) {
+        this.uniqueSet = set;
+    }
+
     public void merge(List<ISynopsis<T>> synopsisList) throws HyracksDataException {
         for (ISynopsis<T> synopsis : synopsisList) {
             merge(synopsis);
+        }
+    }
+
+    public void mergeUnique(List<ISynopsis<T>> synopsisList) throws HyracksDataException {
+        for (ISynopsis<T> synopsis : synopsisList) {
+            mergeUnique(synopsis);
         }
     }
 

@@ -31,6 +31,7 @@ import org.apache.hyracks.api.dataflow.value.RecordDescriptor;
 import org.apache.hyracks.api.exceptions.ErrorCode;
 import org.apache.hyracks.api.exceptions.HyracksDataException;
 import org.apache.hyracks.api.job.IOperatorDescriptorRegistry;
+import org.apache.hyracks.api.job.IOperatorEnvironment;
 import org.apache.hyracks.api.job.JobId;
 import org.apache.hyracks.data.std.primitive.ByteArrayPointable;
 import org.apache.hyracks.dataflow.common.comm.io.FrameTupleAccessor;
@@ -51,9 +52,12 @@ public class SortForwardOperatorDescriptor extends AbstractForwardOperatorDescri
     private static final long serialVersionUID = 1L;
 
     /**
-     * @param spec used to create the operator id.
-     * @param sideDataKey the unique key to store the range map in the shared map & transfer it to partitioner.
-     * @param outputRecordDescriptor the output schema of this operator.
+     * @param spec
+     *            used to create the operator id.
+     * @param sideDataKey
+     *            the unique key to store the range map in the shared map & transfer it to partitioner.
+     * @param outputRecordDescriptor
+     *            the output schema of this operator.
      */
     public SortForwardOperatorDescriptor(IOperatorDescriptorRegistry spec, String sideDataKey,
             RecordDescriptor outputRecordDescriptor) {
@@ -96,8 +100,8 @@ public class SortForwardOperatorDescriptor extends AbstractForwardOperatorDescri
 
         @Override
         public IOperatorNodePushable createPushRuntime(final IHyracksTaskContext ctx,
-                IRecordDescriptorProvider recordDescProvider, final int partition, int nPartitions)
-                throws HyracksDataException {
+                IRecordDescriptorProvider recordDescProvider, final int partition, int nPartitions,
+                IOperatorEnvironment pastEnv) throws HyracksDataException {
             RecordDescriptor inputRecordDescriptor = recordDescProvider.getInputRecordDescriptor(getActivityId(), 0);
             return new RangeMapReaderActivityNodePushable(ctx, inputRecordDescriptor, getActivityId(), partition);
         }
@@ -115,8 +119,8 @@ public class SortForwardOperatorDescriptor extends AbstractForwardOperatorDescri
 
         @Override
         public IOperatorNodePushable createPushRuntime(final IHyracksTaskContext ctx,
-                IRecordDescriptorProvider recordDescProvider, final int partition, int nPartitions)
-                throws HyracksDataException {
+                IRecordDescriptorProvider recordDescProvider, final int partition, int nPartitions,
+                IOperatorEnvironment pastEnv) throws HyracksDataException {
             return new ForwardDataActivityNodePushable(ctx, partition);
         }
     }
@@ -191,8 +195,10 @@ public class SortForwardOperatorDescriptor extends AbstractForwardOperatorDescri
         private final int partition;
 
         /**
-         * @param ctx used to retrieve the range map stored by the range reader activity.
-         * @param partition used to create the same task id used by the range reader activity for storing the range.
+         * @param ctx
+         *            used to retrieve the range map stored by the range reader activity.
+         * @param partition
+         *            used to create the same task id used by the range reader activity for storing the range.
          */
         private ForwardDataActivityNodePushable(IHyracksTaskContext ctx, int partition) {
             this.ctx = ctx;

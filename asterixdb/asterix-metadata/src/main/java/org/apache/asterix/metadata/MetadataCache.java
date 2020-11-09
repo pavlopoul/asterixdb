@@ -170,7 +170,8 @@ public class MetadataCache {
             synchronized (indexes) {
                 // Add the primary index associated with the dataset, if the dataset is an
                 // internal dataset.
-                if (dataset.getDatasetType() == DatasetType.INTERNAL) {
+                if (dataset.getDatasetType() == DatasetType.INTERNAL
+                        || dataset.getDatasetType() == DatasetType.READER) {
                     Index index = IndexUtil.getPrimaryIndex(dataset);
                     addIndexIfNotExistsInternal(index);
                 }

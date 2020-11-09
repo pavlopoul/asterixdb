@@ -37,6 +37,7 @@ import org.apache.hyracks.api.dataflow.value.IRecordDescriptorProvider;
 import org.apache.hyracks.api.dataflow.value.RecordDescriptor;
 import org.apache.hyracks.api.exceptions.HyracksDataException;
 import org.apache.hyracks.api.job.IOperatorDescriptorRegistry;
+import org.apache.hyracks.api.job.IOperatorEnvironment;
 import org.apache.hyracks.api.util.CleanupUtils;
 import org.apache.hyracks.data.std.api.IPointable;
 import org.apache.hyracks.data.std.primitive.VoidPointable;
@@ -95,8 +96,8 @@ public class SplitOperatorDescriptor extends AbstractReplicateOperatorDescriptor
 
         @Override
         public IOperatorNodePushable createPushRuntime(final IHyracksTaskContext ctx,
-                IRecordDescriptorProvider recordDescProvider, final int partition, int nPartitions)
-                throws HyracksDataException {
+                IRecordDescriptorProvider recordDescProvider, final int partition, int nPartitions,
+                IOperatorEnvironment pastEnv) throws HyracksDataException {
             final IFrameWriter[] writers = new IFrameWriter[numberOfNonMaterializedOutputs];
             final boolean[] isOpen = new boolean[numberOfNonMaterializedOutputs];
             final IPointable p = VoidPointable.FACTORY.createPointable();;

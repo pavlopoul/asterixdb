@@ -27,11 +27,14 @@ import java.util.List;
 import java.util.Map.Entry;
 import java.util.PriorityQueue;
 import java.util.Queue;
+import java.util.SortedMap;
 import java.util.TreeMap;
 
 import org.apache.hyracks.storage.am.statistics.sketch.ISketch;
 
 import com.google.common.collect.Iterators;
+import com.google.common.hash.HashFunction;
+import com.google.common.hash.Hashing;
 
 /**
  * Implementation of modified adaptive Greenwald-Khanna sketch from "Quantiles over data streams: An Experimental Study"
@@ -47,6 +50,10 @@ public class QuantileSketch<T extends Comparable<T>> implements ISketch<T, T> {
             this.value = value;
             this.g = g;
             this.delta = delta;
+        }
+
+        public T getValue() {
+            return value;
         }
 
         @Override
@@ -118,6 +125,18 @@ public class QuantileSketch<T extends Comparable<T>> implements ISketch<T, T> {
             return successor.getValue().getFirst();
         }
 
+        public SortedMap<K, LinkedList<V>> subMap(K fromKey, K toKey) {
+            return map.subMap(fromKey, toKey);
+        }
+
+        public V firstEntry() {
+            Entry<K, LinkedList<V>> firstNotNullEntry = map.firstEntry();
+            if (firstNotNullEntry == null) {
+                return null;
+            }
+            return map.firstEntry().getValue().getFirst();
+        }
+
         public V lastEntry() {
             // because we designate null as the last value, look for the highest entry less then dummy maximum
             Entry<K, LinkedList<V>> lastNonNullEntry = map.lowerEntry(null);
@@ -165,6 +184,8 @@ public class QuantileSketch<T extends Comparable<T>> implements ISketch<T, T> {
     private final T domainStart;
     private final double accuracy;
     private final TreeMapWithDuplicates<T, QuantileSketchElement> elements;
+    private final HLLSketch hll;
+    private final HashFunction hashFunction;
     private final Queue<ThresholdEntry> compressibleElements;
     private int size;
 
@@ -173,6 +194,8 @@ public class QuantileSketch<T extends Comparable<T>> implements ISketch<T, T> {
         this.domainStart = domainStart;
         this.accuracy = accuracy;
         elements = new TreeMapWithDuplicates<>(new QuantileSketchElement(null, 1, 0));
+        hll = new HLLSketch(20, 5);
+        hashFunction = Hashing.murmur3_128();
         //min heap to store elements thresholds
         compressibleElements = new PriorityQueue<>(Comparator.comparingDouble(o -> o.threshold));
     }
@@ -182,8 +205,16 @@ public class QuantileSketch<T extends Comparable<T>> implements ISketch<T, T> {
         return elements.size();
     }
 
-    public int length() {
+    public double length() {
         return size;
+    }
+
+    public TreeMapWithDuplicates<T, QuantileSketchElement> getElements() {
+        return elements;
+    }
+
+    public HLLSketch getHll() {
+        return hll;
     }
 
     @Override
@@ -210,7 +241,6 @@ public class QuantileSketch<T extends Comparable<T>> implements ISketch<T, T> {
         while (true) {
             ThresholdEntry minElement = compressibleElements.peek();
             if (minElement.threshold > threshold) {
-                // all elements are greater than threshold. simply break because the new element was already added
                 break;
             }
             // update next element's threshold
@@ -232,6 +262,11 @@ public class QuantileSketch<T extends Comparable<T>> implements ISketch<T, T> {
         }
     }
 
+    public void insertToHll(long v) {
+        long hashedValue = hashFunction.newHasher().putLong(v).hash().asLong();
+        hll.addRaw(hashedValue);
+    }
+
     // returns max_i (gi+Δi) after all elements were added to the quantile summary
     public long calculateMaxError() {
         long maxError = 0;
@@ -243,6 +278,10 @@ public class QuantileSketch<T extends Comparable<T>> implements ISketch<T, T> {
             }
         }
         return maxError / 2;
+    }
+
+    public long finishHll() {
+        return hll.cardinality();
     }
 
     @Override
@@ -261,11 +300,6 @@ public class QuantileSketch<T extends Comparable<T>> implements ISketch<T, T> {
         while (it.hasNext() && quantile <= quantileNum) {
             boolean getNextRank = false;
             // if the requested rank is withing error bounds from the end
-            //            if (nextRank > size - maxError) {
-            //                // the largest value is an acceptable answer
-            //                ranks.add(elements.lastEntry().value);
-            //                getNextRank = true;
-            //            } else
             if (rMin + e.delta > nextRank + maxError) {
                 if (prev != null) {
                     ranks.add(prev.value);

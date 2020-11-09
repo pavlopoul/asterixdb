@@ -281,7 +281,8 @@ public interface IStatementExecutor {
      */
     JobSpecification rewriteCompileQuery(IClusterInfoCollector clusterInfoCollector, MetadataProvider metadataProvider,
             Query query, ICompiledDmlStatement dmlStatement, Map<String, IAObject> statementParameters,
-            IStatementRewriter statementRewriter) throws RemoteException, AlgebricksException, ACIDException;
+            IStatementRewriter statementRewriter, /*List<ILogicalOperator> operators, boolean first,*/ Query newQuery)
+            throws RemoteException, AlgebricksException, ACIDException;
 
     /**
      * returns the active dataverse for an entity or a statement

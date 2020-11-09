@@ -436,7 +436,7 @@ public class TestNodeController {
                 NoOpOperationCallbackFactory.INSTANCE, filterFields, filterFields, false);
         BTreeSearchOperatorNodePushable searchOp =
                 searchOpDesc.createPushRuntime(ctx, primaryIndexInfo.getSearchRecordDescriptorProvider(),
-                        ctx.getTaskAttemptId().getTaskId().getPartition(), 1);
+                        ctx.getTaskAttemptId().getTaskId().getPartition(), 1, null);
         emptyTupleOp.setOutputFrameWriter(0, searchOp,
                 primaryIndexInfo.getSearchRecordDescriptorProvider().getInputRecordDescriptor(null, 0));
         searchOp.setOutputFrameWriter(0, countOp, primaryIndexInfo.rDesc);

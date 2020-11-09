@@ -173,7 +173,13 @@ public class TypeUtil {
 
     /**
      * Creates a map from name to type for fields in the passed type
+    <<<<<<< HEAD
      * @param recordType the type to be mapped
+    =======
+     *
+     * @param recordType
+     *            the type to be mapped
+    >>>>>>> christina/stats_with_split
      * @return a map mapping all fields to their types
      */
     private static Map<String, IAType> createRecordNameTypeMap(ARecordType recordType) {
@@ -186,8 +192,11 @@ public class TypeUtil {
 
     /**
      * Maintains the {@code updatedRecordType} as nullable/missable (?) in case it was originally nullable/missable
-     * @param originalRecordType the original record type
-     * @param updatedRecordType the original record type being enforced/modified with new non-declared fields included
+     * 
+     * @param originalRecordType
+     *            the original record type
+     * @param updatedRecordType
+     *            the original record type being enforced/modified with new non-declared fields included
      * @return {@code updatedRecordType}
      */
     private static IAType keepUnknown(IAType originalRecordType, ARecordType updatedRecordType) {
@@ -199,7 +208,9 @@ public class TypeUtil {
 
     /**
      * Makes sure the dataset record type being enforced/modified stays as a pure record type
-     * @param enforcedDatasetRecordType the dataset record type enforced and modified by adding the extra fields indexed
+     * 
+     * @param enforcedDatasetRecordType
+     *            the dataset record type enforced and modified by adding the extra fields indexed
      */
     private static void validateRecord(IAType enforcedDatasetRecordType) {
         if (enforcedDatasetRecordType.getTypeTag() != ATypeTag.OBJECT) {
@@ -211,10 +222,20 @@ public class TypeUtil {
      * Makes sure the chain of fields accessed and leading to the indexed field are all valid record types.
      * E.g. for CREATE INDEX idx on ds(a.b.c.d: int) validate that a, b and c are all valid record types (?).
      * 
+    <<<<<<< HEAD
      * @param nestedRecordType the nested record field being accessed
      * @param fieldName the name of the nested record field
      * @throws AsterixException when supplying bad fields, e.g. CREATE INDEX i on ds(a.b: int, a.b.c: int) (mostly
      * for non-declared fields)
+    =======
+     * @param nestedRecordType
+     *            the nested record field being accessed
+     * @param fieldName
+     *            the name of the nested record field
+     * @throws AsterixException
+     *             when supplying bad fields, e.g. CREATE INDEX i on ds(a.b: int, a.b.c: int) (mostly
+     *             for non-declared fields)
+    >>>>>>> christina/stats_with_split
      */
     private static void validateNestedRecord(IAType nestedRecordType, List<String> fieldName) throws AsterixException {
         IAType actualType = TypeComputeUtils.getActualType(nestedRecordType);

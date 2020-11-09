@@ -524,4 +524,14 @@ public class LSMBTree extends AbstractLSMIndex implements ITreeIndex {
                 mergeFileRefs.getBloomFilterFileReference(), getStatisticsAwareIOOperationCallback(callback),
                 getIndexIdentifier());
     }
+
+    //    public IIndexBulkLoader createBulkLoader(float fillLevel, boolean verifyInput, long numElementsHint)
+    //            throws HyracksDataException {
+    //        AbstractLSMIndexOperationContext opCtx = createOpContext(NoOpIndexAccessParameters.INSTANCE);
+    //        opCtx.get
+    //        opCtx.setIoOperationType(LSMIOOperationType.LOAD);
+    //        ioOpCallback.beforeOperation(opCtx.getIoOperation());
+    //        return new LSMIndexDiskComponentBulkLoader(this, opCtx, getStatisticsAwareIOOperationCallback(ioOpCallback),
+    //                fillLevel, verifyInput, numElementsHint);
+    //    }
 }

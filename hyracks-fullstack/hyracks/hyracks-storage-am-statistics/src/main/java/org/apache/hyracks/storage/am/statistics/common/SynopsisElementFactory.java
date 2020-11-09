@@ -29,11 +29,11 @@ import org.apache.hyracks.storage.am.statistics.historgram.HistogramBucket;
 
 public class SynopsisElementFactory {
 
-    public static ISynopsisElement createSynopsisElement(SynopsisType type, long key, double value, long uniqueValNum,
-            ITypeTraits keyTypeTraits) throws HyracksDataException {
+    public static ISynopsisElement createSynopsisElement(SynopsisType type, long key, double value, long unique,
+            long height, long uniqueValNum, ITypeTraits keyTypeTraits) throws HyracksDataException {
         switch (type) {
             case ContinuousHistogram:
-                return new HistogramBucket(key, value);
+                return new HistogramBucket(key, value, unique, height);
             default:
                 throw new HyracksDataException("Cannot instantiate new synopsis element of type " + type);
         }

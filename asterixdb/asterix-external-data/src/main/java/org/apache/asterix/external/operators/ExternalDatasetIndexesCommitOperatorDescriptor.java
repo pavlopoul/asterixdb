@@ -54,4 +54,10 @@ public class ExternalDatasetIndexesCommitOperatorDescriptor extends AbstractExte
         ((ITwoPCIndex) index).commitTransaction();
         LOGGER.warn("operation on " + file.getFile().getAbsolutePath() + " Succeded");
     }
+
+    @Override
+    public int getLocalIntermediateResultId() {
+        // TODO Auto-generated method stub
+        return 0;
+    }
 }

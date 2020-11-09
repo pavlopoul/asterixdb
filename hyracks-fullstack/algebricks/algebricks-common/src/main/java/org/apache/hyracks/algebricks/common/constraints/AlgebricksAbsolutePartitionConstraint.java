@@ -45,7 +45,7 @@ public class AlgebricksAbsolutePartitionConstraint extends AlgebricksPartitionCo
     }
 
     public String[] getLocations() {
-        return locations;
+        return sortedLocations;
     }
 
     @Override

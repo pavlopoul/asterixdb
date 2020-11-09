@@ -388,7 +388,6 @@ public abstract class AbstractLSMIndexFileManager implements ILSMIndexFileManage
             final String path = baseDir.getChildPath(name);
             return new CompressedFileReference(baseDir.getDeviceHandle(), compDecomp, path, path + LAF_SUFFIX);
         }
-
         return baseDir.getChild(name);
     }
 

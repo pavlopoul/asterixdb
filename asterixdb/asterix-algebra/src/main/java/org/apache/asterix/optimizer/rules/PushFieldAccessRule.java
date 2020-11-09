@@ -300,7 +300,8 @@ public class PushFieldAccessRule implements IAlgebraicRewriteRule {
                     throw new CompilationException(ErrorCode.UNKNOWN_DATASET_IN_DATAVERSE, scan.getSourceLocation(),
                             asid.getDatasourceName(), asid.getDataverseName());
                 }
-                if (dataset.getDatasetType() != DatasetType.INTERNAL) {
+                if (dataset.getDatasetType() != DatasetType.INTERNAL
+                        && dataset.getDatasetType() != DatasetType.READER) {
                     setAsFinal(assignOp, context, finalAnnot);
                     return false;
                 }
@@ -356,8 +357,10 @@ public class PushFieldAccessRule implements IAlgebraicRewriteRule {
     }
 
     /**
-     * @param recordInAssign the variable reference expression in assign op
-     * @param recordInScan the record (payload) variable in scan op
+     * @param recordInAssign
+     *            the variable reference expression in assign op
+     * @param recordInScan
+     *            the record (payload) variable in scan op
      * @return true if the expression in the assign op is a variable and that variable = record variable in scan op
      */
     private boolean sameRecords(ILogicalExpression recordInAssign, LogicalVariable recordInScan) {

@@ -62,4 +62,8 @@ public class CcIdPartitionedLongFactory {
     public CcId getCcId() {
         return ccId;
     }
+
+    public AtomicLong getId() {
+        return id;
+    }
 }

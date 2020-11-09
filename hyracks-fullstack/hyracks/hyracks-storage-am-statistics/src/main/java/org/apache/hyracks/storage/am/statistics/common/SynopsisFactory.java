@@ -20,6 +20,8 @@ package org.apache.hyracks.storage.am.statistics.common;
 
 import java.util.Collection;
 import java.util.List;
+import java.util.Map;
+import java.util.Set;
 
 import org.apache.hyracks.api.dataflow.value.ITypeTraits;
 import org.apache.hyracks.api.exceptions.HyracksDataException;
@@ -32,7 +34,8 @@ public class SynopsisFactory {
     @SuppressWarnings("unchecked")
     public static AbstractSynopsis<? extends ISynopsisElement<Long>> createSynopsis(SynopsisType type,
             ITypeTraits keyTypeTraits, Collection<? extends ISynopsisElement> synopsisElements,
-            long synopsisElementsNum, int synopsisSize) throws HyracksDataException {
+            long synopsisElementsNum, int synopsisSize, Map<Long, Integer> uniquemap, Set<Long> uniqueSet,
+            Map<Integer, Byte> sparseMap, long[] words) throws HyracksDataException {
         long domainStart = TypeTraitsDomainUtils.minDomainValue(keyTypeTraits);
         long domainEnd = TypeTraitsDomainUtils.maxDomainValue(keyTypeTraits);
         int maxLevel = TypeTraitsDomainUtils.maxLevel(keyTypeTraits);
@@ -40,7 +43,7 @@ public class SynopsisFactory {
             case ContinuousHistogram:
             case QuantileSketch:
                 return new ContinuousHistogramSynopsis(domainStart, domainEnd, maxLevel, synopsisElementsNum,
-                        synopsisSize, (List<HistogramBucket>) synopsisElements);
+                        synopsisSize, (List<HistogramBucket>) synopsisElements, uniqueSet, sparseMap, words);
             default:
                 throw new HyracksDataException("Cannot instantiate new synopsis of type " + type);
         }

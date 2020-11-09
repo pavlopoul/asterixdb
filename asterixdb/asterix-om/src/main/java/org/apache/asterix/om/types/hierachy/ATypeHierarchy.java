@@ -21,7 +21,6 @@ package org.apache.asterix.om.types.hierachy;
 import java.io.DataOutput;
 import java.io.IOException;
 import java.util.BitSet;
-import java.util.EnumMap;
 import java.util.HashMap;
 import java.util.Map;
 
@@ -47,7 +46,7 @@ public class ATypeHierarchy {
     private static final Map<Integer, ITypeConvertComputer> promoteComputerMap = new HashMap<>();
     private static final Map<Integer, Pair<ITypeConvertComputer, ITypeConvertComputer>> demoteComputerMap =
             new HashMap<>();
-    private static Map<ATypeTag, Domain> hierarchyDomains = new EnumMap<>(ATypeTag.class);
+    private static Map<ATypeTag, Domain> hierarchyDomains = new HashMap<>();
 
     // allow type promotion or demotion to the type itself
     static {
@@ -145,7 +144,7 @@ public class ATypeHierarchy {
         if (useListDomain && tagHierarchy1 == Domain.LIST && tagHierarchy2 == Domain.LIST) {
             return true;
         }
-        return tagHierarchy1.equals(tagHierarchy2) && !useListDomain;
+        return !tagHierarchy1.equals(Domain.ANY) || useListDomain;
     }
 
     private static void addPromotionRule(ATypeTag type1, ATypeTag type2, ITypeConvertComputer promoteComputer) {
@@ -425,6 +424,8 @@ public class ATypeHierarchy {
 
     public enum Domain {
         SPATIAL,
+        INTEGER,
+        FLOATING,
         NUMERIC,
         LIST,
         ANY

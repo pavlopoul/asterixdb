@@ -174,7 +174,7 @@ public class RTreeAccessMethod implements IAccessMethod {
 
         // Is this plan an index-only plan?
         if (isIndexOnlyPlan) {
-            if (dataset.getDatasetType() == DatasetType.INTERNAL) {
+            if (dataset.getDatasetType() == DatasetType.INTERNAL || dataset.getDatasetType() == DatasetType.READER) {
                 AccessMethodUtils.indexOnlyPlanCheck(afterSelectRefs, selectRef, subTree, null, chosenIndex,
                         analysisCtx, context, indexOnlyPlanInfo);
                 isIndexOnlyPlan = indexOnlyPlanInfo.getFirst();

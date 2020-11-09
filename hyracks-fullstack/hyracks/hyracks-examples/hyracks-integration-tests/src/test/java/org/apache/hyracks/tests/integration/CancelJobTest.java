@@ -35,6 +35,7 @@ import org.apache.hyracks.api.exceptions.HyracksDataException;
 import org.apache.hyracks.api.exceptions.HyracksException;
 import org.apache.hyracks.api.io.FileSplit;
 import org.apache.hyracks.api.io.ManagedFileSplit;
+import org.apache.hyracks.api.job.IOperatorEnvironment;
 import org.apache.hyracks.api.job.JobId;
 import org.apache.hyracks.api.job.JobSpecification;
 import org.apache.hyracks.api.job.JobStatus;
@@ -278,7 +279,8 @@ class SleepSourceOperatorDescriptor extends AbstractSingleActivityOperatorDescri
 
     @Override
     public IOperatorNodePushable createPushRuntime(final IHyracksTaskContext ctx,
-            IRecordDescriptorProvider recordDescProvider, int partition, int nPartitions) throws HyracksDataException {
+            IRecordDescriptorProvider recordDescProvider, int partition, int nPartitions, IOperatorEnvironment pastEnv)
+            throws HyracksDataException {
         return new AbstractUnaryOutputSourceOperatorNodePushable() {
 
             @Override
@@ -298,6 +300,12 @@ class SleepSourceOperatorDescriptor extends AbstractSingleActivityOperatorDescri
             }
         };
     }
+
+    @Override
+    public int getLocalIntermediateResultId() {
+        // TODO Auto-generated method stub
+        return 0;
+    }
 }
 
 class SleepOperatorDescriptor extends AbstractSingleActivityOperatorDescriptor {
@@ -309,7 +317,8 @@ class SleepOperatorDescriptor extends AbstractSingleActivityOperatorDescriptor {
 
     @Override
     public IOperatorNodePushable createPushRuntime(final IHyracksTaskContext ctx,
-            IRecordDescriptorProvider recordDescProvider, int partition, int nPartitions) throws HyracksDataException {
+            IRecordDescriptorProvider recordDescProvider, int partition, int nPartitions, IOperatorEnvironment pastEnv)
+            throws HyracksDataException {
         return new AbstractUnaryInputUnaryOutputOperatorNodePushable() {
 
             @Override
@@ -341,4 +350,10 @@ class SleepOperatorDescriptor extends AbstractSingleActivityOperatorDescriptor {
             }
         };
     }
+
+    @Override
+    public int getLocalIntermediateResultId() {
+        return 0;
+    }
+
 }

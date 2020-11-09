@@ -343,6 +343,14 @@ public class IOManager implements IIOManager {
         } catch (IOException e) {
             throw HyracksDataException.create(e);
         }
+        //        File waf = new File(dev.getMount(), waPath);
+        //        waf = new File(waf, prefix + WORKSPACE_FILE_SUFFIX);
+        //        waf = new File(dev.getMount(), waPath + prefix + WORKSPACE_FILE_SUFFIX);
+        //        try {
+        //            waf.createNewFile();
+        //        } catch (IOException e) {
+        //            throw HyracksDataException.create(e);
+        //        }
         return dev.createFileRef(waPath + File.separator + waf.getName());
     }
 

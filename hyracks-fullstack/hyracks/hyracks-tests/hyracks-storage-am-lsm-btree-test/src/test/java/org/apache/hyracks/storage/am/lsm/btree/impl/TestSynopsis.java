@@ -19,6 +19,8 @@
 package org.apache.hyracks.storage.am.lsm.btree.impl;
 
 import java.util.Collection;
+import java.util.Map;
+import java.util.Set;
 import java.util.TreeSet;
 
 import org.apache.hyracks.api.exceptions.HyracksDataException;
@@ -63,4 +65,65 @@ public class TestSynopsis implements ISynopsis<TestSynopsisElement> {
             elements.addAll(mergeSynopsis.getElements());
         }
     }
+
+    @Override
+    public double joinQuery(ISynopsis synopsis, boolean primIndex) {
+        // TODO Auto-generated method stub
+        return 0;
+    }
+
+    @Override
+    public Map<Long, Integer> getMap() {
+        // TODO Auto-generated method stub
+        return null;
+    }
+
+    @Override
+    public long uniqueQuery(boolean primIndex) {
+        // TODO Auto-generated method stub
+        return 0;
+    }
+
+    @Override
+    public Set<Long> getUnique() {
+        // TODO Auto-generated method stub
+        return null;
+    }
+
+    @Override
+    public Map<Integer, Byte> getSparseMap() {
+        // TODO Auto-generated method stub
+        return null;
+    }
+
+    @Override
+    public long[] getWordsAr() {
+        // TODO Auto-generated method stub
+        return null;
+    }
+
+    @Override
+    public void setWordsAr(long[] words) {
+        // TODO Auto-generated method stub
+
+    }
+
+    @Override
+    public void mergeUnique(ISynopsis<TestSynopsisElement> mergeSynopsis) throws HyracksDataException {
+        // TODO Auto-generated method stub
+
+    }
+
+    @Override
+    public void setSparseMap(Map<Integer, Byte> map) {
+        // TODO Auto-generated method stub
+
+    }
+
+    @Override
+    public void setUniqueSet(Set<Long> set) {
+        // TODO Auto-generated method stub
+
+    }
+
 }

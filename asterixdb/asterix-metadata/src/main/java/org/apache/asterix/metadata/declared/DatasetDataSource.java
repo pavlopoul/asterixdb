@@ -56,6 +56,7 @@ public class DatasetDataSource extends DataSource {
         super(id, itemType, metaItemType, datasourceType, datasetDomain);
         this.dataset = dataset;
         switch (dataset.getDatasetType()) {
+            case READER:
             case INTERNAL:
                 initInternalDataset(itemType, metaItemType, datasetDetails);
                 break;
@@ -115,6 +116,7 @@ public class DatasetDataSource extends DataSource {
                 ITypedAdapterFactory adapterFactory = metadataProvider.getConfiguredAdapterFactory(externalDataset,
                         edd.getAdapter(), edd.getProperties(), (ARecordType) itemType, null);
                 return metadataProvider.buildExternalDatasetDataScannerRuntime(jobSpec, itemType, adapterFactory);
+            case READER:
             case INTERNAL:
                 DataSourceId id = getId();
                 DataverseName dataverseName = id.getDataverseName();

@@ -28,7 +28,6 @@ import org.apache.asterix.om.pointables.base.IVisitablePointable;
 import org.apache.asterix.om.pointables.visitor.IVisitablePointableVisitor;
 import org.apache.asterix.om.types.ATypeTag;
 import org.apache.asterix.om.types.hierachy.ATypeHierarchy;
-import org.apache.asterix.om.types.hierachy.ATypeHierarchy.Domain;
 import org.apache.asterix.runtime.evaluators.functions.PointableHelper;
 import org.apache.hyracks.algebricks.common.utils.Pair;
 import org.apache.hyracks.api.exceptions.HyracksDataException;
@@ -81,10 +80,10 @@ public class DeepEqualityVisitor implements IVisitablePointableVisitor<Void, Pai
                 arg.second = false;
             } else {
                 // If same domain, check if numberic
-                Domain domain = ATypeHierarchy.getTypeDomain(tt1);
+
                 byte b1[] = pointable.getByteArray();
                 byte b2[] = arg.first.getByteArray();
-                if (domain == Domain.NUMERIC) {
+                if (ATypeHierarchy.getTypeDomain(tt1) == ATypeHierarchy.Domain.NUMERIC) {
                     int s1 = pointable.getStartOffset();
                     int s2 = arg.first.getStartOffset();
                     arg.second = Math.abs(ATypeHierarchy.getDoubleValue("deep-equal", 0, b1, s1)

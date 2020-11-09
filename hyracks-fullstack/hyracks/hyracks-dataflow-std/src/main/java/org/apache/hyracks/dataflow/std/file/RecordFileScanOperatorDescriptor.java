@@ -85,4 +85,10 @@ public class RecordFileScanOperatorDescriptor extends AbstractDeserializedFileSc
         // to the node where the operator gets executed.
 
     }
+
+    @Override
+    public int getLocalIntermediateResultId() {
+        // TODO Auto-generated method stub
+        return 0;
+    }
 }

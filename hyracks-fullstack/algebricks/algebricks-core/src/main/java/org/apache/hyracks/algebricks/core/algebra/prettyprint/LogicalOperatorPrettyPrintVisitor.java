@@ -639,4 +639,5 @@ public class LogicalOperatorPrettyPrintVisitor extends AbstractLogicalOperatorPr
             }
         }
     }
+
 }

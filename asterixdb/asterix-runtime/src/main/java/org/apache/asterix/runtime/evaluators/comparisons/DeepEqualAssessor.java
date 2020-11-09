@@ -21,7 +21,6 @@ package org.apache.asterix.runtime.evaluators.comparisons;
 import org.apache.asterix.om.pointables.base.IVisitablePointable;
 import org.apache.asterix.om.types.ATypeTag;
 import org.apache.asterix.om.types.hierachy.ATypeHierarchy;
-import org.apache.asterix.om.types.hierachy.ATypeHierarchy.Domain;
 import org.apache.asterix.runtime.evaluators.functions.PointableHelper;
 import org.apache.asterix.runtime.evaluators.visitors.DeepEqualityVisitor;
 import org.apache.hyracks.algebricks.common.utils.Pair;
@@ -57,7 +56,7 @@ public class DeepEqualAssessor {
         if (leftTypeTag != rightTypeTag) {
             // If types are numeric compare their real values instead
             if (ATypeHierarchy.isSameTypeDomain(leftTypeTag, rightTypeTag, false)
-                    && ATypeHierarchy.getTypeDomain(leftTypeTag) == Domain.NUMERIC) {
+                    && ATypeHierarchy.getTypeDomain(leftTypeTag) == ATypeHierarchy.Domain.NUMERIC) {
                 double leftVal = ATypeHierarchy.getDoubleValue(DEEP_EQUAL, 0, leftPointable.getByteArray(),
                         leftPointable.getStartOffset());
                 double rightVal = ATypeHierarchy.getDoubleValue(DEEP_EQUAL, 1, rightPointable.getByteArray(),

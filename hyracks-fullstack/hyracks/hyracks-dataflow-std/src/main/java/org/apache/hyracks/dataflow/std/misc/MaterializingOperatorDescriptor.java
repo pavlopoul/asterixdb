@@ -30,6 +30,7 @@ import org.apache.hyracks.api.dataflow.value.IRecordDescriptorProvider;
 import org.apache.hyracks.api.dataflow.value.RecordDescriptor;
 import org.apache.hyracks.api.exceptions.HyracksDataException;
 import org.apache.hyracks.api.job.IOperatorDescriptorRegistry;
+import org.apache.hyracks.api.job.IOperatorEnvironment;
 import org.apache.hyracks.dataflow.std.base.AbstractActivityNode;
 import org.apache.hyracks.dataflow.std.base.AbstractOperatorDescriptor;
 import org.apache.hyracks.dataflow.std.base.AbstractUnaryInputSinkOperatorNodePushable;
@@ -89,7 +90,8 @@ public class MaterializingOperatorDescriptor extends AbstractOperatorDescriptor 
 
         @Override
         public IOperatorNodePushable createPushRuntime(final IHyracksTaskContext ctx,
-                IRecordDescriptorProvider recordDescProvider, final int partition, int nPartitions) {
+                IRecordDescriptorProvider recordDescProvider, final int partition, int nPartitions,
+                IOperatorEnvironment pastEnv) {
             return new AbstractUnaryInputUnaryOutputOperatorNodePushable() {
                 private MaterializerTaskState state;
                 private boolean failed = false;
@@ -129,7 +131,8 @@ public class MaterializingOperatorDescriptor extends AbstractOperatorDescriptor 
 
         @Override
         public IOperatorNodePushable createPushRuntime(final IHyracksTaskContext ctx,
-                IRecordDescriptorProvider recordDescProvider, final int partition, int nPartitions) {
+                IRecordDescriptorProvider recordDescProvider, final int partition, int nPartitions,
+                IOperatorEnvironment pastEnv) {
             return new AbstractUnaryInputSinkOperatorNodePushable() {
                 private MaterializerTaskState state;
 
@@ -167,7 +170,8 @@ public class MaterializingOperatorDescriptor extends AbstractOperatorDescriptor 
 
         @Override
         public IOperatorNodePushable createPushRuntime(final IHyracksTaskContext ctx,
-                IRecordDescriptorProvider recordDescProvider, final int partition, int nPartitions) {
+                IRecordDescriptorProvider recordDescProvider, final int partition, int nPartitions,
+                IOperatorEnvironment pastEnv) {
             return new AbstractUnaryOutputSourceOperatorNodePushable() {
                 @Override
                 public void initialize() throws HyracksDataException {

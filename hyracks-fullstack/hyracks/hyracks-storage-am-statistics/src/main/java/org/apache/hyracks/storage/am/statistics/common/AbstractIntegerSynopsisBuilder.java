@@ -35,7 +35,9 @@ public abstract class AbstractIntegerSynopsisBuilder<T extends ISynopsis> extend
 
     protected void processTuple(ITupleReference tuple) throws HyracksDataException {
         long value = fieldExtractor.extractFieldValue(tuple);
-        addValue(value);
+        if (value != -1l) {
+            addValue(value);
+        }
     }
 
     public abstract void addValue(long value);

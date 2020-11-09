@@ -30,14 +30,21 @@ public interface ISynopsisElement<T> extends Serializable {
 
     final static int SYNOPSIS_KEY_SIZE = Long.BYTES;
     final static int SYNOPSIS_VALUE_SIZE = Double.BYTES;
+    final static int SYNOPSIS_UNIQUE_VALUE_SIZE = Long.BYTES;
 
     @SuppressWarnings("rawtypes")
     final ISerializerDeserializer SYNOPSIS_KEY_SERDE = Integer64SerializerDeserializer.INSTANCE;
     @SuppressWarnings("rawtypes")
     final ISerializerDeserializer SYNOPSIS_VALUE_SERDE = DoubleSerializerDeserializer.INSTANCE;
+    @SuppressWarnings("rawtypes")
+    final ISerializerDeserializer SYNOPSIS_UNIQUE_VALUE_SERDE = Integer64SerializerDeserializer.INSTANCE;
 
     T getKey();
 
     double getValue();
+
+    Long getUniqueValue();
+
+    Long getHeight();
 
 }

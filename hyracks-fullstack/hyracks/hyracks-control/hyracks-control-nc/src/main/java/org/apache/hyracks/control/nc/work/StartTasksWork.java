@@ -22,6 +22,7 @@ import java.net.InetAddress;
 import java.net.InetSocketAddress;
 import java.net.UnknownHostException;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -53,9 +54,11 @@ import org.apache.hyracks.api.job.ActivityCluster;
 import org.apache.hyracks.api.job.ActivityClusterGraph;
 import org.apache.hyracks.api.job.DeployedJobSpecId;
 import org.apache.hyracks.api.job.IJobletEventListenerFactory;
+import org.apache.hyracks.api.job.IOperatorEnvironment;
 import org.apache.hyracks.api.job.JobFlag;
 import org.apache.hyracks.api.job.JobId;
 import org.apache.hyracks.api.partitions.PartitionId;
+import org.apache.hyracks.api.rewriter.runtime.SuperActivity;
 import org.apache.hyracks.api.util.ExceptionUtils;
 import org.apache.hyracks.comm.channels.NetworkInputChannel;
 import org.apache.hyracks.control.common.deployment.DeploymentUtils;
@@ -76,6 +79,8 @@ import org.apache.logging.log4j.Logger;
 
 public class StartTasksWork extends AbstractWork {
     private static final Logger LOGGER = LogManager.getLogger();
+
+    private Task pastTask;
 
     private final NodeControllerService ncs;
 
@@ -147,13 +152,26 @@ public class StartTasksWork extends AbstractWork {
                 ActivityId aid = tid.getActivityId();
                 ActivityCluster ac = acg.getActivityMap().get(aid);
                 IActivity han = ac.getActivityMap().get(aid);
+                SuperActivity san = (SuperActivity) han;
+                IActivity id = san.getActivityMap().get(aid);
                 LOGGER.trace("Initializing {} -> {} for {}", taId, han, jobId);
                 final int partition = tid.getPartition();
                 List<IConnectorDescriptor> inputs = ac.getActivityInputMap().get(aid);
                 task = null;
                 task = new Task(joblet, flags, taId, han.getClass().getName(), ncs.getExecutor(), ncs,
                         createInputChannels(td, inputs));
-                IOperatorNodePushable operator = han.createPushRuntime(task, rdp, partition, td.getPartitionCount());
+                IOperatorEnvironment env = null;
+                if (id.getLocalIntermediateResultId() > 0) {
+                    //env = ncs.getPastJobletMap().get(new JobId(jobId.getId() - 1)).getEnvironment();
+                    env = ncs.getPastJobletMap()
+                            .get(new JobId((ncs.getFirstJobId().getId() > 1)
+                                    ? jobId.getId() - id.getLocalIntermediateResultId()
+                                    : id.getLocalIntermediateResultId()))
+                            .getEnvironment();
+                }
+                IOperatorNodePushable operator =
+                        han.createPushRuntime(task, rdp, partition, td.getPartitionCount(), env);
+                pastTask = task;
                 List<IPartitionCollector> collectors = new ArrayList<>();
                 if (inputs != null) {
                     for (int i = 0; i < inputs.size(); ++i) {
@@ -204,6 +222,12 @@ public class StartTasksWork extends AbstractWork {
     private Joblet getOrCreateLocalJoblet(DeploymentId deploymentId, INCServiceContext appCtx, byte[] acgBytes)
             throws HyracksException {
         Map<JobId, Joblet> jobletMap = ncs.getJobletMap();
+        Map<JobId, Joblet> pastJobletMap = ncs.getPastJobletMap();
+        if (pastJobletMap == null) {
+            ncs.setFirstJobId(jobId);
+            ncs.setPastJobletMap(new HashMap<>());
+        }
+        pastJobletMap = ncs.getPastJobletMap();
         Joblet ji = jobletMap.get(jobId);
         if (ji == null) {
             ActivityClusterGraph acg = (deployedJobSpecId != null) ? ncs.getActivityClusterGraph(deployedJobSpecId)
@@ -218,6 +242,7 @@ public class StartTasksWork extends AbstractWork {
             }
             ji = new Joblet(ncs, deploymentId, jobId, appCtx, acg, listenerFactory, jobStartTime);
             jobletMap.put(jobId, ji);
+            pastJobletMap.put(jobId, ji);
         }
         return ji;
     }

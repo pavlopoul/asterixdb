@@ -44,6 +44,7 @@ import org.apache.hyracks.api.dataflow.value.ITuplePartitionComputer;
 import org.apache.hyracks.api.dataflow.value.RecordDescriptor;
 import org.apache.hyracks.api.exceptions.HyracksDataException;
 import org.apache.hyracks.api.job.IOperatorDescriptorRegistry;
+import org.apache.hyracks.api.job.IOperatorEnvironment;
 import org.apache.hyracks.api.job.JobId;
 import org.apache.hyracks.dataflow.common.comm.io.ArrayTupleBuilder;
 import org.apache.hyracks.dataflow.common.comm.io.FrameTupleAccessor;
@@ -256,8 +257,8 @@ public class OptimizedHybridHashJoinOperatorDescriptor extends AbstractOperatorD
 
         @Override
         public IOperatorNodePushable createPushRuntime(final IHyracksTaskContext ctx,
-                IRecordDescriptorProvider recordDescProvider, final int partition, final int nPartitions)
-                throws HyracksDataException {
+                IRecordDescriptorProvider recordDescProvider, final int partition, final int nPartitions,
+                IOperatorEnvironment pastEnv) throws HyracksDataException {
 
             final RecordDescriptor buildRd = recordDescProvider.getInputRecordDescriptor(getActivityId(), 0);
             final RecordDescriptor probeRd = recordDescProvider.getInputRecordDescriptor(probeAid, 0);
@@ -351,8 +352,8 @@ public class OptimizedHybridHashJoinOperatorDescriptor extends AbstractOperatorD
 
         @Override
         public IOperatorNodePushable createPushRuntime(final IHyracksTaskContext ctx,
-                IRecordDescriptorProvider recordDescProvider, final int partition, final int nPartitions)
-                throws HyracksDataException {
+                IRecordDescriptorProvider recordDescProvider, final int partition, final int nPartitions,
+                IOperatorEnvironment pastEnv) throws HyracksDataException {
 
             final RecordDescriptor buildRd = recordDescProvider.getInputRecordDescriptor(buildAid, 0);
             final RecordDescriptor probeRd = recordDescProvider.getInputRecordDescriptor(getActivityId(), 0);
@@ -469,6 +470,8 @@ public class OptimizedHybridHashJoinOperatorDescriptor extends AbstractOperatorD
                             logProbeComplete();
                         } finally {
                             writer.close();
+                            state.hybridHJ.clearBuildTempFiles();
+                            state.hybridHJ.clearProbeTempFiles();
                         }
                     }
                 }

@@ -91,7 +91,7 @@ public abstract class AbstractIntroduceAccessMethodRule implements IAlgebraicRew
     protected MetadataProvider metadataProvider;
 
     // Function Identifier sets that retain the original field variable through each function's arguments
-    private final ImmutableSet<FunctionIdentifier> funcIDSetThatRetainFieldName =
+    private static final ImmutableSet<FunctionIdentifier> funcIDSetThatRetainFieldName =
             ImmutableSet.of(BuiltinFunctions.WORD_TOKENS, BuiltinFunctions.GRAM_TOKENS, BuiltinFunctions.SUBSTRING,
                     BuiltinFunctions.SUBSTRING_BEFORE, BuiltinFunctions.SUBSTRING_AFTER,
                     BuiltinFunctions.CREATE_POLYGON, BuiltinFunctions.CREATE_MBR, BuiltinFunctions.CREATE_RECTANGLE,

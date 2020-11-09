@@ -22,6 +22,8 @@ package org.apache.hyracks.storage.am.lsm.common.api;
 
 import java.io.Serializable;
 import java.util.Collection;
+import java.util.Map;
+import java.util.Set;
 
 import org.apache.hyracks.api.exceptions.HyracksDataException;
 
@@ -66,10 +68,30 @@ public interface ISynopsis<T extends ISynopsisElement> extends Serializable {
 
     Collection<T> getElements();
 
+    Map<Long, Integer> getMap();
+
+    Set<Long> getUnique();
+
+    Map<Integer, Byte> getSparseMap();
+
+    long[] getWordsAr();
+
+    void setWordsAr(long[] words);
+
+    void setSparseMap(Map<Integer, Byte> map);
+
+    void setUniqueSet(Set<Long> set);
+
     void merge(ISynopsis<T> mergeSynopsis) throws HyracksDataException;
+
+    void mergeUnique(ISynopsis<T> mergeSynopsis) throws HyracksDataException;
 
     double pointQuery(long position);
 
     double rangeQuery(long startPosition, long endPosition);
+
+    double joinQuery(ISynopsis synopsis, boolean primIndex);
+
+    long uniqueQuery(boolean primIndex);
 
 }

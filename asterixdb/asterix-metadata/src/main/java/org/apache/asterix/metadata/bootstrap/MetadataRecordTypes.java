@@ -65,6 +65,7 @@ public final class MetadataRecordTypes {
     public static final String FIELD_NAME_FILE_SIZE = "FileSize";
     public static final String FIELD_NAME_FILE_STRUCTURE = "FileStructure";
     public static final String FIELD_NAME_GROUP_NAME = "GroupName";
+    public static final String FIELD_NAME_HEIGHT = "BucketHeight";
     public static final String FIELD_NAME_HINTS = "Hints";
     public static final String FIELD_NAME_INDEX_NAME = "IndexName";
     public static final String FIELD_NAME_INDEX_STRUCTURE = "IndexStructure";
@@ -111,6 +112,11 @@ public final class MetadataRecordTypes {
     public static final String FIELD_NAME_TIMESTAMP = "Timestamp";
     public static final String FIELD_NAME_TRANSACTION_STATE = "TransactionState";
     public static final String FIELD_NAME_TYPE = "Type";
+    public static final String FIELD_NAME_UNIQUE = "UniqueElements";
+    public static final String FIELD_NAME_UNIQUE_ELEM = "UniqueElem";
+    public static final String FIELD_NAME_EXPLICIT = "Explicit";
+    public static final String FIELD_NAME_SPARSE = "Sparse";
+    public static final String FIELD_NAME_WORD = "Word";
     public static final String FIELD_NAME_UNORDERED_LIST = "UnorderedList";
     public static final String FIELD_NAME_VALUE = "Value";
     public static final String FIELD_NAME_WORKING_MEMORY_SIZE = "WorkingMemorySize";
@@ -500,15 +506,71 @@ public final class MetadataRecordTypes {
     public static final String RECORD_NAME_STATISTICS_SYNOPSIS_ELEMENT = "StatisticsSynopsisElementRecordType";
     public static final int STATISTICS_SYNOPSIS_ELEMENT_ARECORD_KEY_FIELD_INDEX = 0;
     public static final int STATISTICS_SYNOPSIS_ELEMENT_ARECORD_VALUE_FIELD_INDEX = 1;
+    public static final int STATISTICS_SYNOPSIS_ELEMENT_ARECORD_UNIQUE_VALUE_FIELD_INDEX = 2;
+    public static final int STATISTICS_SYNOPSIS_ELEMENT_ARECORD_HEIGHT_FIELD_INDEX = 3;
     public static final String STATISTICS_SYNOPSIS_ELEMENT_ARECORD_UNIQUE_VALUES_NUM_FIELD_NAME = "UniqueValuesNum";
 
     public static ARecordType STATISTICS_SYNOPSIS_ELEMENT_RECORDTYPE = createRecordType(
             // RecordTypeName
             RECORD_NAME_STATISTICS_SYNOPSIS_ELEMENT,
             // FieldNames
+            new String[] { FIELD_NAME_KEY, FIELD_NAME_VALUE, FIELD_NAME_UNIQUE_ELEM, FIELD_NAME_HEIGHT },
+            // FieldTypes
+            new IAType[] { BuiltinType.AINT64, BuiltinType.ADOUBLE, BuiltinType.AINT64, BuiltinType.AINT64 },
+            //IsOpen?
+            true);
+
+    public static final String RECORD_NAME_STATISTICS_SYNOPSIS_UNIQUE = "StatisticsSynopsisUniqueRecordType";
+    public static final int STATISTICS_SYNOPSIS_UNIQUE_ARECORD_KEY_FIELD_INDEX = 0;
+    public static final int STATISTICS_SYNOPSIS_UNIQUE_ARECORD_VALUE_FIELD_INDEX = 1;
+
+    public static ARecordType STATISTICS_SYNOPSIS_UNIQUE_RECORDTYPE = createRecordType(
+            // RecordTypeName
+            RECORD_NAME_STATISTICS_SYNOPSIS_UNIQUE,
+            // FieldNames
             new String[] { FIELD_NAME_KEY, FIELD_NAME_VALUE },
             // FieldTypes
-            new IAType[] { BuiltinType.AINT64, BuiltinType.ADOUBLE },
+            new IAType[] { BuiltinType.AINT64, BuiltinType.AINT32 },
+            //IsOpen?
+            true);
+
+    public static final String RECORD_NAME_STATISTICS_SYNOPSIS_EXPLICIT = "StatisticsSynopsisExplicitRecordType";
+    public static final int STATISTICS_SYNOPSIS_EXPLICIT_ARECORD_KEY_FIELD_INDEX = 0;
+
+    public static ARecordType STATISTICS_SYNOPSIS_EXPLICIT_RECORDTYPE = createRecordType(
+            // RecordTypeName
+            RECORD_NAME_STATISTICS_SYNOPSIS_EXPLICIT,
+            // FieldNames
+            new String[] { FIELD_NAME_KEY },
+            // FieldTypes
+            new IAType[] { BuiltinType.AINT64 },
+            //IsOpen?
+            true);
+
+    public static final String RECORD_NAME_STATISTICS_SYNOPSIS_SPARSE = "StatisticsSynopsisSparseRecordType";
+    public static final int STATISTICS_SYNOPSIS_SPARSE_ARECORD_KEY_FIELD_INDEX = 0;
+    public static final int STATISTICS_SYNOPSIS_SPARSE_ARECORD_VALUE_FIELD_INDEX = 1;
+
+    public static ARecordType STATISTICS_SYNOPSIS_SPARSE_RECORDTYPE = createRecordType(
+            // RecordTypeName
+            RECORD_NAME_STATISTICS_SYNOPSIS_SPARSE,
+            // FieldNames
+            new String[] { FIELD_NAME_KEY, FIELD_NAME_VALUE },
+            // FieldTypes
+            new IAType[] { BuiltinType.AINT32, BuiltinType.AINT8 },
+            //IsOpen?
+            true);
+
+    public static final String RECORD_NAME_STATISTICS_SYNOPSIS_WORD = "StatisticsSynopsisWordRecordType";
+    public static final int STATISTICS_SYNOPSIS_WORD_ARECORD_KEY_FIELD_INDEX = 0;
+
+    public static ARecordType STATISTICS_SYNOPSIS_WORD_RECORDTYPE = createRecordType(
+            // RecordTypeName
+            RECORD_NAME_STATISTICS_SYNOPSIS_WORD,
+            // FieldNames
+            new String[] { FIELD_NAME_KEY },
+            // FieldTypes
+            new IAType[] { BuiltinType.AINT64 },
             //IsOpen?
             true);
 
@@ -516,15 +578,24 @@ public final class MetadataRecordTypes {
     public static final int STATISTICS_SYNOPSIS_ARECORD_TYPE_FIELD_INDEX = 0;
     public static final int STATISTICS_SYNOPSIS_ARECORD_SIZE_FIELD_INDEX = 1;
     public static final int STATISTICS_SYNOPSIS_ARECORD_ELEMENTS_FIELD_INDEX = 2;
+    public static final int STATISTICS_SYNOPSIS_ARECORD_UNIQUE_FIELD_INDEX = 3;
+    public static final int STATISTICS_SYNOPSIS_ARECORD_EXPLICIT_FIELD_INDEX = 4;
+    public static final int STATISTICS_SYNOPSIS_ARECORD_SPARSE_FIELD_INDEX = 5;
+    public static final int STATISTICS_SYNOPSIS_ARECORD_WORD_FIELD_INDEX = 6;
 
     public static ARecordType STATISTICS_SYNOPSIS_RECORDTYPE = createRecordType(
             // RecordTypeName
             RECORD_NAME_STATISTICS_SYNOPSIS,
             // FieldNames
-            new String[] { FIELD_NAME_TYPE, FIELD_NAME_SIZE, FIELD_NAME_ELEMENTS },
+            new String[] { FIELD_NAME_TYPE, FIELD_NAME_SIZE, FIELD_NAME_ELEMENTS, FIELD_NAME_UNIQUE,
+                    FIELD_NAME_EXPLICIT, FIELD_NAME_SPARSE, FIELD_NAME_WORD },
             // FieldTypes
             new IAType[] { BuiltinType.ASTRING, BuiltinType.AINT32,
-                    new AOrderedListType(STATISTICS_SYNOPSIS_ELEMENT_RECORDTYPE, null) },
+                    new AOrderedListType(STATISTICS_SYNOPSIS_ELEMENT_RECORDTYPE, null),
+                    new AOrderedListType(STATISTICS_SYNOPSIS_UNIQUE_RECORDTYPE, null),
+                    new AOrderedListType(STATISTICS_SYNOPSIS_EXPLICIT_RECORDTYPE, null),
+                    new AOrderedListType(STATISTICS_SYNOPSIS_SPARSE_RECORDTYPE, null),
+                    new AUnorderedListType(STATISTICS_SYNOPSIS_WORD_RECORDTYPE, null) },
             //IsOpen?
             true);
 

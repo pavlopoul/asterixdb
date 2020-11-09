@@ -568,4 +568,10 @@ public class Task implements IHyracksTaskContext, ICounterContext, Runnable {
     private boolean isRuntimeProfilingEnabled() {
         return getJobFlags().contains(JobFlag.PROFILE_RUNTIME);
     }
+
+    @Override
+    public Set<Object> getStateObjectKeys() {
+        // TODO Auto-generated method stub
+        return null;
+    }
 }

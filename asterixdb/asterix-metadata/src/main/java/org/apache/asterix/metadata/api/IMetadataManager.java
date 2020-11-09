@@ -27,6 +27,7 @@ import org.apache.asterix.common.functions.FunctionSignature;
 import org.apache.asterix.common.metadata.DataverseName;
 import org.apache.asterix.common.metadata.IMetadataBootstrap;
 import org.apache.asterix.external.indexing.ExternalFile;
+import org.apache.asterix.metadata.MetadataCache;
 import org.apache.asterix.metadata.MetadataTransactionContext;
 import org.apache.asterix.metadata.entities.CompactionPolicy;
 import org.apache.asterix.metadata.entities.Dataset;
@@ -252,6 +253,8 @@ public interface IMetadataManager extends IMetadataBootstrap {
      *            Name of the dataset holding the index.
      * @param indexName
      *            Name of the index to retrieve.
+     * @param cascadeDrop
+     *            Flag, indicating whether a deletion of index should trigger deletion of axillary index info
      * @throws AlgebricksException
      *             For example, if the index does not exist.
      */
@@ -782,4 +785,8 @@ public interface IMetadataManager extends IMetadataBootstrap {
             throws AlgebricksException;
 
     long getMaxTxnId();
+
+    void dropFromCache(MetadataTransactionContext writeTxn, Dataverse newDataverse);
+
+    MetadataCache getCache();
 }

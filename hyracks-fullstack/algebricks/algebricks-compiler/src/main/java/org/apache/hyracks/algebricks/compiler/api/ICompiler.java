@@ -18,13 +18,25 @@
  */
 package org.apache.hyracks.algebricks.compiler.api;
 
+import java.util.List;
+
 import org.apache.hyracks.algebricks.common.exceptions.AlgebricksException;
+import org.apache.hyracks.algebricks.core.algebra.base.ILogicalOperator;
+import org.apache.hyracks.algebricks.core.jobgen.impl.JobGenContext;
+import org.apache.hyracks.algebricks.core.jobgen.impl.PlanCompiler;
 import org.apache.hyracks.api.job.IJobletEventListenerFactory;
 import org.apache.hyracks.api.job.JobSpecification;
 
 public interface ICompiler {
     public void optimize() throws AlgebricksException;
 
-    public JobSpecification createJob(Object appContext, IJobletEventListenerFactory jobEventListenerFactory)
+    public JobSpecification createJob(Object appContext, IJobletEventListenerFactory jobEventListenerFactory,
+            boolean notJoinInPlan) throws AlgebricksException;
+
+    public JobSpecification createLoadJob(Object appContext, IJobletEventListenerFactory jobEventListenerFactory)
             throws AlgebricksException;
+
+    List<ILogicalOperator> traversePlan(Object appContext, JobGenContext context, PlanCompiler pc)
+            throws AlgebricksException;
+
 }

@@ -56,6 +56,7 @@ import org.apache.asterix.dataflow.data.common.PartialAggregationTypeComputer;
 import org.apache.asterix.external.feed.watch.FeedActivityDetails;
 import org.apache.asterix.formats.base.IDataFormat;
 import org.apache.asterix.jobgen.QueryLogicalExpressionJobGen;
+import org.apache.asterix.lang.common.base.Expression.Kind;
 import org.apache.asterix.lang.common.base.IAstPrintVisitorFactory;
 import org.apache.asterix.lang.common.base.IQueryRewriter;
 import org.apache.asterix.lang.common.base.IReturningStatement;
@@ -67,6 +68,9 @@ import org.apache.asterix.lang.common.statement.Query;
 import org.apache.asterix.lang.common.statement.StartFeedStatement;
 import org.apache.asterix.lang.common.struct.VarIdentifier;
 import org.apache.asterix.lang.common.util.FunctionUtil;
+import org.apache.asterix.lang.sqlpp.clause.FromClause;
+import org.apache.asterix.lang.sqlpp.clause.FromTerm;
+import org.apache.asterix.lang.sqlpp.expression.SelectExpression;
 import org.apache.asterix.lang.sqlpp.rewrites.SqlppQueryRewriter;
 import org.apache.asterix.metadata.declared.MetadataProvider;
 import org.apache.asterix.om.base.IAObject;
@@ -81,6 +85,7 @@ import org.apache.asterix.translator.SessionConfig;
 import org.apache.asterix.translator.SessionOutput;
 import org.apache.asterix.translator.SqlppExpressionToPlanTranslator;
 import org.apache.asterix.utils.ResourceUtils;
+import org.apache.commons.lang3.mutable.Mutable;
 import org.apache.hyracks.algebricks.common.constraints.AlgebricksAbsolutePartitionConstraint;
 import org.apache.hyracks.algebricks.common.constraints.AlgebricksPartitionConstraint;
 import org.apache.hyracks.algebricks.common.exceptions.AlgebricksException;
@@ -88,6 +93,7 @@ import org.apache.hyracks.algebricks.common.utils.Pair;
 import org.apache.hyracks.algebricks.compiler.api.HeuristicCompilerFactoryBuilder;
 import org.apache.hyracks.algebricks.compiler.api.ICompiler;
 import org.apache.hyracks.algebricks.compiler.api.ICompilerFactory;
+import org.apache.hyracks.algebricks.core.algebra.base.ILogicalOperator;
 import org.apache.hyracks.algebricks.core.algebra.base.ILogicalPlan;
 import org.apache.hyracks.algebricks.core.algebra.base.IOptimizationContext;
 import org.apache.hyracks.algebricks.core.algebra.expressions.ExpressionRuntimeProvider;
@@ -99,6 +105,9 @@ import org.apache.hyracks.algebricks.core.algebra.expressions.IMissableTypeCompu
 import org.apache.hyracks.algebricks.core.algebra.prettyprint.AlgebricksStringBuilderWriter;
 import org.apache.hyracks.algebricks.core.algebra.prettyprint.IPlanPrettyPrinter;
 import org.apache.hyracks.algebricks.core.algebra.prettyprint.PlanPrettyPrinter;
+import org.apache.hyracks.algebricks.core.jobgen.impl.JobBuilder;
+import org.apache.hyracks.algebricks.core.jobgen.impl.JobGenContext;
+import org.apache.hyracks.algebricks.core.jobgen.impl.PlanCompiler;
 import org.apache.hyracks.algebricks.core.rewriter.base.ICardinalityEstimator;
 import org.apache.hyracks.algebricks.core.rewriter.base.IOptimizationContextFactory;
 import org.apache.hyracks.algebricks.core.rewriter.base.PhysicalOptimizationConfig;
@@ -143,13 +152,20 @@ public class APIFramework {
             SqlppExpressionToPlanTranslator.REWRITE_IN_AS_OR_OPTION, "hash_merge", "output-record-type",
             DisjunctivePredicateToJoinRule.REWRITE_OR_AS_JOIN_OPTION,
             StatisticsProperties.STATISTICS_PRIMARY_KEYS_ENABLED, StatisticsProperties.STATISTICS_SYNOPSIS_SIZE_KEY,
-            StatisticsProperties.STATISTICS_SYNOPSIS_TYPE_KEY);
+            StatisticsProperties.STATISTICS_SYNOPSIS_TYPE_KEY, StatisticsProperties.STATISTICS_INCREMENTAL);
 
     private final IRewriterFactory rewriterFactory;
     private final IAstPrintVisitorFactory astPrintVisitorFactory;
     private final ILangExpressionToPlanTranslatorFactory translatorFactory;
     private final IRuleSetFactory ruleSetFactory;
     private final ExecutionPlans executionPlans;
+    public boolean finished = false;
+    public JobSpecification spec;
+    public List<ILogicalOperator> operators;
+    public JobGenContext context;
+    public PlanCompiler pc;
+    public JobBuilder builder;
+    public Map<Mutable<ILogicalOperator>, List<ILogicalOperator>> operatorVisitedToParents;
 
     public APIFramework(ILangCompilationProvider compilationProvider) {
         this.rewriterFactory = compilationProvider.getRewriterFactory();
@@ -201,10 +217,11 @@ public class APIFramework {
     public JobSpecification compileQuery(IClusterInfoCollector clusterInfoCollector, MetadataProvider metadataProvider,
             Query query, int varCounter, String outputDatasetName, SessionOutput output,
             ICompiledDmlStatement statement, Map<VarIdentifier, IAObject> externalVars, IResponsePrinter printer,
-            IWarningCollector warningCollector) throws AlgebricksException, ACIDException {
+            IWarningCollector warningCollector, Query newQuery) throws AlgebricksException, ACIDException {
 
         // establish facts
         final boolean isQuery = query != null;
+        boolean isIncremental = metadataProvider.getConfig().get(StatisticsProperties.STATISTICS_INCREMENTAL) != null;
         final boolean isLoad = statement != null && statement.getKind() == Statement.Kind.LOAD;
         final SourceLocation sourceLoc =
                 query != null ? query.getSourceLocation() : statement != null ? statement.getSourceLocation() : null;
@@ -221,8 +238,15 @@ public class APIFramework {
         ILangExpressionToPlanTranslator t =
                 translatorFactory.createExpressionToPlanTranslator(metadataProvider, varCounter, externalVars);
         ResultMetadata resultMetadata = new ResultMetadata(output.config().fmt());
-        ILogicalPlan plan =
-                isLoad ? t.translateLoad(statement) : t.translate(query, outputDatasetName, statement, resultMetadata);
+        ILogicalPlan plan = null;
+        if (newQuery == null) {
+            plan = isLoad ? t.translateLoad(statement)
+                    : t.translate(query, outputDatasetName, statement, resultMetadata);
+        } else {
+            ILogicalPlan newplan = isLoad ? t.translateLoad(statement)
+                    : t.translate(newQuery, outputDatasetName, statement, resultMetadata);
+            plan = newplan;
+        }
 
         if ((isQuery || isLoad) && !conf.is(SessionConfig.FORMAT_ONLY_PHYSICAL_OPS)
                 && conf.is(SessionConfig.OOB_LOGICAL_PLAN)) {
@@ -258,6 +282,7 @@ public class APIFramework {
 
         ICompiler compiler = compilerFactory.createCompiler(plan, metadataProvider, t.getVarCounter());
         if (conf.isOptimize()) {
+            long optimizeStart = System.nanoTime();
             compiler.optimize();
             if (conf.is(SessionConfig.OOB_OPTIMIZED_LOGICAL_PLAN) || isExplainOnly) {
                 if (conf.is(SessionConfig.FORMAT_ONLY_PHYSICAL_OPS)) {
@@ -267,7 +292,7 @@ public class APIFramework {
                     output.out().write(buf.toString());
                 } else {
                     if (isQuery || isLoad) {
-                        generateOptimizedLogicalPlan(plan, output.config().getPlanFormat());
+                        generateOptimizedLogicalPlan(plan, output.config().getPlanFormat(), isQuery);
                     }
                 }
             }
@@ -300,7 +325,25 @@ public class APIFramework {
 
         JobEventListenerFactory jobEventListenerFactory =
                 new JobEventListenerFactory(txnId, metadataProvider.isWriteTransaction());
-        JobSpecification spec = compiler.createJob(metadataProvider.getApplicationContext(), jobEventListenerFactory);
+        if (isLoad || !isIncremental) {
+            finished = true;
+            spec = compiler.createLoadJob(metadataProvider.getApplicationContext(), jobEventListenerFactory);
+        } else {
+            boolean notJoinInPlan = true;
+            if (newQuery != null) {
+                query = newQuery;
+            }
+            if (query.getBody().getKind() == Kind.SELECT_EXPRESSION) {
+                SelectExpression select = (SelectExpression) query.getBody();
+                FromClause fromold = select.getSelectSetOperation().getLeftInput().getSelectBlock().getFromClause();
+                List<FromTerm> fromTerms = fromold.getFromTerms();
+                if (fromTerms.size() > 3) {
+                    notJoinInPlan = false;
+                }
+            }
+            operators = compiler.traversePlan(metadataProvider.getApplicationContext(), context, pc);
+            spec = compiler.createJob(metadataProvider.getApplicationContext(), jobEventListenerFactory, notJoinInPlan);
+        }
 
         if (isQuery) {
             // Sets a required capacity, only for read-only queries.
@@ -317,6 +360,10 @@ public class APIFramework {
             generateJob(spec);
         }
         return spec;
+    }
+
+    public List<ILogicalOperator> getOperators() {
+        return operators;
     }
 
     private void printPlanAsResult(MetadataProvider metadataProvider, SessionOutput output, IResponsePrinter printer)
@@ -492,7 +539,7 @@ public class APIFramework {
         executionPlans.setLogicalPlan(getPrettyPrintVisitor(format).printPlan(plan).toString());
     }
 
-    private void generateOptimizedLogicalPlan(ILogicalPlan plan, SessionConfig.PlanFormat format)
+    private void generateOptimizedLogicalPlan(ILogicalPlan plan, SessionConfig.PlanFormat format, boolean isQuery)
             throws AlgebricksException {
         executionPlans.setOptimizedLogicalPlan(getPrettyPrintVisitor(format).printPlan(plan).toString());
     }

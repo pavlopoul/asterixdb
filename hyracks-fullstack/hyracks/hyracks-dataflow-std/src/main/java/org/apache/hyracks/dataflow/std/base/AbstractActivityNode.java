@@ -25,9 +25,16 @@ public abstract class AbstractActivityNode implements IActivity {
     private static final long serialVersionUID = 1L;
 
     protected final ActivityId id;
+    protected int localIntermediateResultId;
 
     public AbstractActivityNode(ActivityId id) {
         this.id = id;
+        this.localIntermediateResultId = 0;
+    }
+
+    @Override
+    public int getLocalIntermediateResultId() {
+        return this.localIntermediateResultId;
     }
 
     @Override

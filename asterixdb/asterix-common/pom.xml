@@ -173,6 +173,7 @@
           <ignoredUnusedDeclaredDependencies>
             <ignoredUnusedDeclaredDependency>org.apache.hyracks:hyracks-storage-am-lsm-btree:*</ignoredUnusedDeclaredDependency>
             <ignoredUnusedDeclaredDependency>org.apache.hyracks:hyracks-storage-am-lsm-rtree:*</ignoredUnusedDeclaredDependency>
+            <ignoredUnusedDeclaredDependency>net.agkn:hll:*</ignoredUnusedDeclaredDependency>
           </ignoredUnusedDeclaredDependencies>
         </configuration>
       </plugin>
@@ -231,6 +232,11 @@
     <dependency>
       <groupId>org.apache.hyracks</groupId>
       <artifactId>hyracks-api</artifactId>
+    </dependency>
+    <dependency>
+      <groupId>net.agkn</groupId>
+      <artifactId>hll</artifactId>
+      <version>1.6.0</version>
     </dependency>
     <dependency>
       <groupId>org.apache.hyracks</groupId>

@@ -360,4 +360,5 @@ public class AlgebricksOptimizationContext implements IOptimizationContext {
     public LogicalOperatorPrettyPrintVisitor getPrettyPrintVisitor() {
         return null;
     }
+
 }

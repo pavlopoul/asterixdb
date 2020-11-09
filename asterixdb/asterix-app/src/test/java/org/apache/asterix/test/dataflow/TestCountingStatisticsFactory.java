@@ -19,6 +19,8 @@
 package org.apache.asterix.test.dataflow;
 
 import java.util.List;
+import java.util.Map;
+import java.util.Set;
 
 import org.apache.hyracks.api.exceptions.HyracksDataException;
 import org.apache.hyracks.dataflow.common.data.accessors.ITupleReference;
@@ -41,7 +43,7 @@ public class TestCountingStatisticsFactory extends AbstractStatisticsFactory {
         private int count = 0;
 
         public CountingSynopsis() {
-            super(Integer.MIN_VALUE, Integer.MAX_VALUE, Integer.SIZE, 0, null);
+            super(Integer.MIN_VALUE, Integer.MAX_VALUE, Integer.SIZE, 0, null, null, null, null, null);
         }
 
         @Override
@@ -62,6 +64,72 @@ public class TestCountingStatisticsFactory extends AbstractStatisticsFactory {
         @Override
         public double rangeQuery(long startPosition, long endPosition) {
             return 0;
+        }
+
+        @Override
+        public double joinQuery(ISynopsis synopsis, boolean primIndex) {
+            // TODO Auto-generated method stub
+            return 0;
+        }
+
+        @Override
+        public long uniqueQuery(boolean primIndex) {
+            // TODO Auto-generated method stub
+            return 0;
+        }
+
+        @Override
+        public Set getUnique() {
+            // TODO Auto-generated method stub
+            return null;
+        }
+
+        @Override
+        public Map getSparseMap() {
+            // TODO Auto-generated method stub
+            return null;
+        }
+
+        @Override
+        public long[] getWordsAr() {
+            // TODO Auto-generated method stub
+            return null;
+        }
+
+        @Override
+        public void setWordsAr(long[] words) {
+            // TODO Auto-generated method stub
+
+        }
+
+        @Override
+        public void mergeUnique(ISynopsis mergeSynopsis) throws HyracksDataException {
+            // TODO Auto-generated method stub
+
+        }
+
+        @Override
+        public void setSparse(Map map) {
+            // TODO Auto-generated method stub
+
+        }
+
+        @Override
+        public void setUnique(Set set) {
+            // TODO Auto-generated method stub
+
+        }
+
+        @Override
+        public void setSparseMap(Map map) {
+            // TODO Auto-generated method stub
+
+        }
+
+        @Override
+        public void setUniqueSet(Set set) {
+            // TODO Auto-generated method stub
+
         }
     }
 

@@ -792,6 +792,12 @@ public class LSMInvertedIndexTestUtils {
         @Override
         public IThreadStats getThreadStats() {
             return threadStats;
+
+        }
+
+        @Override
+        public Set<Object> getStateObjectKeys() {
+            return null;
         }
     }
 

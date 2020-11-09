@@ -29,8 +29,6 @@ import org.apache.asterix.app.bootstrap.TestNodeController.PrimaryIndexInfo;
 import org.apache.asterix.app.bootstrap.TestNodeController.SecondaryIndexInfo;
 import org.apache.asterix.app.data.gen.RecordTupleGenerator;
 import org.apache.asterix.app.data.gen.RecordTupleGenerator.GenerationFunction;
-// import org.apache.asterix.app.data.gen.TupleGenerator;
-// import org.apache.asterix.app.data.gen.TupleGenerator.GenerationFunction;
 import org.apache.asterix.app.nc.NCAppRuntimeContext;
 import org.apache.asterix.common.api.IDatasetLifecycleManager;
 import org.apache.asterix.common.config.DatasetConfig.DatasetType;
@@ -573,6 +571,10 @@ public class StatisticsTest {
         Assert.assertEquals(1, valueFieldAntimatterStatsEntries.size());
 
         TestStatisticsEntry mergedKeyComponentStatsEntry = keyFieldAntimatterStatsEntries.iterator().next();
+        Assert.assertEquals(secondKeyFieldStatsEntry.getComponentId().getMinTimestamp(),
+                mergedKeyComponentStatsEntry.getComponentId().getMinTimestamp());
+        Assert.assertEquals(thirdKeyFieldAntimatterStatsEntry.getComponentId().getMaxTimestamp(),
+                mergedKeyComponentStatsEntry.getComponentId().getMaxTimestamp());
         synopsis = (CountingSynopsis) mergedKeyComponentStatsEntry.getSynopsis();
         Assert.assertNotNull(synopsis);
         // TODO: this is a bug, this will generate cardinality NUM_INSERT_RECORDS because rangeCursor returns all

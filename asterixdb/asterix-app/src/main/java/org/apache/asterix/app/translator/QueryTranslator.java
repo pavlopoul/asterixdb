@@ -34,6 +34,7 @@ import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Map.Entry;
 import java.util.Objects;
 import java.util.Properties;
 import java.util.Set;
@@ -68,6 +69,7 @@ import org.apache.asterix.common.config.DatasetConfig.ExternalFilePendingOp;
 import org.apache.asterix.common.config.DatasetConfig.IndexType;
 import org.apache.asterix.common.config.DatasetConfig.TransactionState;
 import org.apache.asterix.common.config.GlobalConfig;
+import org.apache.asterix.common.config.StatisticsProperties;
 import org.apache.asterix.common.dataflow.ICcApplicationContext;
 import org.apache.asterix.common.exceptions.ACIDException;
 import org.apache.asterix.common.exceptions.AsterixException;
@@ -92,16 +94,32 @@ import org.apache.asterix.external.dataset.adapter.AdapterIdentifier;
 import org.apache.asterix.external.indexing.ExternalFile;
 import org.apache.asterix.external.indexing.IndexingConstants;
 import org.apache.asterix.external.operators.FeedIntakeOperatorNodePushable;
+import org.apache.asterix.external.operators.ReaderJobOperatorDescriptor;
 import org.apache.asterix.external.util.ExternalDataConstants;
 import org.apache.asterix.external.util.ExternalDataUtils;
 import org.apache.asterix.formats.nontagged.TypeTraitProvider;
+import org.apache.asterix.lang.common.base.AbstractClause;
+import org.apache.asterix.lang.common.base.Expression;
+import org.apache.asterix.lang.common.base.Expression.Kind;
 import org.apache.asterix.lang.common.base.IReturningStatement;
 import org.apache.asterix.lang.common.base.IRewriterFactory;
 import org.apache.asterix.lang.common.base.IStatementRewriter;
 import org.apache.asterix.lang.common.base.Statement;
+import org.apache.asterix.lang.common.clause.GroupbyClause;
+import org.apache.asterix.lang.common.clause.LimitClause;
+import org.apache.asterix.lang.common.clause.OrderbyClause;
+import org.apache.asterix.lang.common.clause.WhereClause;
+import org.apache.asterix.lang.common.expression.CallExpr;
+import org.apache.asterix.lang.common.expression.FieldAccessor;
+import org.apache.asterix.lang.common.expression.GbyVariableExpressionPair;
 import org.apache.asterix.lang.common.expression.IndexedTypeExpression;
+import org.apache.asterix.lang.common.expression.LiteralExpr;
+import org.apache.asterix.lang.common.expression.OperatorExpr;
 import org.apache.asterix.lang.common.expression.TypeExpression;
 import org.apache.asterix.lang.common.expression.TypeReferenceExpression;
+import org.apache.asterix.lang.common.expression.VariableExpr;
+import org.apache.asterix.lang.common.literal.IntegerLiteral;
+import org.apache.asterix.lang.common.literal.StringLiteral;
 import org.apache.asterix.lang.common.statement.CompactStatement;
 import org.apache.asterix.lang.common.statement.ConnectFeedStatement;
 import org.apache.asterix.lang.common.statement.CreateAdapterStatement;
@@ -140,12 +158,22 @@ import org.apache.asterix.lang.common.statement.WriteStatement;
 import org.apache.asterix.lang.common.struct.Identifier;
 import org.apache.asterix.lang.common.struct.VarIdentifier;
 import org.apache.asterix.lang.common.util.FunctionUtil;
+import org.apache.asterix.lang.sqlpp.clause.FromClause;
+import org.apache.asterix.lang.sqlpp.clause.FromTerm;
+import org.apache.asterix.lang.sqlpp.clause.Projection;
+import org.apache.asterix.lang.sqlpp.clause.SelectBlock;
+import org.apache.asterix.lang.sqlpp.clause.SelectClause;
+import org.apache.asterix.lang.sqlpp.clause.SelectRegular;
+import org.apache.asterix.lang.sqlpp.clause.SelectSetOperation;
+import org.apache.asterix.lang.sqlpp.expression.SelectExpression;
+import org.apache.asterix.lang.sqlpp.struct.SetOperationInput;
 import org.apache.asterix.metadata.IDatasetDetails;
 import org.apache.asterix.metadata.MetadataManager;
 import org.apache.asterix.metadata.MetadataTransactionContext;
 import org.apache.asterix.metadata.bootstrap.MetadataBuiltinEntities;
 import org.apache.asterix.metadata.dataset.hints.DatasetHints;
 import org.apache.asterix.metadata.dataset.hints.DatasetHints.DatasetNodegroupCardinalityHint;
+import org.apache.asterix.metadata.declared.DatasetDataSource;
 import org.apache.asterix.metadata.declared.MetadataProvider;
 import org.apache.asterix.metadata.entities.BuiltinTypeMap;
 import org.apache.asterix.metadata.entities.CompactionPolicy;
@@ -160,6 +188,8 @@ import org.apache.asterix.metadata.entities.FeedPolicyEntity;
 import org.apache.asterix.metadata.entities.Function;
 import org.apache.asterix.metadata.entities.Index;
 import org.apache.asterix.metadata.entities.InternalDatasetDetails;
+import org.apache.asterix.metadata.entities.InternalDatasetDetails.FileStructure;
+import org.apache.asterix.metadata.entities.InternalDatasetDetails.PartitioningStrategy;
 import org.apache.asterix.metadata.entities.Library;
 import org.apache.asterix.metadata.entities.NodeGroup;
 import org.apache.asterix.metadata.entities.Synonym;
@@ -173,12 +203,17 @@ import org.apache.asterix.metadata.utils.KeyFieldTypeUtil;
 import org.apache.asterix.metadata.utils.MetadataConstants;
 import org.apache.asterix.metadata.utils.MetadataUtil;
 import org.apache.asterix.metadata.utils.TypeUtil;
+import org.apache.asterix.om.base.AInt32;
+import org.apache.asterix.om.base.AString;
 import org.apache.asterix.om.base.IAObject;
+import org.apache.asterix.om.constants.AsterixConstantValue;
+import org.apache.asterix.om.functions.BuiltinFunctions;
 import org.apache.asterix.om.types.ARecordType;
 import org.apache.asterix.om.types.ATypeTag;
 import org.apache.asterix.om.types.BuiltinType;
 import org.apache.asterix.om.types.IAType;
 import org.apache.asterix.om.types.TypeSignature;
+import org.apache.asterix.runtime.statistics.StatisticsUtil;
 import org.apache.asterix.transaction.management.service.transaction.DatasetIdFactory;
 import org.apache.asterix.translator.AbstractLangTranslator;
 import org.apache.asterix.translator.ClientRequest;
@@ -206,13 +241,28 @@ import org.apache.commons.lang3.mutable.MutableObject;
 import org.apache.hyracks.algebricks.common.exceptions.AlgebricksException;
 import org.apache.hyracks.algebricks.common.utils.Pair;
 import org.apache.hyracks.algebricks.common.utils.Triple;
+import org.apache.hyracks.algebricks.core.algebra.base.ILogicalExpression;
+import org.apache.hyracks.algebricks.core.algebra.base.ILogicalOperator;
+import org.apache.hyracks.algebricks.core.algebra.base.LogicalOperatorTag;
+import org.apache.hyracks.algebricks.core.algebra.base.LogicalVariable;
 import org.apache.hyracks.algebricks.core.algebra.expressions.AbstractFunctionCallExpression.FunctionKind;
+import org.apache.hyracks.algebricks.core.algebra.expressions.ConstantExpression;
+import org.apache.hyracks.algebricks.core.algebra.expressions.ScalarFunctionCallExpression;
+import org.apache.hyracks.algebricks.core.algebra.expressions.VariableReferenceExpression;
+import org.apache.hyracks.algebricks.core.algebra.operators.logical.AssignOperator;
+import org.apache.hyracks.algebricks.core.algebra.operators.logical.DataSourceScanOperator;
+import org.apache.hyracks.algebricks.core.algebra.operators.logical.UnnestMapOperator;
 import org.apache.hyracks.algebricks.data.IAWriterFactory;
 import org.apache.hyracks.algebricks.data.IResultSerializerFactoryProvider;
+import org.apache.hyracks.algebricks.runtime.base.IScalarEvaluatorFactory;
+import org.apache.hyracks.algebricks.runtime.evaluators.ColumnAccessEvalFactory;
 import org.apache.hyracks.algebricks.runtime.serializer.ResultSerializerFactoryProvider;
 import org.apache.hyracks.algebricks.runtime.writers.PrinterBasedWriterFactory;
 import org.apache.hyracks.api.client.IClusterInfoCollector;
 import org.apache.hyracks.api.client.IHyracksClientConnection;
+import org.apache.hyracks.api.dataflow.ConnectorDescriptorId;
+import org.apache.hyracks.api.dataflow.IOperatorDescriptor;
+import org.apache.hyracks.api.dataflow.OperatorDescriptorId;
 import org.apache.hyracks.api.dataflow.value.ITypeTraits;
 import org.apache.hyracks.api.exceptions.HyracksDataException;
 import org.apache.hyracks.api.exceptions.SourceLocation;
@@ -227,6 +277,11 @@ import org.apache.hyracks.api.result.ResultSetId;
 import org.apache.hyracks.control.cc.ClusterControllerService;
 import org.apache.hyracks.control.common.controllers.CCConfig;
 import org.apache.hyracks.storage.am.lsm.common.api.ILSMMergePolicyFactory;
+import org.apache.hyracks.storage.am.lsm.common.api.IStatisticsManagerProvider;
+import org.apache.hyracks.storage.am.lsm.common.api.ISynopsis.SynopsisType;
+import org.apache.hyracks.storage.am.statistics.common.IFieldExtractor;
+import org.apache.hyracks.storage.am.statistics.common.StatisticsFactory;
+import org.apache.hyracks.storage.am.statistics.dataflow.IncrementalSinkOperatorDescriptor;
 import org.apache.logging.log4j.Level;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -247,7 +302,7 @@ public class QueryTranslator extends AbstractLangTranslator implements IStatemen
     protected Dataverse activeDataverse;
     protected final List<FunctionDecl> declaredFunctions;
     protected final ILangCompilationProvider compilationProvider;
-    protected final APIFramework apiFramework;
+    protected APIFramework apiFramework;
     protected final IRewriterFactory rewriterFactory;
     protected final ExecutorService executorService;
     protected final EnumSet<JobFlag> jobFlags = EnumSet.noneOf(JobFlag.class);
@@ -255,6 +310,7 @@ public class QueryTranslator extends AbstractLangTranslator implements IStatemen
     protected final IMetadataLockUtil lockUtil;
     protected final IResponsePrinter responsePrinter;
     protected final WarningCollector warningCollector;
+    protected int queries;
 
     public QueryTranslator(ICcApplicationContext appCtx, List<Statement> statements, SessionOutput output,
             ILangCompilationProvider compilationProvider, ExecutorService executorService,
@@ -270,6 +326,7 @@ public class QueryTranslator extends AbstractLangTranslator implements IStatemen
         apiFramework = new APIFramework(compilationProvider);
         rewriterFactory = compilationProvider.getRewriterFactory();
         activeDataverse = MetadataBuiltinEntities.DEFAULT_DATAVERSE;
+        queries = 0;
         this.executorService = executorService;
         this.responsePrinter = responsePrinter;
         this.warningCollector = new WarningCollector();
@@ -1047,8 +1104,9 @@ public class QueryTranslator extends AbstractLangTranslator implements IStatemen
                     overridesFieldTypes = true;
                 }
                 if (fieldType == null) {
-                    throw new CompilationException(ErrorCode.UNKNOWN_TYPE, sourceLoc, fieldExpr.second == null
-                            ? String.valueOf(fieldExpr.first) : String.valueOf(fieldExpr.second));
+                    throw new CompilationException(ErrorCode.UNKNOWN_TYPE, sourceLoc,
+                            fieldExpr.second == null ? String.valueOf(fieldExpr.first)
+                                    : String.valueOf(fieldExpr.second));
                 }
 
                 // try to add the key & its source to the set of keys, if key couldn't be added,
@@ -1114,7 +1172,7 @@ public class QueryTranslator extends AbstractLangTranslator implements IStatemen
         boolean filesIndexReplicated = false;
         try {
             index.setPendingOp(MetadataUtil.PENDING_ADD_OP);
-            if (ds.getDatasetType() == DatasetType.INTERNAL) {
+            if (ds.getDatasetType() == DatasetType.INTERNAL || ds.getDatasetType() == DatasetType.READER) {
                 validateDatasetState(metadataProvider, ds, sourceLoc);
             } else {
                 // External dataset
@@ -2299,7 +2357,7 @@ public class QueryTranslator extends AbstractLangTranslator implements IStatemen
                     loadStmt.getDatasetName(), loadStmt.getAdapter(), properties, loadStmt.dataIsAlreadySorted());
             cls.setSourceLocation(stmt.getSourceLocation());
             JobSpecification spec = apiFramework.compileQuery(hcc, metadataProvider, null, 0, null, sessionOutput, cls,
-                    null, responsePrinter, warningCollector);
+                    null, responsePrinter, warningCollector, null);
             afterCompile();
             MetadataManager.INSTANCE.commitTransaction(mdTxnCtx);
             bActiveTxn = false;
@@ -2334,28 +2392,29 @@ public class QueryTranslator extends AbstractLangTranslator implements IStatemen
                 metadataProvider.getLocks().unlock();
             }
         };
-        final IStatementCompiler compiler = () -> {
-            MetadataTransactionContext mdTxnCtx = MetadataManager.INSTANCE.beginTransaction();
-            boolean bActiveTxn = true;
-            metadataProvider.setMetadataTxnContext(mdTxnCtx);
-            try {
-                metadataProvider.setWriteTransaction(true);
-                final JobSpecification jobSpec =
-                        rewriteCompileInsertUpsert(hcc, metadataProvider, stmtInsertUpsert, stmtParams, stmtRewriter);
-                MetadataManager.INSTANCE.commitTransaction(mdTxnCtx);
-                bActiveTxn = false;
-                return jobSpec;
-            } catch (Exception e) {
-                if (bActiveTxn) {
-                    abort(e, e, mdTxnCtx);
-                }
-                throw e;
-            }
-        };
+        final IStatementCompiler compiler =
+                (/*List<ILogicalOperator> operators, boolean first,*/ Query newQuery, Query cleanQuery) -> {
+                    MetadataTransactionContext mdTxnCtx = MetadataManager.INSTANCE.beginTransaction();
+                    boolean bActiveTxn = true;
+                    metadataProvider.setMetadataTxnContext(mdTxnCtx);
+                    try {
+                        metadataProvider.setWriteTransaction(true);
+                        final JobSpecification jobSpec = rewriteCompileInsertUpsert(hcc, metadataProvider,
+                                stmtInsertUpsert, stmtParams, stmtRewriter);
+                        MetadataManager.INSTANCE.commitTransaction(mdTxnCtx);
+                        bActiveTxn = false;
+                        return jobSpec;
+                    } catch (Exception e) {
+                        if (bActiveTxn) {
+                            abort(e, e, mdTxnCtx);
+                        }
+                        throw e;
+                    }
+                };
         if (compileOnly) {
             locker.lock();
             try {
-                return compiler.compile();
+                return compiler.compile(null, null);
             } finally {
                 locker.unlock();
             }
@@ -2367,7 +2426,7 @@ public class QueryTranslator extends AbstractLangTranslator implements IStatemen
         } else {
             locker.lock();
             try {
-                final JobSpecification jobSpec = compiler.compile();
+                final JobSpecification jobSpec = compiler.compile(null, null);
                 if (jobSpec == null) {
                     return jobSpec;
                 }
@@ -2395,8 +2454,8 @@ public class QueryTranslator extends AbstractLangTranslator implements IStatemen
                     stmtDelete.getDatasetName(), stmtDelete.getCondition(), stmtDelete.getVarCounter(),
                     stmtDelete.getQuery());
             clfrqs.setSourceLocation(stmt.getSourceLocation());
-            JobSpecification jobSpec =
-                    rewriteCompileQuery(hcc, metadataProvider, clfrqs.getQuery(), clfrqs, stmtParams, stmtRewriter);
+            JobSpecification jobSpec = rewriteCompileQuery(hcc, metadataProvider, clfrqs.getQuery(), clfrqs, stmtParams,
+                    stmtRewriter, /*null, true,*/ null);
             afterCompile();
 
             MetadataManager.INSTANCE.commitTransaction(mdTxnCtx);
@@ -2419,19 +2478,42 @@ public class QueryTranslator extends AbstractLangTranslator implements IStatemen
     @Override
     public JobSpecification rewriteCompileQuery(IClusterInfoCollector clusterInfoCollector,
             MetadataProvider metadataProvider, Query query, ICompiledDmlStatement stmt,
-            Map<String, IAObject> stmtParams, IStatementRewriter stmtRewriter)
+            Map<String, IAObject> stmtParams, IStatementRewriter stmtRewriter, /*List<ILogicalOperator> operators,
+                                                                               boolean first,*/ Query newQuery)
             throws AlgebricksException, ACIDException {
 
         Map<VarIdentifier, IAObject> externalVars = createExternalVariables(stmtParams, stmtRewriter);
 
         // Query Rewriting (happens under the same ongoing metadata transaction)
-        Pair<IReturningStatement, Integer> rewrittenResult = apiFramework.reWriteQuery(declaredFunctions,
-                metadataProvider, query, sessionOutput, true, externalVars.keySet(), warningCollector);
+        Pair<IReturningStatement, Integer> rewrittenResult =
+                apiFramework.reWriteQuery(declaredFunctions, metadataProvider, newQuery != null ? newQuery : query,
+                        sessionOutput, true, externalVars.keySet(), warningCollector);
 
         // Query Compilation (happens under the same ongoing metadata transaction)
         return apiFramework.compileQuery(clusterInfoCollector, metadataProvider, (Query) rewrittenResult.first,
                 rewrittenResult.second, stmt == null ? null : stmt.getDatasetName(), sessionOutput, stmt, externalVars,
-                responsePrinter, warningCollector);
+                responsePrinter, warningCollector, newQuery);
+    }
+
+    public boolean getFinished(Query newQuery) {
+        Query nq = (Query) statements.get(statements.size() - 1);
+        if (newQuery != null) {
+            nq = newQuery;
+        }
+        if (nq.getBody().getKind() == Kind.SELECT_EXPRESSION) {
+            SelectExpression select = (SelectExpression) nq.getBody();
+            FromClause fromold = select.getSelectSetOperation().getLeftInput().getSelectBlock().getFromClause();
+            List<FromTerm> fromTerms = fromold.getFromTerms();
+            if (fromTerms.size() > 3) {
+                return false;
+            }
+        }
+        return true;
+
+    }
+
+    public List<ILogicalOperator> getOperators() {
+        return apiFramework.getOperators();
     }
 
     private JobSpecification rewriteCompileInsertUpsert(IClusterInfoCollector clusterInfoCollector,
@@ -2470,7 +2552,7 @@ public class QueryTranslator extends AbstractLangTranslator implements IStatemen
         // transaction)
         return apiFramework.compileQuery(clusterInfoCollector, metadataProvider, rewrittenInsertUpsert.getQuery(),
                 rewrittenResult.second, datasetName, sessionOutput, clfrqs, externalVars, responsePrinter,
-                warningCollector);
+                warningCollector, null);
     }
 
     protected void handleCreateFeedStatement(MetadataProvider metadataProvider, Statement stmt) throws Exception {
@@ -2586,8 +2668,6 @@ public class QueryTranslator extends AbstractLangTranslator implements IStatemen
                     throw new CompilationException(ErrorCode.COMPILATION_ERROR, sourceLoc,
                             "There is no feed with this name " + feedName + ".");
                 }
-                MetadataManager.INSTANCE.commitTransaction(mdTxnCtx);
-                return;
             }
             doDropFeed(hcc, metadataProvider, feed, sourceLoc);
             MetadataManager.INSTANCE.commitTransaction(mdTxnCtx);
@@ -2905,7 +2985,8 @@ public class QueryTranslator extends AbstractLangTranslator implements IStatemen
     }
 
     private interface IStatementCompiler {
-        JobSpecification compile() throws AlgebricksException, RemoteException, ACIDException;
+        JobSpecification compile(/*List<ILogicalOperator> operators, boolean first, */Query newQuery, Query cleanQuery)
+                throws AlgebricksException, RemoteException, ACIDException;
     }
 
     protected void handleQuery(MetadataProvider metadataProvider, Query query, IHyracksClientConnection hcc,
@@ -2924,15 +3005,19 @@ public class QueryTranslator extends AbstractLangTranslator implements IStatemen
                 ExternalDatasetsRegistry.INSTANCE.releaseAcquiredLocks(metadataProvider);
             }
         };
-        final IStatementCompiler compiler = () -> {
-            MetadataTransactionContext mdTxnCtx = MetadataManager.INSTANCE.beginTransaction();
+        final IStatementCompiler compiler = (Query newQuery, Query cleanQuery) -> {
+            MetadataTransactionContext mdTxnCtx = null;
+            if (newQuery == null) {
+                mdTxnCtx = MetadataManager.INSTANCE.beginTransaction();
+                newQuery = cleanQuery;
+            } else {
+                mdTxnCtx = metadataProvider.getMetadataTxnContext();
+            }
             boolean bActiveTxn = true;
             metadataProvider.setMetadataTxnContext(mdTxnCtx);
             try {
-                final JobSpecification jobSpec =
-                        rewriteCompileQuery(hcc, metadataProvider, query, null, stmtParams, stmtRewriter);
-                // update stats with count of compile-time warnings. needs to be adapted for multi-statement.
-                stats.updateTotalWarningsCount(warningCollector.getTotalWarningsCount());
+                final JobSpecification jobSpec = rewriteCompileQuery(hcc, metadataProvider, query, null, stmtParams,
+                        stmtRewriter, /*operators, first,*/ newQuery);
                 afterCompile();
                 MetadataManager.INSTANCE.commitTransaction(mdTxnCtx);
                 bActiveTxn = false;
@@ -2988,6 +3073,7 @@ public class QueryTranslator extends AbstractLangTranslator implements IStatemen
                 break;
             default:
                 break;
+
         }
     }
 
@@ -3020,7 +3106,9 @@ public class QueryTranslator extends AbstractLangTranslator implements IStatemen
                     printed.notify();
                 }
             }, requestParameters, cancellable, appCtx, metadataProvider);
-        } catch (Exception e) {
+        } catch (
+
+        Exception e) {
             if (Objects.equals(JobId.INVALID, jobId.getValue())) {
                 // compilation failed
                 responsePrinter.addResultPrinter(new StatusPrinter(AbstractQueryApiServlet.ResultStatus.FAILED));
@@ -3053,7 +3141,21 @@ public class QueryTranslator extends AbstractLangTranslator implements IStatemen
         JobUtils.runJob(hcc, jobSpec, jobFlags, true);
     }
 
-    private static void createAndRunJob(IHyracksClientConnection hcc, EnumSet<JobFlag> jobFlags, Mutable<JobId> jId,
+    private static List<Expression> addArgs(Object... args) {
+        List<Expression> argExprs = new ArrayList<>();
+        for (Object arg : args) {
+            if (arg instanceof Integer) {
+                argExprs.add(new LiteralExpr(new IntegerLiteral((Integer) arg)));
+            } else if (arg instanceof String) {
+                argExprs.add(new LiteralExpr(new StringLiteral((String) arg)));
+            } else if (arg instanceof Expression) {
+                argExprs.add((Expression) arg);
+            }
+        }
+        return argExprs;
+    }
+
+    private void createAndRunJobWithout(IHyracksClientConnection hcc, EnumSet<JobFlag> jobFlags, Mutable<JobId> jId,
             IStatementCompiler compiler, IMetadataLocker locker, ResultDelivery resultDelivery, IResultPrinter printer,
             IRequestParameters requestParameters, boolean cancellable, ICcApplicationContext appCtx,
             MetadataProvider metadataProvider) throws Exception {
@@ -3062,7 +3164,7 @@ public class QueryTranslator extends AbstractLangTranslator implements IStatemen
                 (ClientRequest) requestTracker.get(requestParameters.getRequestReference().getUuid());
         locker.lock();
         try {
-            final JobSpecification jobSpec = compiler.compile();
+            final JobSpecification jobSpec = compiler.compile(null, null);
             if (jobSpec == null) {
                 return;
             }
@@ -3098,6 +3200,733 @@ public class QueryTranslator extends AbstractLangTranslator implements IStatemen
             }
             locker.unlock();
         }
+    }
+
+    private Query removeClausesFromQuery() {
+        Query oldQuery = (Query) statements.get(statements.size() - 1);
+        SelectExpression body = null;
+        Query res = null;
+        if (((SelectExpression) oldQuery.getBody()).getSelectSetOperation().getLeftInput().getSelectBlock()
+                .hasGroupbyClause()) {
+
+            SelectSetOperation ssop = ((SelectExpression) oldQuery.getBody()).getSelectSetOperation();
+            SelectBlock selectBlock = new SelectBlock(ssop.getLeftInput().getSelectBlock().getSelectClause(),
+                    ssop.getLeftInput().getSelectBlock().getFromClause(),
+                    ssop.getLeftInput().getSelectBlock().getLetWhereList(), null,
+
+                    ssop.getLeftInput().getSelectBlock().getLetHavingListAfterGroupby());
+
+            SelectSetOperation selectSetOperation =
+                    new SelectSetOperation(new SetOperationInput(selectBlock, null), null);
+            body = new SelectExpression(null, selectSetOperation, null, null, true);
+            res = new Query(oldQuery.isExplain(), oldQuery.isTopLevel(), body, oldQuery.getVarCounter());
+        }
+        if (((SelectExpression) oldQuery.getBody()).getOrderbyClause() != null) {
+
+            SelectExpression selectExpression;
+            if (res == null) {
+                selectExpression = new SelectExpression(((SelectExpression) oldQuery.getBody()).getLetList(),
+                        ((SelectExpression) oldQuery.getBody()).getSelectSetOperation(), null,
+                        ((SelectExpression) oldQuery.getBody()).getLimitClause(),
+                        ((SelectExpression) oldQuery.getBody()).isSubquery());
+            } else {
+                selectExpression = (SelectExpression) res.getBody();
+            }
+
+            List<Projection> projections = selectExpression.getSelectSetOperation().getLeftInput().getSelectBlock()
+                    .getSelectClause().getSelectRegular().getProjections();
+            List<Projection> newprojections = new ArrayList<>();
+            List<Expression> projectExpressions = new ArrayList<>();
+            for (Projection projection : projections) {
+                projectExpressions.add(projection.getExpression());
+            }
+            List<Expression> orderExpressions =
+                    ((SelectExpression) oldQuery.getBody()).getOrderbyClause().getOrderbyList();
+            List<Projection> toBeAdded = new ArrayList<>();
+
+            for (Expression orderExpression : orderExpressions) {
+                if (!projectExpressions.contains(orderExpression)) {
+                    Projection p = new Projection(orderExpression,
+                            ((FieldAccessor) orderExpression).getIdent().getValue(), false, false);
+                    toBeAdded.add(p);
+                }
+            }
+
+            for (Projection p : toBeAdded) {
+                newprojections.add(p);
+            }
+
+            newprojections.addAll(projections);
+            SelectClause selectClause = new SelectClause(null, new SelectRegular(newprojections), false);
+            SetOperationInput oldset = ((SelectExpression) oldQuery.getBody()).getSelectSetOperation().getLeftInput();
+            SelectBlock selectBlock =
+                    new SelectBlock(selectClause, oldset.getSelectBlock().getFromClause(),
+                            oldset.getSelectBlock().getLetWhereList(),
+                            (res == null) ? oldset.getSelectBlock().getGroupbyClause()
+                                    : ((SelectExpression) res.getBody()).getSelectSetOperation().getLeftInput()
+                                            .getSelectBlock().getGroupbyClause(),
+                            oldset.getSelectBlock().getLetHavingListAfterGroupby());
+
+            SelectSetOperation selectSetOperation =
+                    new SelectSetOperation(new SetOperationInput(selectBlock, null), null);
+            body = new SelectExpression(null, selectSetOperation, null, null, true);
+            res = new Query(oldQuery.isExplain(), oldQuery.isTopLevel(), body, oldQuery.getVarCounter());
+        }
+
+        return res;
+
+    }
+
+    private void createAndRunJob(IHyracksClientConnection hcc, EnumSet<JobFlag> jobFlags, Mutable<JobId> jId,
+            IStatementCompiler compiler, IMetadataLocker locker, ResultDelivery resultDelivery, IResultPrinter printer,
+            IRequestParameters requestParameters, boolean cancellable, ICcApplicationContext appCtx,
+            MetadataProvider metadataProvider) throws Exception {
+        if (((String) metadataProvider.getConfig().get(StatisticsProperties.STATISTICS_INCREMENTAL)) == null) {
+            createAndRunJobWithout(hcc, jobFlags, jId, compiler, locker, resultDelivery, printer, requestParameters,
+                    cancellable, appCtx, metadataProvider);
+            return;
+        }
+        Query cleanQuery = removeClausesFromQuery();
+        ClientRequest req = null;
+        JobSpecification jobSpec = null;
+        List<ILogicalOperator> operators = new ArrayList<>();
+        Query newQuery = null;
+
+        List<String> datasources = new ArrayList<>();
+        boolean finished = false;
+        DataverseName dataverse = DataverseName.createFromCanonicalForm("newdata");
+        while (!finished) {
+            locker.lock();
+            jobSpec = compiler.compile(newQuery, cleanQuery);
+            if (jobSpec == null) {
+                return;
+            }
+            operators = getOperators();
+            if (!getFinished(newQuery)) {
+                finished = false;
+                List<LogicalVariable> vars = new ArrayList<>();
+                IAType[] types = null;
+                String[] fieldNames = null;
+                String recordTypeName = null;
+                VariableReferenceExpression varexpr = null;
+                DatasetDataSource dataSource1 = null;
+                List<Integer> indexes = new ArrayList<>();
+                List<IAType> ts = new ArrayList<>();
+                boolean union = false;
+                for (ILogicalOperator op : operators) {
+                    if (op.getOperatorTag() == LogicalOperatorTag.INNERJOIN
+                            || op.getOperatorTag() == LogicalOperatorTag.SELECT
+                            || op.getOperatorTag() == LogicalOperatorTag.UNIONALL) {
+
+                        if (!vars.isEmpty()) {
+                            continue;
+                        }
+                        AssignOperator assign;
+                        if (op.getOperatorTag() == LogicalOperatorTag.INNERJOIN
+                                || op.getOperatorTag() == LogicalOperatorTag.SELECT) {
+                            assign = (AssignOperator) operators.get(3);
+                        } else {
+                            assign = (AssignOperator) operators.get(5);
+                            union = true;
+                        }
+                        ScalarFunctionCallExpression sfce =
+                                (ScalarFunctionCallExpression) assign.getExpressions().get(0).getValue();
+                        List<Mutable<ILogicalExpression>> arguments = sfce.getArguments();
+                        fieldNames = new String[arguments.size() / 2];
+                        int k = 0;
+                        for (int j = 0; j < arguments.size(); j++) {
+                            if (j % 2 == 0) {
+                                fieldNames[k] = ((AString) ((AsterixConstantValue) ((ConstantExpression) arguments
+                                        .get(j).getValue()).getValue()).getObject()).getStringValue();
+                                k++;
+                            } else {
+                                if (arguments.get(j).getValue() instanceof VariableReferenceExpression) {
+                                    vars.add(((VariableReferenceExpression) arguments.get(j).getValue())
+                                            .getVariableReference());
+                                } else {
+                                    ScalarFunctionCallExpression sfcevar =
+                                            (ScalarFunctionCallExpression) arguments.get(j).getValue();
+                                    vars.add(((VariableReferenceExpression) sfcevar.getArguments().get(0).getValue())
+                                            .getVariableReference());
+                                    LogicalVariable v =
+                                            ((VariableReferenceExpression) sfcevar.getArguments().get(0).getValue())
+                                                    .getVariableReference();
+                                    ConstantExpression ce =
+                                            (ConstantExpression) sfcevar.getArguments().get(1).getValue();
+                                    AsterixConstantValue cs = (AsterixConstantValue) ce.getValue();
+                                    int aint32 = ((AInt32) cs.getObject()).getIntegerValue();
+                                    for (ILogicalOperator dop : operators) {
+                                        if (dop.getOperatorTag() == LogicalOperatorTag.UNNEST_MAP) {
+                                            for (LogicalVariable svar : ((UnnestMapOperator) dop).getVariables()) {
+                                                if (svar == v) {
+                                                    UnnestMapOperator map = (UnnestMapOperator) dop;
+                                                    ARecordType recordType = (ARecordType) map.getVariableTypes()
+                                                            .get(map.getVariables().indexOf(v));
+
+                                                    IAType type = recordType.getFieldTypes()[aint32];
+                                                    ts.add(type);
+                                                    indexes.add(vars.indexOf(v));
+                                                    break;
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                        types = new IAType[vars.size()];
+                        int t = 0;
+                        for (int index : indexes) {
+                            types[index] = ts.get(t);
+                            t++;
+                            vars.set(index, null);
+                        }
+                        if (!datasources.isEmpty()) {
+                            datasources.clear();
+                        }
+                    } else if (op.getOperatorTag() == LogicalOperatorTag.ASSIGN) {
+                        int j = -1;
+                        if (vars.size() > 0)
+                            for (LogicalVariable var : vars) {
+                                j++;
+                                if (((AssignOperator) op).getVariables().contains(var)) {
+                                    j = ((AssignOperator) op).getVariables().indexOf(var);
+                                    List<Mutable<ILogicalExpression>> expressions =
+                                            ((AssignOperator) op).getExpressions();
+
+                                    ILogicalOperator childOp = op;
+                                    while (childOp.getOperatorTag() != LogicalOperatorTag.DATASOURCESCAN) {
+                                        childOp = childOp.getInputs().get(0).getValue();
+                                    }
+                                    DataSourceScanOperator scan = (DataSourceScanOperator) childOp;
+                                    dataSource1 = (DatasetDataSource) scan.getDataSource();
+                                    ARecordType recordType = (ARecordType) dataSource1.getItemType();
+                                    ScalarFunctionCallExpression sfce =
+                                            (ScalarFunctionCallExpression) expressions.get(j).getValue();
+                                    ConstantExpression ce = (ConstantExpression) sfce.getArguments().get(1).getValue();
+                                    AsterixConstantValue cs = (AsterixConstantValue) ce.getValue();
+                                    int aint32 = ((AInt32) cs.getObject()).getIntegerValue();
+
+                                    IAType type = recordType.getFieldTypes()[aint32];
+                                    types[vars.indexOf(var)] = type;
+                                    ScalarFunctionCallExpression sfce1 =
+                                            (ScalarFunctionCallExpression) expressions.get(0).getValue();
+                                    varexpr = (VariableReferenceExpression) sfce1.getArguments().get(0).getValue();
+                                    recordTypeName = varexpr.getVariableReference().toString().substring(2);
+                                }
+                            }
+                    } else if (op.getOperatorTag() == LogicalOperatorTag.DATASOURCESCAN) {
+                        int j = -1;
+                        if (vars.size() > 0)
+                            for (LogicalVariable var : vars) {
+                                j++;
+                                int nestedvars = -1;
+                                for (LogicalVariable svar : ((DataSourceScanOperator) op).getVariables()) {
+                                    nestedvars++;
+                                    if (var == svar) {
+                                        DataSourceScanOperator scan = (DataSourceScanOperator) op;
+
+                                        IAType type = (IAType) scan.getDataSource().getSchemaTypes()[nestedvars];
+                                        if (type instanceof ARecordType) {
+                                            int vindex = vars.indexOf(var);
+                                            String name = fieldNames[vindex];
+                                            int tindex = ((ARecordType) ((DatasetDataSource) scan.getDataSource())
+                                                    .getItemType()).getFieldIndex(name);
+                                            types[j] = ((ARecordType) ((DatasetDataSource) scan.getDataSource())
+                                                    .getItemType()).getFieldTypes()[tindex];
+                                        } else {
+                                            types[j] = type;
+                                        }
+                                        DatasetDataSource datasource = (DatasetDataSource) scan.getDataSource();
+                                        if (dataSource1 == null) {
+                                            dataSource1 = datasource;
+                                            varexpr = new VariableReferenceExpression(
+                                                    scan.getVariables().get(scan.getVariables().size() - 1));
+                                            recordTypeName = varexpr.getVariableReference().toString().substring(2);
+                                        }
+                                        if (datasources.isEmpty()) {
+                                            datasources.add(scan.getVariables().get(scan.getVariables().size() - 1)
+                                                    .toString().substring(2));
+                                        }
+                                        for (String datasource1 : datasources) {
+                                            if (!datasource1.equals(scan.getVariables()
+                                                    .get(scan.getVariables().size() - 1).toString().substring(2))) {
+                                                datasources.add(scan.getVariables().get(scan.getVariables().size() - 1)
+                                                        .toString().substring(2));
+                                                break;
+                                            }
+                                        }
+                                    }
+
+                                }
+                            }
+                        DataSourceScanOperator scan = (DataSourceScanOperator) op;
+                        String shortcut =
+                                scan.getVariables().get(scan.getVariables().size() - 1).toString().substring(2);
+                        if (!datasources.contains(shortcut)) {
+                            datasources.add(shortcut);
+                        }
+                        if (dataSource1 == null) {
+                            dataSource1 = (DatasetDataSource) scan.getDataSource();
+                            varexpr = new VariableReferenceExpression(
+                                    scan.getVariables().get(scan.getVariables().size() - 1));
+                            recordTypeName = varexpr.getVariableReference().toString().substring(2);
+                        }
+
+                    } else if (op.getOperatorTag() == LogicalOperatorTag.UNNEST_MAP) {
+                        UnnestMapOperator map = (UnnestMapOperator) op;
+
+                        for (LogicalVariable svar : map.getVariables()) {
+                            if (vars.contains(svar)) {
+
+                                IAType type = (IAType) map.getVariableTypes().get(map.getVariables().indexOf(svar));
+                                types[vars.indexOf(svar)] = type;
+                            }
+                            if (map.getVariableTypes().get(map.getVariables().indexOf(svar)) instanceof ARecordType) {
+                                if (!union) {
+                                    datasources.add(svar.toString().substring(2));
+                                } else {
+                                    ARecordType ar =
+                                            (ARecordType) map.getVariableTypes().get(map.getVariables().indexOf(svar));
+                                    datasources.add(ar.getTypeName().substring(0, ar.getTypeName().length() - 4));
+                                }
+                            }
+                        }
+
+                    }
+                }
+                IScalarEvaluatorFactory[] args = new IScalarEvaluatorFactory[fieldNames.length * 2];
+                for (int j = 0; j < fieldNames.length * 2; j = j + 2) {
+                    IAObject field = new AString(fieldNames[j / 2]);
+                    AsterixConstantValue acv = new AsterixConstantValue(field);
+                    ConstantExpression ce = new ConstantExpression(acv);
+
+                    IScalarEvaluatorFactory copyEvaluatorFactory =
+                            metadataProvider.getDataFormat().getConstantEvalFactory(ce.getValue());
+
+                    args[j] = copyEvaluatorFactory;
+                    args[j + 1] = new ColumnAccessEvalFactory(j / 2);
+                }
+                ARecordType recType = new ARecordType(null, fieldNames, types, false);
+                queries++;
+
+                long cid = ((ClusterControllerService) metadataProvider.getApplicationContext().getServiceContext()
+                        .getControllerService()).getJobIdFactory().getId().get();
+                IAType newRecordType = new ARecordType(recordTypeName + String.valueOf(cid), fieldNames, types, false);
+                final MetadataTransactionContext writeTxn = MetadataManager.INSTANCE.beginTransaction();
+                metadataProvider.setMetadataTxnContext(writeTxn);
+                int statsSize = 10;
+                String statisticsFieldsHint = "";
+                for (String source : fieldNames) {
+                    statisticsFieldsHint += source + ",";
+                }
+                statisticsFieldsHint = statisticsFieldsHint.substring(0, statisticsFieldsHint.length() - 1);
+                newQuery = makeConnectionQuery(dataverse, varexpr, recordTypeName + String.valueOf(cid), dataSource1,
+                        newRecordType, metadataProvider, datasources, newQuery, statisticsFieldsHint, cid, cleanQuery);
+                OperatorDescriptorId id = null;
+                for (Entry<OperatorDescriptorId, IOperatorDescriptor> entry : jobSpec.getOperatorMap().entrySet()) {
+                    if (entry.getValue() instanceof IncrementalSinkOperatorDescriptor) {
+                        id = entry.getKey();
+                    }
+                }
+
+                List<IFieldExtractor> extractors =
+                        StatisticsUtil.computeStatisticsFieldExtractors(metadataProvider.getStorageComponentProvider(),
+                                recType, new ArrayList<>(), true, metadataProvider.getApplicationContext()
+                                        .getStatisticsProperties().isStatisticsOnPrimaryKeysEnabled(),
+                                statisticsFieldsHint.split(","));
+
+                StatisticsFactory statisticsFactory = new StatisticsFactory(SynopsisType.QuantileSketch, "newdata",
+                        recordTypeName + String.valueOf(cid), recordTypeName + String.valueOf(cid), extractors,
+                        statsSize, metadataProvider.getApplicationContext().getStatisticsProperties().getSketchFanout(),
+                        metadataProvider.getApplicationContext().getStatisticsProperties()
+                                .getSketchFailureProbability(),
+                        metadataProvider.getApplicationContext().getStatisticsProperties().getSketchAccuracy(),
+                        metadataProvider.getApplicationContext().getStatisticsProperties().getSketchEnergyAccuracy());
+                ((IncrementalSinkOperatorDescriptor) jobSpec.getOperatorMap().get(id)).setStats(statisticsFactory);
+                IStatisticsManagerProvider statisticsManagerProvider =
+                        metadataProvider.getStorageComponentProvider().getStatisticsManagerProvider();
+                ((IncrementalSinkOperatorDescriptor) jobSpec.getOperatorMap().get(id))
+                        .setManagerProvider(statisticsManagerProvider);
+                removeFromConnectors(0, jobSpec, jobSpec.getConnectorOperatorMap());
+            } else {
+                finished = true;
+                removeFromConnectors(0, jobSpec, jobSpec.getConnectorOperatorMap());
+            }
+
+            final IRequestTracker requestTracker = appCtx.getRequestTracker();
+            req = (ClientRequest) requestTracker.get(requestParameters.getRequestReference().getUuid());
+            try {
+                if (cancellable) {
+                    req.markCancellable();
+                }
+                final SchedulableClientRequest schedulableRequest =
+                        SchedulableClientRequest.of(req, requestParameters, metadataProvider, jobSpec);
+                appCtx.getReceptionist().ensureSchedulable(schedulableRequest);
+                final JobId jobId = JobUtils.runJob(hcc, jobSpec, jobFlags, false);
+                req.setJobId(jobId);
+                if (jId != null) {
+                    jId.setValue(jobId);
+                }
+                if (ResultDelivery.ASYNC == resultDelivery) {
+                    printer.print(jobId);
+                    hcc.waitForCompletion(jobId);
+                } else {
+                    hcc.waitForCompletion(jobId);
+                    ensureNotCancelled(req);
+                    if (finished) {
+                        printer.print(jobId);
+                    }
+                }
+            } catch (Exception e) {
+                if (ExceptionUtils.getRootCause(e) instanceof InterruptedException) {
+                    Thread.currentThread().interrupt();
+                    throw new RuntimeDataException(ErrorCode.REQUEST_CANCELLED, req.getId());
+                }
+                throw e;
+            } finally {
+                // complete async jobs after their job completes
+                if (ResultDelivery.ASYNC == resultDelivery) {
+                    requestTracker.complete(req.getId());
+                }
+                locker.unlock();
+            }
+        }
+    }
+
+    private void removeFromConnectors(int readers, JobSpecification jobSpec,
+            Map<ConnectorDescriptorId, org.apache.commons.lang3.tuple.Pair<org.apache.commons.lang3.tuple.Pair<IOperatorDescriptor, Integer>, org.apache.commons.lang3.tuple.Pair<IOperatorDescriptor, Integer>>> connectors) {
+        OperatorDescriptorId rid = null;
+        OperatorDescriptorId rid2 = null;
+        OperatorDescriptorId rid3 = null;
+        ConnectorDescriptorId cId = null;
+        ConnectorDescriptorId cId2 = null;
+        ConnectorDescriptorId cId3 = null;
+        for (Entry<ConnectorDescriptorId, org.apache.commons.lang3.tuple.Pair<org.apache.commons.lang3.tuple.Pair<IOperatorDescriptor, Integer>, org.apache.commons.lang3.tuple.Pair<IOperatorDescriptor, Integer>>> entry : connectors
+                .entrySet()) {
+            if (entry.getValue().getRight().getKey() instanceof ReaderJobOperatorDescriptor) {
+                readers++;
+                if (readers == 1) {
+                    rid = entry.getValue().getLeft().getKey().getOperatorId();
+                    cId = entry.getKey();
+                } else if (readers == 2) {
+                    rid2 = entry.getValue().getLeft().getKey().getOperatorId();
+                    cId2 = entry.getKey();
+                } else {
+                    rid3 = entry.getValue().getLeft().getKey().getOperatorId();
+                    cId3 = entry.getKey();
+                }
+
+            }
+        }
+        if (rid != null) {
+            jobSpec.getConnectorOperatorMap().remove(cId);
+            jobSpec.getConnectorMap().remove(cId);
+            jobSpec.getOperatorMap().remove(rid);
+            if (rid2 != null) {
+                jobSpec.getConnectorOperatorMap().remove(cId2);
+                jobSpec.getConnectorMap().remove(cId2);
+                jobSpec.getOperatorMap().remove(rid2);
+            }
+        }
+        if (rid3 != null) {
+            jobSpec.getConnectorOperatorMap().remove(cId3);
+            jobSpec.getConnectorMap().remove(cId3);
+            jobSpec.getOperatorMap().remove(rid3);
+        }
+    }
+
+    private Query makeConnectionQuery(DataverseName dataverse, VariableReferenceExpression varexpr,
+            String recordTypeName, DatasetDataSource dataSource, IAType newRecordType, MetadataProvider mp,
+            List<String> datasources, Query newQuery, String statisticsFieldHint, long cid, Query cleanQuery)
+            throws AlgebricksException, ACIDException, RemoteException {
+        VarIdentifier fromVarId = new VarIdentifier(varexpr.getVariableReference().toString().substring(1));
+        VariableExpr fromTermLeftExpr = new VariableExpr(fromVarId);
+        Map<String, String> hints = dataSource.getDataset().getHints();
+        hints.put("STATISTICS", statisticsFieldHint);
+        Dataset newSet = new Dataset(dataverse, recordTypeName, dataverse, recordTypeName, null, null,
+                "newdata." + recordTypeName, "prefix", dataSource.getDataset().getCompactionPolicyProperties(),
+                new InternalDatasetDetails(FileStructure.BTREE, PartitioningStrategy.HASH, new ArrayList<>(),
+                        new ArrayList<>(), new ArrayList<>(), new ArrayList<>(), false, new ArrayList<>()),
+                dataSource.getDataset().getHints(), DatasetType.READER, (int) /*1*/cid, 0, 0, "none");
+        List<Expression> exprList = addArgs(newSet.getDataverseName() + "." + newSet.getDatasetName());
+        CallExpr datasrouceCallFunction = new CallExpr(new FunctionSignature(BuiltinFunctions.DATASET), exprList);
+        FromTerm fromterm = new FromTerm(datasrouceCallFunction, fromTermLeftExpr, null, null);
+        Query oldQuery = null;
+        if (newQuery == null) {
+            if (cleanQuery != null) {
+                oldQuery = cleanQuery;
+            } else {
+                oldQuery = (Query) statements.get(statements.size() - 1);
+            }
+        } else {
+            oldQuery = newQuery;
+        }
+        Expression exp = oldQuery.getBody();
+        List<FromTerm> fromTermOld = null;
+        List<FromTerm> fromTermNew = new ArrayList<>();
+        SelectClause oldselect = null;
+        SelectClause newselect = null;
+        if (exp.getKind() == Kind.SELECT_EXPRESSION) {
+            SelectExpression select = (SelectExpression) exp;
+            oldselect = select.getSelectSetOperation().getLeftInput().getSelectBlock().getSelectClause();
+            newselect = oldselect;
+            FromClause fromold = select.getSelectSetOperation().getLeftInput().getSelectBlock().getFromClause();
+            fromTermOld = fromold.getFromTerms();
+        }
+
+        String newd = "";
+
+        for (FromTerm f : fromTermOld) {
+            int index = ((LiteralExpr) ((CallExpr) f.getLeftExpression()).getExprList().get(0)).getValue()
+                    .getStringValue().indexOf(".");
+            for (String d : datasources) {
+                if (((LiteralExpr) ((CallExpr) f.getLeftExpression()).getExprList().get(0)).getValue().getStringValue()
+                        .substring(index + 1).toLowerCase().equals(d.toLowerCase())) {
+                    newd = f.getLeftVariable().getVar().getValue().substring(1);
+
+                }
+            }
+        }
+        if (!newd.contentEquals("")) {
+            datasources.set(0, newd);
+        }
+
+        List<VariableExpr> oldselexps = new ArrayList<>();
+        for (int i = 0; i < oldselect.getSelectRegular().getProjections().size(); i++) {
+            oldselexps.add((VariableExpr) ((FieldAccessor) oldselect.getSelectRegular().getProjections().get(i)
+                    .getExpression()).getExpr());
+        }
+
+        List<Projection> newprojection = new ArrayList<>();
+        for (String datasource : datasources) {
+            int pindex = 0;
+            for (VariableExpr oldselexp : oldselexps) {
+                if (oldselexp.getVar().getValue().substring(1).equals(datasource)) {
+                    newprojection.add(new Projection(
+                            new FieldAccessor(fromTermLeftExpr,
+                                    ((FieldAccessor) oldselect.getSelectRegular().getProjections().get(pindex)
+                                            .getExpression()).getIdent()),
+                            oldselect.getSelectRegular().getProjections().get(pindex).getName(), false, false));
+                }
+                pindex++;
+            }
+        }
+        List<Projection> projections = new ArrayList<>();
+        if (!newprojection.isEmpty()) {
+            for (Projection projection : oldselect.getSelectRegular().getProjections()) {
+                for (Projection newproject : newprojection) {
+                    if (!newproject.getName().equals(projection.getName())) {
+                        projections.add(projection);
+                    }
+                }
+            }
+            for (Projection p : projections) {
+                newprojection.add(p);
+            }
+            newselect = new SelectClause(null, new SelectRegular(newprojection), false);
+        }
+        int j = 0;
+        for (FromTerm oldterm : fromTermOld) {
+            if ((!oldterm.getLeftVariable().toString().substring(1).equals(datasources.get(0))
+                    && datasources.size() == 1)
+                    || (!oldterm.getLeftVariable().toString().substring(1).equals(datasources.get(0))
+                            && !oldterm.getLeftVariable().toString().substring(1).equals(datasources.get(1)))) {
+                fromTermNew.add(oldterm);
+            } else {
+                j++;
+                if (j == 1) {
+                    fromTermNew.add(fromterm);
+                }
+            }
+        }
+        FromClause fromClause = new FromClause(fromTermNew);
+        Dataverse newDataverse = new Dataverse(dataverse, "", 0);
+        Datatype newDatatype = new Datatype(dataverse, recordTypeName, newRecordType, false);
+        final MetadataTransactionContext writeTxn = MetadataManager.INSTANCE.beginTransaction();
+        mp.setMetadataTxnContext(writeTxn);
+        if (MetadataManager.INSTANCE.getDataset(writeTxn, dataverse, newSet.getDatasetName()) != null) {
+            MetadataManager.INSTANCE.dropFromCache(writeTxn, newDataverse);
+            MetadataManager.INSTANCE.dropDataverse(writeTxn, newDataverse.getDataverseName());
+            MetadataManager.INSTANCE.dropNodegroup(writeTxn, newSet.getNodeGroupName(), true);
+        }
+        if (MetadataManager.INSTANCE.getDataverse(writeTxn, newDataverse.getDataverseName()) == null) {
+            MetadataManager.INSTANCE.addDataverse(writeTxn, newDataverse);
+        }
+        MetadataManager.INSTANCE.addDataset(writeTxn, newSet);
+        MetadataManager.INSTANCE.addDatatype(writeTxn, newDatatype);
+        if (MetadataManager.INSTANCE.getNodegroup(writeTxn, newSet.getNodeGroupName()) == null) {
+            MetadataManager.INSTANCE.addNodegroup(writeTxn,
+                    new NodeGroup(newSet.getNodeGroupName(), MetadataManager.INSTANCE
+                            .getNodegroup(mp.getMetadataTxnContext(), dataSource.getDataset().getNodeGroupName())
+                            .getNodeNames()));
+        }
+        if (exp.getKind() == Kind.SELECT_EXPRESSION) {
+            SelectExpression select = (SelectExpression) exp;
+            WhereClause whereClause = (WhereClause) select.getSelectSetOperation().getLeftInput().getSelectBlock()
+                    .getLetWhereList().get(0);
+            OperatorExpr whereExpr = (OperatorExpr) whereClause.getWhereExpr();
+            OperatorExpr newWhereExpr = new OperatorExpr();
+            for (Expression e : whereExpr.getExprList()) {
+                OperatorExpr oE = (OperatorExpr) e;
+                FieldAccessor fE1 = (FieldAccessor) oE.getExprList().get(0);
+                if (fE1.getExpr().toString().substring(1).equals(datasources.get(0)) || (datasources.size() > 1
+                        && fE1.getExpr().toString().substring(1).equals(datasources.get(1)))) {
+                    if (oE.getExprList().get(1).getKind() == Kind.FIELD_ACCESSOR_EXPRESSION) {
+                        FieldAccessor fE2 = (FieldAccessor) oE.getExprList().get(1);
+                        if (fE2.getExpr().toString().substring(1).equals(datasources.get(0)) || (datasources.size() > 1
+                                && fE2.getExpr().toString().substring(1).equals(datasources.get(1)))) {
+                            continue;
+                        }
+                    } else {
+                        continue;
+                    }
+                }
+                newWhereExpr.addOperand(e);
+            }
+            for (int i = 1; i < whereExpr.getOpList().size(); i++) {
+                newWhereExpr.addOperator(whereExpr.getOpList().get(i));
+            }
+            if (newWhereExpr.getExprList().size() == newWhereExpr.getOpList().size()) {
+                newWhereExpr.getOpList().remove(newWhereExpr.getOpList().size() - 1);
+            }
+            if (newWhereExpr.getOpList().size() == 0) {
+                OperatorExpr oE = (OperatorExpr) newWhereExpr.getExprList().get(0);
+                FieldAccessor fE1 = (FieldAccessor) oE.getExprList().get(0);
+                FieldAccessor fE2 = (FieldAccessor) oE.getExprList().get(1);
+                if (fE1.getExpr().toString().substring(1).equals(datasources.get(0))
+                        || fE1.getExpr().toString().substring(1).equals(datasources.get(1))) {
+                    fE1 = new FieldAccessor(fromTermLeftExpr, fE1.getIdent());
+                } else {
+                    fE2 = new FieldAccessor(fromTermLeftExpr, fE2.getIdent());
+                }
+
+                newWhereExpr.addOperator(oE.getOpList().get(0));
+                newWhereExpr.getExprList().add(fE2);
+                newWhereExpr.getExprList().set(0, fE1);
+            } else {
+                for (Expression e : newWhereExpr.getExprList()) {
+                    OperatorExpr oE = (OperatorExpr) e;
+                    FieldAccessor fE1 = (FieldAccessor) oE.getExprList().get(0);
+                    if (fE1.getExpr().toString().substring(1).equals(datasources.get(0)) || (datasources.size() > 1
+                            && fE1.getExpr().toString().substring(1).equals(datasources.get(1)))) {
+                        fE1 = new FieldAccessor(fromTermLeftExpr, fE1.getIdent());
+                        oE.getExprList().set(0, fE1);
+                    } else if (oE.getExprList().get(1).getKind() == Kind.FIELD_ACCESSOR_EXPRESSION
+                            && (((FieldAccessor) oE.getExprList().get(1)).getExpr().toString().substring(1)
+                                    .equals(datasources.get(0))
+                                    || (datasources.size() > 1 && ((FieldAccessor) oE.getExprList().get(1)).getExpr()
+                                            .toString().substring(1).equals(datasources.get(1))))) {
+                        FieldAccessor fE2 = new FieldAccessor(fromTermLeftExpr,
+                                ((FieldAccessor) oE.getExprList().get(1)).getIdent());
+                        oE.getExprList().set(1, fE2);
+                    } else {
+                        continue;
+                    }
+
+                }
+            }
+            int opSize = newWhereExpr.getExprList().size() - 1;
+            while (newWhereExpr.getOpList().size() > opSize) {
+                newWhereExpr.getOpList().remove(newWhereExpr.getOpList().size() - 1);
+            }
+
+            OrderbyClause order = null;
+            GroupbyClause group = null;
+            LimitClause limit = null;
+            if (fromClause.getFromTerms().size() == 3) {
+                List<Expression> orderList = combineClausesToQuery(newselect);
+                Query original = (Query) statements.get(statements.size() - 1);
+                if (((SelectExpression) original.getBody()).hasOrderby()) {
+                    order = new OrderbyClause(orderList,
+                            ((SelectExpression) original.getBody()).getOrderbyClause().getModifierList());
+                }
+                if (((SelectExpression) original.getBody()).getSelectSetOperation().getLeftInput().getSelectBlock()
+                        .hasGroupbyClause()) {
+                    List<GbyVariableExpressionPair> nestedgbylist = new ArrayList<>();
+                    List<List<GbyVariableExpressionPair>> gbylist = new ArrayList<>();
+                    for (Projection projection : newselect.getSelectRegular().getProjections()) {
+                        GbyVariableExpressionPair gby = new GbyVariableExpressionPair(
+                                new VariableExpr(new VarIdentifier("$" + projection.getName())),
+                                projection.getExpression());
+                        nestedgbylist.add(gby);
+                    }
+                    gbylist.add(nestedgbylist);
+                    List<Pair<Expression, Identifier>> groupfield = new ArrayList<>();
+                    for (FromTerm from : fromClause.getFromTerms()) {
+                        groupfield.add(new Pair(from.getLeftVariable(),
+                                new VarIdentifier(from.getLeftVariable().getVar().getValue().substring(1))));
+                    }
+                    group = new GroupbyClause(gbylist,
+                            ((SelectExpression) original.getBody()).getSelectSetOperation().getLeftInput()
+                                    .getSelectBlock().getGroupbyClause().getDecorPairList(),
+                            ((SelectExpression) original.getBody()).getSelectSetOperation().getLeftInput()
+                                    .getSelectBlock().getGroupbyClause().getWithVarMap(),
+                            ((SelectExpression) original.getBody()).getSelectSetOperation().getLeftInput()
+                                    .getSelectBlock().getGroupbyClause().getGroupVar(),
+                            groupfield,
+                            ((SelectExpression) original.getBody()).getSelectSetOperation().getLeftInput()
+                                    .getSelectBlock().getGroupbyClause().hasHashGroupByHint(),
+                            ((SelectExpression) original.getBody()).getSelectSetOperation().getLeftInput()
+                                    .getSelectBlock().getGroupbyClause().isGroupAll());
+                }
+                if (((SelectExpression) original.getBody()).hasLimit()) {
+                    limit = ((SelectExpression) original.getBody()).getLimitClause();
+                }
+
+            }
+            WhereClause newwhere = new WhereClause(newWhereExpr);
+            List<AbstractClause> list = new ArrayList<>();
+            list.add(newwhere);
+            SelectBlock selectBlock = new SelectBlock(newselect, fromClause, list, group, null);
+            SelectSetOperation selectSetOperation =
+                    new SelectSetOperation(new SetOperationInput(selectBlock, null), null);
+            SelectExpression body = new SelectExpression(null, selectSetOperation, order, limit, true);
+            newQuery = new Query(false, true, body, 0);
+        }
+        return newQuery;
+    }
+
+    private List<Expression> combineClausesToQuery(SelectClause selectClause) {
+        List<Expression> res = new ArrayList<>();
+        Query original = (Query) statements.get(statements.size() - 1);
+        if (((SelectExpression) original.getBody()).hasOrderby()) {
+            SelectSetOperation sop = ((SelectExpression) original.getBody()).getSelectSetOperation();
+            List<Projection> proj =
+                    sop.getLeftInput().getSelectBlock().getSelectClause().getSelectRegular().getProjections();
+            List<String> names = new ArrayList<>();
+            for (Projection pr : proj) {
+                names.add(pr.getName());
+            }
+            List<Projection> newproj = selectClause.getSelectRegular().getProjections();
+            List<String> newnames = new ArrayList<>();
+            for (Projection pr : newproj) {
+                newnames.add(pr.getName());
+            }
+            int i = 0;
+            for (String name : newnames) {
+                if (!names.contains(name)) {
+                    res.add(newproj.get(i).getExpression());
+                    newproj.remove(i);
+
+                }
+                i++;
+            }
+            List<Identifier> idents = new ArrayList<>();
+
+            for (Expression e : ((SelectExpression) original.getBody()).getOrderbyClause().getOrderbyList()) {
+                FieldAccessor fa = (FieldAccessor) e;
+                idents.add(fa.getIdent());
+            }
+
+            for (Projection p : newproj) {
+                if (idents.contains(((FieldAccessor) p.getExpression()).getIdent())) {
+                    res.add(p.getExpression());
+                }
+            }
+
+        }
+        return res;
     }
 
     protected void handleCreateNodeGroupStatement(MetadataProvider metadataProvider, Statement stmt) throws Exception {
@@ -3519,7 +4348,8 @@ public class QueryTranslator extends AbstractLangTranslator implements IStatemen
     /**
      * Ensures that the external source container is present
      *
-     * @param configuration external source properties
+     * @param configuration
+     *            external source properties
      */
     protected void validateAdapterSpecificProperties(Map<String, String> configuration, SourceLocation srcLoc)
             throws CompilationException {

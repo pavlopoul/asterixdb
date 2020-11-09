@@ -136,10 +136,10 @@ public class JoinUtils {
                 context.getPhysicalOptimizationConfig().getMaxFramesForJoinLeftInput(),
                 context.getPhysicalOptimizationConfig().getMaxRecordsPerFrame(),
                 context.getPhysicalOptimizationConfig().getFudgeFactor()));
-        if (partitioningType == JoinPartitioningType.BROADCAST) {
-            //hybridToInMemHashJoin(op, context);
-            inMemHashJoin(op, 75000);
-        }
+        //        if (partitioningType == JoinPartitioningType.BROADCAST) {
+        //            //hybridToInMemHashJoin(op, context);
+        //            inMemHashJoin(op, 75000);
+        //        }
     }
 
     public static boolean hybridToInMemHashJoin(AbstractBinaryJoinOperator op, IOptimizationContext context)

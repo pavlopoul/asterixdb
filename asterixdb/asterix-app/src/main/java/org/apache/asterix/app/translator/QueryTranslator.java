@@ -1104,8 +1104,9 @@ public class QueryTranslator extends AbstractLangTranslator implements IStatemen
                     overridesFieldTypes = true;
                 }
                 if (fieldType == null) {
-                    throw new CompilationException(ErrorCode.UNKNOWN_TYPE, sourceLoc, fieldExpr.second == null
-                            ? String.valueOf(fieldExpr.first) : String.valueOf(fieldExpr.second));
+                    throw new CompilationException(ErrorCode.UNKNOWN_TYPE, sourceLoc,
+                            fieldExpr.second == null ? String.valueOf(fieldExpr.first)
+                                    : String.valueOf(fieldExpr.second));
                 }
 
                 // try to add the key & its source to the set of keys, if key couldn't be added,
@@ -3529,11 +3530,11 @@ public class QueryTranslator extends AbstractLangTranslator implements IStatemen
                     }
                 }
 
-                List<IFieldExtractor> extractors = StatisticsUtil.computeStatisticsFieldExtractors(
-                        metadataProvider.getStorageComponentProvider(),
-                        recType, new ArrayList<>(), true, metadataProvider.getApplicationContext()
-                                .getStatisticsProperties().isStatisticsOnPrimaryKeysEnabled(),
-                        statisticsFieldsHint.split(","));
+                List<IFieldExtractor> extractors =
+                        StatisticsUtil.computeStatisticsFieldExtractors(metadataProvider.getStorageComponentProvider(),
+                                recType, new ArrayList<>(), true, metadataProvider.getApplicationContext()
+                                        .getStatisticsProperties().isStatisticsOnPrimaryKeysEnabled(),
+                                statisticsFieldsHint.split(","));
 
                 StatisticsFactory statisticsFactory = new StatisticsFactory(SynopsisType.QuantileSketch, "newdata",
                         recordTypeName + String.valueOf(cid), recordTypeName + String.valueOf(cid), extractors,
@@ -3575,6 +3576,7 @@ public class QueryTranslator extends AbstractLangTranslator implements IStatemen
                     ensureNotCancelled(req);
                     if (finished) {
                         printer.print(jobId);
+                        locker.unlock();
                     }
                 }
             } catch (Exception e) {
@@ -3588,7 +3590,6 @@ public class QueryTranslator extends AbstractLangTranslator implements IStatemen
                 if (ResultDelivery.ASYNC == resultDelivery) {
                     requestTracker.complete(req.getId());
                 }
-                locker.unlock();
             }
         }
     }
@@ -3648,7 +3649,7 @@ public class QueryTranslator extends AbstractLangTranslator implements IStatemen
                 new InternalDatasetDetails(FileStructure.BTREE, PartitioningStrategy.HASH, new ArrayList<>(),
                         new ArrayList<>(), new ArrayList<>(), new ArrayList<>(), false, new ArrayList<>()),
                 dataSource.getDataset().getHints(), DatasetType.READER, (int) /*1*/cid, 0, 0, "none");
-        List<Expression> exprList = addArgs(newSet.getDataverseName() + "." + newSet.getDatasetName());
+        List<Expression> exprList = addArgs(newSet.getDataverseName().getCanonicalForm(), newSet.getDatasetName());
         CallExpr datasrouceCallFunction = new CallExpr(new FunctionSignature(BuiltinFunctions.DATASET), exprList);
         FromTerm fromterm = new FromTerm(datasrouceCallFunction, fromTermLeftExpr, null, null);
         Query oldQuery = null;
@@ -3677,11 +3678,9 @@ public class QueryTranslator extends AbstractLangTranslator implements IStatemen
         String newd = "";
 
         for (FromTerm f : fromTermOld) {
-            int index = ((LiteralExpr) ((CallExpr) f.getLeftExpression()).getExprList().get(0)).getValue()
-                    .getStringValue().indexOf(".");
             for (String d : datasources) {
-                if (((LiteralExpr) ((CallExpr) f.getLeftExpression()).getExprList().get(0)).getValue().getStringValue()
-                        .substring(index + 1).toLowerCase().equals(d.toLowerCase())) {
+                if (((LiteralExpr) ((CallExpr) f.getLeftExpression()).getExprList().get(1)).getValue().getStringValue()
+                        .toLowerCase().equals(d.toLowerCase())) {
                     newd = f.getLeftVariable().getVar().getValue().substring(1);
 
                 }

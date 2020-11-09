@@ -43,6 +43,7 @@ public class SynopsisElementFactory {
             int elementsNum) throws HyracksDataException {
         Collection<? extends ISynopsisElement> elements;
         switch (type) {
+            case ContinuousHistogram:
             case QuantileSketch:
                 elements = new ArrayList<>(elementsNum);
                 break;
